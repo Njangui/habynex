@@ -24,7 +24,7 @@ const defaultTestimonials = [
     role: "Locataire à Douala",
     avatar: "",
     rating: 5,
-    content: "Grâce à Habinex, j'ai trouvé mon appartement idéal en seulement 3 jours ! L'assistant IA a parfaitement compris mes besoins et m'a proposé des biens correspondant exactement à mes critères.",
+    content: "Grâce à Habynex, j'ai trouvé mon appartement idéal en seulement 3 jours ! L'assistant IA a parfaitement compris mes besoins et m'a proposé des biens correspondant exactement à mes critères.",
     likes_count: 24,
   },
   {
@@ -33,7 +33,7 @@ const defaultTestimonials = [
     role: "Propriétaire à Yaoundé",
     avatar: "",
     rating: 5,
-    content: "En tant que propriétaire, Habinex m'a permis de louer mon bien rapidement. La plateforme est intuitive et les locataires sont sérieux. Je recommande vivement !",
+    content: "En tant que propriétaire, Habynex m'a permis de louer mon bien rapidement. La plateforme est intuitive et les locataires sont sérieux. Je recommande vivement !",
     likes_count: 18,
   },
   {
@@ -42,7 +42,7 @@ const defaultTestimonials = [
     role: "Étudiante à Dakar",
     avatar: "",
     rating: 5,
-    content: "La fonctionnalité de colocation est géniale ! J'ai pu trouver des colocataires compatibles et un logement abordable près de mon université. Merci Habinex !",
+    content: "La fonctionnalité de colocation est géniale ! J'ai pu trouver des colocataires compatibles et un logement abordable près de mon université. Merci Habynex !",
     likes_count: 32,
   },
   {
@@ -51,7 +51,7 @@ const defaultTestimonials = [
     role: "Entrepreneur à Lagos",
     avatar: "",
     rating: 5,
-    content: "Habinex a révolutionné ma recherche immobilière. L'IA comprend vraiment ce que je cherche et me fait gagner un temps précieux. Service exceptionnel !",
+    content: "Habynex a révolutionné ma recherche immobilière. L'IA comprend vraiment ce que je cherche et me fait gagner un temps précieux. Service exceptionnel !",
     likes_count: 15,
   },
 ];

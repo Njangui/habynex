@@ -25,7 +25,7 @@ import { usePropertyAI } from "@/hooks/usePropertyAI";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
-import logo from "@/assets/habinex-logo.jpeg";
+import logo from "@/assets/Habynex-logo.jpeg";
 import ChatPropertyCard from "@/components/ChatPropertyCard";
 
 const Assistant = () => {
@@ -151,8 +151,8 @@ const Assistant = () => {
             <div className="p-4 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <img src={logo} alt="Habinex" className="w-8 h-8 rounded-lg object-contain" />
-                  <span className="font-semibold text-foreground">Habinex</span>
+                  <img src={logo} alt="Habynex" className="w-8 h-8 rounded-lg object-contain" />
+                  <span className="font-semibold text-foreground">Habynex</span>
                 </div>
                 <Button
                   variant="ghost"
@@ -290,7 +290,7 @@ const Assistant = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center max-w-2xl mx-auto"
                 >
-                  <img src={logo} alt="Habinex" className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg" />
+                  <img src={logo} alt="Habynex" className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg" />
                   
                   <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
                     {t("assistant.howCanIHelp")}
@@ -367,7 +367,7 @@ const Assistant = () => {
                             {msg.role === "user" ? (
                               <User className="w-4 h-4 text-primary" />
                             ) : (
-                              <img src={logo} alt="Habinex" className="w-full h-full object-contain" />
+                              <img src={logo} alt="Habynex" className="w-full h-full object-contain" />
                             )}
                           </div>
 
@@ -460,7 +460,7 @@ const Assistant = () => {
                     >
                       <div className="flex items-start gap-4">
                         <div className="shrink-0 w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
-                          <img src={logo} alt="Habinex" className="w-full h-full object-contain animate-pulse" />
+                          <img src={logo} alt="Habynex" className="w-full h-full object-contain animate-pulse" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">

@@ -224,8 +224,8 @@ const IdentityVerification = () => {
       <Helmet>
         <title>
           {language === "fr"
-            ? "Vérification d'identité | Habinex"
-            : "Identity Verification | Habinex"}
+            ? "Vérification d'identité | Habynex"
+            : "Identity Verification | Habynex"}
         </title>
         <meta name="robots" content="noindex" />
       </Helmet>

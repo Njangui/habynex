@@ -1,4 +1,4 @@
-// Email Templates for Habinex
+// Email Templates for Habynex
 // These templates are designed for use with Resend and can be activated in the future
 
 export type EmailType = 

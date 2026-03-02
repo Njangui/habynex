@@ -71,23 +71,23 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>Habinex - Trouvez votre logement idéal en Afrique | Plateforme immobilière intelligente</title>
+        <title>Habynex - Trouvez votre logement idéal en Afrique | Plateforme immobilière intelligente</title>
         <meta 
           name="description" 
-          content="Habinex est la plateforme immobilière intelligente pour trouver votre logement en Afrique. Location, colocation, vente - notre IA vous aide à trouver le bien parfait." 
+          content="Habynex est la plateforme immobilière intelligente pour trouver votre logement en Afrique. Location, colocation, vente - notre IA vous aide à trouver le bien parfait." 
         />
-        <meta name="keywords" content="immobilier, location, appartement, maison, Cameroun, Yaoundé, Douala, logement, colocation, IA, Habinex" />
-        <link rel="canonical" href="https://habinex.com" />
+        <meta name="keywords" content="immobilier, location, appartement, maison, Cameroun, Yaoundé, Douala, logement, colocation, IA, Habynex" />
+        <link rel="canonical" href="https://Habynex.com" />
         
         {/* Open Graph */}
-        <meta property="og:title" content="Habinex - Plateforme immobilière intelligente en Afrique" />
+        <meta property="og:title" content="Habynex - Plateforme immobilière intelligente en Afrique" />
         <meta property="og:description" content="Trouvez votre logement idéal grâce à notre IA. Location, colocation, vente - des milliers d'annonces vérifiées." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://habinex.com" />
+        <meta property="og:url" content="https://Habynex.com" />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Habinex - Plateforme immobilière intelligente" />
+        <meta name="twitter:title" content="Habynex - Plateforme immobilière intelligente" />
         <meta name="twitter:description" content="Trouvez votre logement idéal grâce à notre IA." />
       </Helmet>
 

@@ -146,7 +146,7 @@ const Messages = () => {
   return (
     <>
       <Helmet>
-        <title>{t("messages.title")} | Habinex</title>
+        <title>{t("messages.title")} | Habynex</title>
         <meta name="description" content={language === "fr" 
           ? "Consultez vos conversations avec les propriétaires et locataires" 
           : "View your conversations with owners and tenants"
@@ -312,7 +312,7 @@ const Messages = () => {
                         </div>
                         
                         <h2 className="text-3xl font-light text-[#e9edef] mb-3">
-                          Habinex {language === "fr" ? "pour Desktop" : "for Desktop"}
+                          Habynex {language === "fr" ? "pour Desktop" : "for Desktop"}
                         </h2>
                         <p className="text-[#8696a0] text-sm leading-relaxed">
                           {language === "fr" 

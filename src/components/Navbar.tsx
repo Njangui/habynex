@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import logo from "@/assets/habinex-logo.jpeg";
+import logo from "@/assets/Habynex-logo.jpeg";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -119,7 +119,7 @@ const Navbar = () => {
           whileTap={{ scale: 0.98 }}
         >
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 p-1.5 shadow-sm border border-primary/20">
-            <img src={logo} alt="Habinex" className="w-full h-full rounded-lg object-contain" />
+            <img src={logo} alt="Habynex" className="w-full h-full rounded-lg object-contain" />
           </div>
           <span className="text-2xl font-bold hidden sm:block">
             <span className="text-primary">H</span>

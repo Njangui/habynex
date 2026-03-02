@@ -159,7 +159,7 @@ const translations: Translations = {
   "createListing.success": { fr: "Annonce publiée avec succès !", en: "Listing published successfully!" },
   
   // Onboarding
-  "onboarding.welcome": { fr: "Bienvenue sur Habinex", en: "Welcome to Habinex" },
+  "onboarding.welcome": { fr: "Bienvenue sur Habynex", en: "Welcome to Habynex" },
   "onboarding.profileType": { fr: "Quel est votre profil ?", en: "What is your profile?" },
   "onboarding.seeker": { fr: "Je cherche un logement", en: "I'm looking for a home" },
   "onboarding.seekerDesc": { fr: "Locataire ou acheteur", en: "Tenant or buyer" },
@@ -418,11 +418,11 @@ const translations: Translations = {
   // Testimonials
   "testimonials.badge": { fr: "Témoignages", en: "Testimonials" },
   "testimonials.title": { fr: "Ce que nos utilisateurs disent", en: "What our users say" },
-  "testimonials.subtitle": { fr: "Des milliers de personnes ont trouvé leur logement idéal grâce à Habinex", en: "Thousands of people found their ideal home thanks to Habinex" },
+  "testimonials.subtitle": { fr: "Des milliers de personnes ont trouvé leur logement idéal grâce à Habynex", en: "Thousands of people found their ideal home thanks to Habynex" },
   "testimonials.viewAll": { fr: "Voir tous les témoignages", en: "View all testimonials" },
   "testimonials.user": { fr: "Utilisateur", en: "User" },
   "testimonials.userAt": { fr: "Utilisateur à", en: "User at" },
-  "testimonials.userImmoIA": { fr: "Utilisateur Habinex", en: "Habinex User" },
+  "testimonials.userImmoIA": { fr: "Utilisateur Habynex", en: "Habynex User" },
 
   // Property Card
   "card.verified": { fr: "Vérifié", en: "Verified" },
@@ -515,14 +515,14 @@ const translations: Translations = {
   
   // Testimonials Page
   "testimonialsPage.title": { fr: "Témoignages", en: "Testimonials" },
-  "testimonialsPage.metaTitle": { fr: "Témoignages | Habinex - Avis de nos utilisateurs", en: "Testimonials | Habinex - User Reviews" },
-  "testimonialsPage.metaDesc": { fr: "Découvrez les témoignages de nos utilisateurs. Partagez votre expérience avec Habinex.", en: "Discover testimonials from our users. Share your experience with Habinex." },
+  "testimonialsPage.metaTitle": { fr: "Témoignages | Habynex - Avis de nos utilisateurs", en: "Testimonials | Habynex - User Reviews" },
+  "testimonialsPage.metaDesc": { fr: "Découvrez les témoignages de nos utilisateurs. Partagez votre expérience avec Habynex.", en: "Discover testimonials from our users. Share your experience with Habynex." },
   "testimonialsPage.headerTitle": { fr: "Ce que disent nos utilisateurs", en: "What our users say" },
   "testimonialsPage.headerSubtitle": { fr: "Partagez votre expérience et découvrez les avis de notre communauté", en: "Share your experience and discover reviews from our community" },
   "testimonialsPage.shareExperience": { fr: "Partagez votre expérience", en: "Share your experience" },
   "testimonialsPage.yourRating": { fr: "Votre note", en: "Your rating" },
   "testimonialsPage.yourTestimonial": { fr: "Votre témoignage", en: "Your testimonial" },
-  "testimonialsPage.placeholder": { fr: "Partagez votre expérience avec Habinex...", en: "Share your experience with Habinex..." },
+  "testimonialsPage.placeholder": { fr: "Partagez votre expérience avec Habynex...", en: "Share your experience with Habynex..." },
   "testimonialsPage.submit": { fr: "Envoyer", en: "Submit" },
   "testimonialsPage.submitting": { fr: "Envoi...", en: "Submitting..." },
   "testimonialsPage.approvalNotice": { fr: "Votre témoignage sera visible après approbation", en: "Your testimonial will be visible after approval" },
@@ -532,7 +532,7 @@ const translations: Translations = {
   "testimonialsPage.pending": { fr: "En attente", en: "Pending" },
   "testimonialsPage.noTestimonials": { fr: "Aucun témoignage pour le moment. Soyez le premier à partager votre expérience !", en: "No testimonials yet. Be the first to share your experience!" },
   "testimonialsPage.userAt": { fr: "Utilisateur à", en: "User at" },
-  "testimonialsPage.immoiaUser": { fr: "Utilisateur Habinex", en: "Habinex User" },
+  "testimonialsPage.immoiaUser": { fr: "Utilisateur Habynex", en: "Habynex User" },
   "testimonialsPage.loginRequired": { fr: "Vous devez être connecté pour laisser un témoignage", en: "You must be logged in to leave a testimonial" },
   "testimonialsPage.writeTestimonial": { fr: "Veuillez écrire votre témoignage", en: "Please write your testimonial" },
   "testimonialsPage.success": { fr: "Témoignage envoyé ! Il sera visible après approbation.", en: "Testimonial submitted! It will be visible after approval." },
@@ -541,7 +541,7 @@ const translations: Translations = {
   "testimonialsPage.loginToLike": { fr: "Vous devez être connecté pour liker", en: "You must be logged in to like" },
   
   // Assistant Page
-  "assistant.title": { fr: "Assistant IA Immobilier | Habinex", en: "Real Estate AI Assistant | Habinex" },
+  "assistant.title": { fr: "Assistant IA Immobilier | Habynex", en: "Real Estate AI Assistant | Habynex" },
   "assistant.metaDesc": { fr: "Trouvez votre logement idéal avec notre assistant IA. Décrivez vos critères en langage naturel et recevez des recommandations personnalisées.", en: "Find your ideal home with our AI assistant. Describe your criteria in natural language and receive personalized recommendations." },
   "assistant.newConversation": { fr: "Nouvelle conversation", en: "New conversation" },
   "assistant.noConversations": { fr: "Aucune conversation", en: "No conversations" },
@@ -552,7 +552,7 @@ const translations: Translations = {
   "assistant.describeHome": { fr: "Décrivez le logement de vos rêves et je vous propose les meilleures options au Cameroun.", en: "Describe your dream home and I'll suggest the best options in Cameroon." },
   "assistant.loginPrompt": { fr: "pour accéder à l'assistant IA et sauvegarder vos conversations.", en: "to access the AI assistant and save your conversations." },
   "assistant.you": { fr: "Vous", en: "You" },
-  "assistant.assistantName": { fr: "Habinex", en: "Habinex" },
+  "assistant.assistantName": { fr: "Habynex", en: "Habynex" },
   "assistant.propertiesFound": { fr: "propriété(s) trouvée(s)", en: "property(ies) found" },
   "assistant.copied": { fr: "Copié dans le presse-papiers", en: "Copied to clipboard" },
   "assistant.thinking": { fr: "Recherche en cours...", en: "Searching..." },
@@ -569,7 +569,7 @@ const translations: Translations = {
   "assistant.suggestion4Prompt": { fr: "Villa avec piscine et jardin à Bastos pour une famille", en: "Villa with pool and garden in Bastos for a family" },
   
   // Seeker Dashboard
-  "seekerDashboard.title": { fr: "Mon espace | Habinex", en: "My space | Habinex" },
+  "seekerDashboard.title": { fr: "Mon espace | Habynex", en: "My space | Habynex" },
   "seekerDashboard.metaDesc": { fr: "Gérez vos recherches et favoris immobiliers", en: "Manage your property searches and favorites" },
   "seekerDashboard.hello": { fr: "Bonjour", en: "Hello" },
   "seekerDashboard.findSearches": { fr: "Retrouvez vos recherches et favoris", en: "Find your searches and favorites" },

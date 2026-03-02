@@ -11,7 +11,7 @@ const Terms = () => {
   return (
     <>
       <Helmet>
-        <title>{language === "fr" ? "Conditions Générales d'Utilisation - Habinex" : "Terms of Service - Habinex"}</title>
+        <title>{language === "fr" ? "Conditions Générales d'Utilisation - Habynex" : "Terms of Service - Habynex"}</title>
       </Helmet>
 
       <div className="min-h-screen bg-background">
@@ -34,7 +34,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">1. Objet</h2>
                   <p className="text-muted-foreground">
-                    Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de la plateforme Habinex (ci-après « la Plateforme »), accessible via l'application web et mobile. Habinex est une plateforme immobilière intelligente qui met en relation des chercheurs de logement, des propriétaires, des agents immobiliers et des agences en Afrique.
+                    Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de la plateforme Habynex (ci-après « la Plateforme »), accessible via l'application web et mobile. Habynex est une plateforme immobilière intelligente qui met en relation des chercheurs de logement, des propriétaires, des agents immobiliers et des agences en Afrique.
                   </p>
                 </section>
 
@@ -81,7 +81,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">5. Système de Confiance et Réputation</h2>
                   <p className="text-muted-foreground">
-                    Habinex utilise un système de score de confiance basé sur :
+                    Habynex utilise un système de score de confiance basé sur :
                   </p>
                   <ul className="text-muted-foreground list-disc pl-6 space-y-1">
                     <li>La vérification d'identité (niveaux 1 à 4).</li>
@@ -134,7 +134,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">9. Protection des Données Personnelles</h2>
                   <p className="text-muted-foreground">
-                    Habinex s'engage à protéger les données personnelles de ses utilisateurs conformément aux lois applicables. Les données collectées incluent :
+                    Habynex s'engage à protéger les données personnelles de ses utilisateurs conformément aux lois applicables. Les données collectées incluent :
                   </p>
                   <ul className="text-muted-foreground list-disc pl-6 space-y-1">
                     <li>Informations d'identification (nom, email, téléphone).</li>
@@ -149,7 +149,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">10. Modération et Sanctions</h2>
                   <p className="text-muted-foreground">
-                    Habinex se réserve le droit de :
+                    Habynex se réserve le droit de :
                   </p>
                   <ul className="text-muted-foreground list-disc pl-6 space-y-1">
                     <li>Supprimer tout contenu non conforme aux présentes CGU.</li>
@@ -164,7 +164,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">11. Limitation de Responsabilité</h2>
                   <p className="text-muted-foreground">
-                    Habinex agit en tant qu'intermédiaire et ne peut être tenu responsable :
+                    Habynex agit en tant qu'intermédiaire et ne peut être tenu responsable :
                   </p>
                   <ul className="text-muted-foreground list-disc pl-6 space-y-1">
                     <li>De la qualité ou de l'état des biens publiés par les utilisateurs.</li>
@@ -177,14 +177,14 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">12. Propriété Intellectuelle</h2>
                   <p className="text-muted-foreground">
-                    L'ensemble des éléments de la Plateforme (logo, design, code, contenu éditorial) est protégé par le droit de la propriété intellectuelle. Toute reproduction sans autorisation est interdite. Les contenus publiés par les utilisateurs restent leur propriété mais font l'objet d'une licence d'utilisation non exclusive au profit de Habinex.
+                    L'ensemble des éléments de la Plateforme (logo, design, code, contenu éditorial) est protégé par le droit de la propriété intellectuelle. Toute reproduction sans autorisation est interdite. Les contenus publiés par les utilisateurs restent leur propriété mais font l'objet d'une licence d'utilisation non exclusive au profit de Habynex.
                   </p>
                 </section>
 
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">13. Modification des CGU</h2>
                   <p className="text-muted-foreground">
-                    Habinex se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés de toute modification substantielle. La poursuite de l'utilisation de la Plateforme après modification vaut acceptation des nouvelles conditions.
+                    Habynex se réserve le droit de modifier les présentes CGU à tout moment. Les utilisateurs seront informés de toute modification substantielle. La poursuite de l'utilisation de la Plateforme après modification vaut acceptation des nouvelles conditions.
                   </p>
                 </section>
 
@@ -198,7 +198,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">15. Contact</h2>
                   <p className="text-muted-foreground">
-                    Pour toute question relative aux présentes CGU, contactez-nous à : <strong>support@habinex.com</strong>
+                    Pour toute question relative aux présentes CGU, contactez-nous à : <strong>support@Habynex.com</strong>
                   </p>
                 </section>
               </>
@@ -207,7 +207,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">1. Purpose</h2>
                   <p className="text-muted-foreground">
-                    These Terms of Service (hereinafter "ToS") govern access to and use of the Habinex platform (hereinafter "the Platform"), accessible via web and mobile applications. Habinex is an intelligent real estate platform connecting home seekers, property owners, real estate agents, and agencies in Africa.
+                    These Terms of Service (hereinafter "ToS") govern access to and use of the Habynex platform (hereinafter "the Platform"), accessible via web and mobile applications. Habynex is an intelligent real estate platform connecting home seekers, property owners, real estate agents, and agencies in Africa.
                   </p>
                 </section>
 
@@ -254,7 +254,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">5. Trust and Reputation System</h2>
                   <p className="text-muted-foreground">
-                    Habinex uses a trust score system based on identity verification levels, user reviews, response rates, and transaction history. Any abuse of the rating system is strictly prohibited and sanctioned.
+                    Habynex uses a trust score system based on identity verification levels, user reviews, response rates, and transaction history. Any abuse of the rating system is strictly prohibited and sanctioned.
                   </p>
                 </section>
 
@@ -275,21 +275,21 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">8. Data Protection</h2>
                   <p className="text-muted-foreground">
-                    Habinex is committed to protecting users' personal data in accordance with applicable laws. Data is never sold to third parties. Users may request deletion of their data at any time.
+                    Habynex is committed to protecting users' personal data in accordance with applicable laws. Data is never sold to third parties. Users may request deletion of their data at any time.
                   </p>
                 </section>
 
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">9. Moderation and Sanctions</h2>
                   <p className="text-muted-foreground">
-                    Habinex reserves the right to remove non-compliant content, suspend accounts, and report illegal behavior to authorities. Sanctions include: fake listings, identity theft, harassment, fraud, and review manipulation.
+                    Habynex reserves the right to remove non-compliant content, suspend accounts, and report illegal behavior to authorities. Sanctions include: fake listings, identity theft, harassment, fraud, and review manipulation.
                   </p>
                 </section>
 
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">10. Limitation of Liability</h2>
                   <p className="text-muted-foreground">
-                    Habinex acts as an intermediary and cannot be held responsible for property quality, user disputes, information accuracy, or temporary service interruptions.
+                    Habynex acts as an intermediary and cannot be held responsible for property quality, user disputes, information accuracy, or temporary service interruptions.
                   </p>
                 </section>
 
@@ -303,7 +303,7 @@ const Terms = () => {
                 <section className="mb-8">
                   <h2 className="text-xl font-semibold text-foreground">12. Contact</h2>
                   <p className="text-muted-foreground">
-                    For any questions regarding these ToS, contact us at: <strong>support@habinex.com</strong>
+                    For any questions regarding these ToS, contact us at: <strong>support@Habynex.com</strong>
                   </p>
                 </section>
               </>

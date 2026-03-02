@@ -11,7 +11,7 @@ import { Home, Mail, Lock, User, Phone, Eye, EyeOff, ArrowLeft, Loader2, Message
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import yaoundeCityscape from "@/assets/yaounde-cityscape.jpg";
-import logo from "@/assets/habinex-logo.jpeg";
+import logo from "@/assets/Habynex-logo.jpeg";
 
 // Validation schemas
 const emailSchema = z.string().email("Adresse email invalide");

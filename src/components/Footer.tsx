@@ -1,6 +1,6 @@
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Music2, Youtube } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import logo from "@/assets/habinex-logo.jpeg";
+import logo from "@/assets/Habynex-logo.jpeg";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
