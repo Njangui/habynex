@@ -33,7 +33,7 @@ const Footer = () => {
   };
 
   const socialLinks = [
-    { icon: Facebook, href: "#", label: "Facebook" },
+    { icon: Facebook, href: "https://www.facebook.com/share/1C7F5LKYxy/", label: "Facebook" },
     { icon: Twitter, href: "#", label: "Twitter" },
     { icon: Instagram, href: "#", label: "Instagram" },
     { icon: Linkedin, href: "#", label: "LinkedIn" },
@@ -57,13 +57,13 @@ const Footer = () => {
             
             {/* Contact Info */}
             <div className="space-y-3">
-              <a href="mailto:contact@habynex.cm" className="flex items-center gap-2 text-background/70 hover:text-background transition-colors">
+              <a href="mailto:contact.habynex@gmail.com" className="flex items-center gap-2 text-background/70 hover:text-background transition-colors">
                 <Mail className="w-4 h-4" />
-                contact@habynex.cm
+                contact.habynex@gmail.com
               </a>
-              <a href="tel:+237600000000" className="flex items-center gap-2 text-background/70 hover:text-background transition-colors">
+              <a href="tel:+237654888084" className="flex items-center gap-2 text-background/70 hover:text-background transition-colors">
                 <Phone className="w-4 h-4" />
-                +237 6 00 00 00 00
+                +237 6 54 88 80 84
               </a>
               <div className="flex items-center gap-2 text-background/70">
                 <MapPin className="w-4 h-4" />

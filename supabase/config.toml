@@ -1,1 +1,7 @@
-project_id = "rwiaywcpnlscvbvlqtji"
+project_id = "fkglrjuzqlittijixzpb"
+
+[functions.push-notify]
+verify_jwt = false
+
+[functions.push-notify-events]
+verify_jwt = false

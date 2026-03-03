@@ -87,8 +87,8 @@ const ContactUs = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Email</p>
-                      <a href="mailto:contact@habynex.com" className="font-medium text-foreground hover:text-primary">
-                        contact@habynex.com
+                      <a href="mailto:contact.habynex@gmail.com" className="font-medium text-foreground hover:text-primary">
+                        contact.habynex@gmail.com
                       </a>
                     </div>
                   </CardContent>
@@ -100,8 +100,8 @@ const ContactUs = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">{language === "fr" ? "Téléphone" : "Phone"}</p>
-                      <a href="tel:+237600000000" className="font-medium text-foreground hover:text-primary">
-                        +237 6 00 00 00 00
+                      <a href="tel:+237652106225" className="font-medium text-foreground hover:text-primary">
+                      +237 6 52 10 62 25
                       </a>
                     </div>
                   </CardContent>

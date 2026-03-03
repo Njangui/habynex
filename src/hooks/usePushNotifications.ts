@@ -3,62 +3,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-type NotificationType =
-  | "new_matching_property"
-  | "new_message"
-  | "visit_accepted"
-  | "visit_reminder"
-  | "new_contact"
-  | "new_review"
-  | "identity_approved"
-  | "identity_rejected";
-
-interface NotificationPayload {
-  type: NotificationType;
-  title: string;
-  content: string;
-  metadata?: Record<string, unknown>;
-}
-
-const showBrowserNotification = (title: string, body: string, onClick?: () => void) => {
-  if (Notification.permission !== "granted") return;
-  const notification = new Notification(title, {
-    body,
-    icon: "/favicon.png",
-    badge: "/favicon.png",
-  });
-  if (onClick) {
-    notification.onclick = () => {
-      window.focus();
-      onClick();
-      notification.close();
-    };
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
   }
+  return outputArray;
 };
 
-const saveNotification = async (
-  userId: string,
-  payload: NotificationPayload
-) => {
-  await supabase.from("notification_history").insert([{
-    user_id: userId,
-    notification_type: payload.type,
-    channel: "push",
-    title: payload.title,
-    content: payload.content,
-    metadata: (payload.metadata || {}) as any,
-  }]);
-};
-
-// Register service worker
 const registerServiceWorker = async () => {
   if ("serviceWorker" in navigator) {
     try {
-      await navigator.serviceWorker.register("/service-worker.js");
+      const registration = await navigator.serviceWorker.register("/service-worker.js");
+      console.log("Service worker registered", registration.scope);
+      return registration;
     } catch (e) {
       console.warn("Service worker registration failed:", e);
     }
   }
+  return null;
 };
 
 export const usePushNotifications = () => {
@@ -72,7 +38,68 @@ export const usePushNotifications = () => {
     registerServiceWorker();
   }, []);
 
-  // Request permission manually (user-triggered only)
+  // Subscribe to push and save subscription to DB
+  const subscribeToPush = useCallback(async () => {
+    if (!user) return false;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const reg = registration as any;
+      let subscription = await reg.pushManager?.getSubscription();
+
+      if (!subscription && reg.pushManager) {
+        const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.error("VAPID public key is missing");
+          return false;
+        }
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+
+      if (!subscription) {
+        // PushManager not available (e.g. iOS without standalone mode)
+        // Save a basic token for identification
+        const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? "mobile" : "web";
+        const tokenId = `${deviceType}-${navigator.userAgent.slice(0, 80)}`;
+        await supabase.from("user_push_tokens" as any).upsert(
+          {
+            user_id: user.id,
+            token: tokenId,
+            device_type: deviceType,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,token" }
+        );
+        return true;
+      }
+
+      // Save subscription JSON to database
+      const subscriptionJson = subscription.toJSON();
+      const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? "mobile" : "web";
+
+      await supabase.from("user_push_tokens" as any).upsert(
+        {
+          user_id: user.id,
+          token: subscription.endpoint,
+          subscription: subscriptionJson,
+          device_type: deviceType,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,token" }
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Push subscription error:", error);
+      return false;
+    }
+  }, [user]);
+
+  // Request permission - called on page load after delay or by button
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!("Notification" in window)) {
       toast.error("Les notifications ne sont pas supportées sur ce navigateur.");
@@ -80,38 +107,80 @@ export const usePushNotifications = () => {
     }
     if (Notification.permission === "granted") {
       setPermissionState("granted");
+      await subscribeToPush();
       return true;
     }
     if (Notification.permission === "denied") {
-      toast.error("Les notifications sont bloquées. Activez-les dans les paramètres de votre navigateur.");
       setPermissionState("denied");
       return false;
     }
     const result = await Notification.requestPermission();
     setPermissionState(result);
-    if (result === "granted" && user) {
-      // Save token in DB
-      await saveToken();
+    if (result === "granted") {
+      await subscribeToPush();
       toast.success("Notifications activées !");
     }
     return result === "granted";
-  }, [user]);
+  }, [subscribeToPush]);
 
-  const saveToken = useCallback(async () => {
+  // Auto-request permission after 3 seconds if user is logged in
+  useEffect(() => {
     if (!user) return;
-    const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? "mobile" : "web";
-    // Use a simple identifier since we don't have real push tokens without a push service
-    const tokenId = `${deviceType}-${navigator.userAgent.slice(0, 50)}`;
-    
-    await supabase.from("user_push_tokens" as any).upsert({
-      user_id: user.id,
-      token: tokenId,
-      device_type: deviceType,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,token" });
-  }, [user]);
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "default") {
+      // If already granted, make sure we subscribe
+      if (Notification.permission === "granted") {
+        subscribeToPush();
+      }
+      return;
+    }
 
-  // Listen for new messages
+    const timer = setTimeout(() => {
+      requestPermission();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [user, requestPermission, subscribeToPush]);
+
+  // Badge management
+  const updateBadge = useCallback((count: number) => {
+    if ("setAppBadge" in navigator) {
+      if (count > 0) {
+        (navigator as any).setAppBadge(count).catch(console.error);
+      } else {
+        (navigator as any).clearAppBadge?.().catch(console.error);
+      }
+    }
+  }, []);
+
+  // Listen for unread notification count to update badge
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      const { count } = await supabase
+        .from("notification_history")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+      if (count != null) updateBadge(count);
+    };
+
+    fetchUnreadCount();
+
+    const channel = supabase
+      .channel("badge-notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notification_history", filter: `user_id=eq.${user.id}` },
+        () => fetchUnreadCount()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, updateBadge]);
+
+  // Realtime listeners for in-app toasts (when app is open)
   useEffect(() => {
     if (!user) return;
 
@@ -126,25 +195,16 @@ export const usePushNotifications = () => {
 
           const { data: conv } = await supabase
             .from("conversations")
-            .select("tenant_id, owner_id, property_id")
+            .select("tenant_id, owner_id")
             .eq("id", msg.conversation_id)
             .single();
 
           if (!conv) return;
           if (conv.tenant_id !== user.id && conv.owner_id !== user.id) return;
 
-          const notification: NotificationPayload = {
-            type: "new_message",
-            title: "Nouveau message",
-            content: msg.content?.substring(0, 100) || "Vous avez reçu un nouveau message",
-            metadata: { conversation_id: msg.conversation_id, property_id: conv.property_id },
-          };
-
-          toast.info(notification.title, { description: notification.content });
-          showBrowserNotification(notification.title, notification.content, () => {
-            window.location.href = `/messages?conversation=${msg.conversation_id}`;
+          toast.info("💬 Nouveau message", {
+            description: msg.content?.substring(0, 100) || "Vous avez reçu un message",
           });
-          saveNotification(user.id, notification);
         }
       )
       .subscribe();
@@ -152,7 +212,6 @@ export const usePushNotifications = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Listen for new inquiries
   useEffect(() => {
     if (!user) return;
 
@@ -171,18 +230,9 @@ export const usePushNotifications = () => {
 
           if (!prop || prop.owner_id !== user.id) return;
 
-          const notification: NotificationPayload = {
-            type: "new_contact",
-            title: "Nouvelle demande de contact",
-            content: `${inquiry.sender_name} vous contacte pour "${prop.title}"`,
-            metadata: { property_id: inquiry.property_id },
-          };
-
-          toast.info(notification.title, { description: notification.content });
-          showBrowserNotification(notification.title, notification.content, () => {
-            window.location.href = "/dashboard";
+          toast.info("📩 Nouvelle demande", {
+            description: `${inquiry.sender_name} - "${prop.title}"`,
           });
-          saveNotification(user.id, notification);
         }
       )
       .subscribe();
@@ -190,43 +240,6 @@ export const usePushNotifications = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Listen for new reviews
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel("push-reviews")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "property_reviews" },
-        async (payload) => {
-          const review = payload.new as any;
-          const { data: prop } = await supabase
-            .from("properties")
-            .select("title, owner_id")
-            .eq("id", review.property_id)
-            .single();
-
-          if (!prop || prop.owner_id !== user.id) return;
-
-          const notification: NotificationPayload = {
-            type: "new_review",
-            title: "Nouvel avis reçu",
-            content: `Votre bien "${prop.title}" a reçu un avis (${review.rating}/5)`,
-            metadata: { property_id: review.property_id },
-          };
-
-          toast.info(notification.title, { description: notification.content });
-          showBrowserNotification(notification.title, notification.content);
-          saveNotification(user.id, notification);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  // Listen for identity verification changes
   useEffect(() => {
     if (!user) return;
 
@@ -240,27 +253,14 @@ export const usePushNotifications = () => {
           const oldData = payload.old as any;
 
           if (oldData.level_2_status !== "approved" && newData.level_2_status === "approved") {
-            const notification: NotificationPayload = {
-              type: "identity_approved",
-              title: "Identité approuvée ✅",
-              content: "Votre identité a été vérifiée. Vos annonces sont maintenant visibles.",
-            };
-            toast.success(notification.title, { description: notification.content });
-            showBrowserNotification(notification.title, notification.content);
-            saveNotification(user.id, notification);
-          }
-
-          if (oldData.level_2_status !== "rejected" && newData.level_2_status === "rejected") {
-            const notification: NotificationPayload = {
-              type: "identity_rejected",
-              title: "Identité rejetée ❌",
-              content: "Votre vérification d'identité a été rejetée. Veuillez resoumettre vos documents.",
-            };
-            toast.error(notification.title, { description: notification.content });
-            showBrowserNotification(notification.title, notification.content, () => {
-              window.location.href = "/identity-verification";
+            toast.success("✅ Identité approuvée", {
+              description: "Votre identité a été vérifiée avec succès.",
             });
-            saveNotification(user.id, notification);
+          }
+          if (oldData.level_2_status !== "rejected" && newData.level_2_status === "rejected") {
+            toast.error("❌ Identité rejetée", {
+              description: "Veuillez resoumettre vos documents.",
+            });
           }
         }
       )
@@ -269,77 +269,5 @@ export const usePushNotifications = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Periodic check for matching properties (seekers only)
-  const checkMatchingProperties = useCallback(async () => {
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("city, preferred_property_types, budget_min, budget_max, user_type")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!profile || profile.user_type !== "seeker") return;
-
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    
-    let query = supabase
-      .from("properties")
-      .select("id, title, city, price, property_type")
-      .eq("is_published", true)
-      .eq("is_available", true)
-      .gte("created_at", oneHourAgo);
-
-    if (profile.city) query = query.eq("city", profile.city);
-    if (profile.budget_max) query = query.lte("price", profile.budget_max);
-
-    const { data: newProps } = await query.limit(3);
-
-    if (newProps && newProps.length > 0) {
-      const matchingTypes = profile.preferred_property_types || [];
-      const matches = newProps.filter(
-        (p) => matchingTypes.length === 0 || matchingTypes.includes(p.property_type)
-      );
-
-      if (matches.length > 0) {
-        const notification: NotificationPayload = {
-          type: "new_matching_property",
-          title: `${matches.length} nouveau(x) bien(s) correspondant(s)`,
-          content: matches.map((m) => m.title).join(", ").substring(0, 120),
-          metadata: { property_ids: matches.map((m) => m.id) },
-        };
-
-        toast.info(notification.title, { description: notification.content });
-        showBrowserNotification(notification.title, notification.content, () => {
-          window.location.href = "/search";
-        });
-        saveNotification(user.id, notification);
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const checkIfSeeker = async () => {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_type")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (profile?.user_type !== "seeker") return;
-      
-      const interval = setInterval(checkMatchingProperties, 30 * 60 * 1000);
-      const timeout = setTimeout(checkMatchingProperties, 10000);
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      };
-    };
-    
-    checkIfSeeker();
-  }, [user, checkMatchingProperties]);
-
-  return { requestPermission, permissionState };
+  return { requestPermission, permissionState, updateBadge };
 };

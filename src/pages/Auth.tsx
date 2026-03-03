@@ -181,7 +181,7 @@ const AuthPage = () => {
       if (mode === "signup") {
         const redirectUrl = `${window.location.origin}/`;
         
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -212,11 +212,26 @@ const AuthPage = () => {
             throw error;
           }
         } else {
-          toast({
-            title: language === "fr" ? "Compte créé !" : "Account created!",
-            description: language === "fr" ? "Bienvenue sur Habynex ! Vous êtes maintenant connecté." : "Welcome to Habynex! You are now logged in.",
-          });
-          navigate("/?onboarding=true");
+          // Vérifier si une session a été créée (confirmation email désactivée)
+          if (data.session) {
+            // L'utilisateur est automatiquement connecté
+            toast({
+              title: language === "fr" ? "Compte créé !" : "Account created!",
+              description: language === "fr" 
+                ? "Bienvenue sur Habynex ! Vous êtes maintenant connecté." 
+                : "Welcome to Habynex! You are now logged in.",
+            });
+            navigate("/?onboarding=true");
+          } else {
+            // L'utilisateur doit confirmer son email
+            toast({
+              title: language === "fr" ? "Vérifiez votre email" : "Check your email",
+              description: language === "fr" 
+                ? "Un lien de confirmation vous a été envoyé. Veuillez vérifier votre boîte de réception." 
+                : "A confirmation link has been sent to your email. Please check your inbox.",
+            });
+            setMode("login"); // Revenir au mode connexion
+          }
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({

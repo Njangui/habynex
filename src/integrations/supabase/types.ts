@@ -877,9 +877,15 @@ export type Database = {
           email_recommendations: boolean | null
           email_weekly_digest: boolean | null
           id: string
+          push_account: boolean | null
+          push_high_views: boolean | null
+          push_listing: boolean | null
           push_marketing: boolean | null
           push_new_inquiry: boolean | null
           push_new_message: boolean | null
+          push_new_property: boolean | null
+          push_new_review: boolean | null
+          push_price_drop: boolean | null
           push_property_views: boolean | null
           push_recommendations: boolean | null
           quiet_hours_enabled: boolean | null
@@ -901,9 +907,15 @@ export type Database = {
           email_recommendations?: boolean | null
           email_weekly_digest?: boolean | null
           id?: string
+          push_account?: boolean | null
+          push_high_views?: boolean | null
+          push_listing?: boolean | null
           push_marketing?: boolean | null
           push_new_inquiry?: boolean | null
           push_new_message?: boolean | null
+          push_new_property?: boolean | null
+          push_new_review?: boolean | null
+          push_price_drop?: boolean | null
           push_property_views?: boolean | null
           push_recommendations?: boolean | null
           quiet_hours_enabled?: boolean | null
@@ -925,9 +937,15 @@ export type Database = {
           email_recommendations?: boolean | null
           email_weekly_digest?: boolean | null
           id?: string
+          push_account?: boolean | null
+          push_high_views?: boolean | null
+          push_listing?: boolean | null
           push_marketing?: boolean | null
           push_new_inquiry?: boolean | null
           push_new_message?: boolean | null
+          push_new_property?: boolean | null
+          push_new_review?: boolean | null
+          push_price_drop?: boolean | null
           push_property_views?: boolean | null
           push_recommendations?: boolean | null
           quiet_hours_enabled?: boolean | null
@@ -1148,6 +1166,7 @@ export type Database = {
           id: string
           is_service_provider_only: boolean | null
           is_verified: boolean | null
+          language: string | null
           move_in_timeline: string | null
           phone: string | null
           phone_verified: boolean | null
@@ -1175,6 +1194,7 @@ export type Database = {
           id?: string
           is_service_provider_only?: boolean | null
           is_verified?: boolean | null
+          language?: string | null
           move_in_timeline?: string | null
           phone?: string | null
           phone_verified?: boolean | null
@@ -1202,6 +1222,7 @@ export type Database = {
           id?: string
           is_service_provider_only?: boolean | null
           is_verified?: boolean | null
+          language?: string | null
           move_in_timeline?: string | null
           phone?: string | null
           phone_verified?: boolean | null
@@ -2478,6 +2499,7 @@ export type Database = {
           created_at: string
           device_type: string
           id: string
+          subscription: Json | null
           token: string
           updated_at: string
           user_id: string
@@ -2486,6 +2508,7 @@ export type Database = {
           created_at?: string
           device_type?: string
           id?: string
+          subscription?: Json | null
           token: string
           updated_at?: string
           user_id: string
@@ -2494,6 +2517,7 @@ export type Database = {
           created_at?: string
           device_type?: string
           id?: string
+          subscription?: Json | null
           token?: string
           updated_at?: string
           user_id?: string
