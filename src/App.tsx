@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import SeekerDashboard from "./pages/SeekerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Search from "./pages/Search";
+import Services from "./pages/Services";
 
 import TestimonialsPage from "./pages/TestimonialsPage";
 import Verification from "./pages/Verification";
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/search" element={<Search />} />
                 
+                <Route path="/services" element={<Services />} />
                 <Route path="/testimonials" element={<TestimonialsPage />} />
                 <Route path="/verification" element={<Verification />} />
                 <Route path="/identity-verification" element={<IdentityVerification />} />

@@ -157,8 +157,8 @@ const Messages = () => {
         <Navbar />
 
         <main className="pt-16">
-          <div className="h-[calc(100vh-4rem)]">
-            <div className="container mx-auto h-full max-w-6xl px-0">
+          <div className="h-[calc(100dvh-4rem)]">
+            <div className="mx-auto h-full max-w-6xl px-0">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

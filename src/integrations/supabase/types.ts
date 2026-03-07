@@ -112,6 +112,33 @@ export type Database = {
         }
         Relationships: []
       }
+      cities: {
+        Row: {
+          country: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          region: string | null
+        }
+        Insert: {
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          region?: string | null
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          region?: string | null
+        }
+        Relationships: []
+      }
       commission_rules: {
         Row: {
           commission_percent: number

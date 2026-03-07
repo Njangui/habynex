@@ -5,7 +5,6 @@ import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Conversation, Message } from "@/hooks/useMessages";
@@ -78,9 +77,9 @@ export const MessageThread = ({
   });
 
   return (
-    <div className="flex flex-col h-full bg-[#0b141a]">
+    <div className="flex flex-col h-full bg-[#0b141a] overflow-hidden">
       {/* Header - WhatsApp style */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-[#202c33] border-b border-[#2a3942]">
+      <div className="flex items-center gap-3 px-4 py-2 bg-[#202c33] border-b border-[#2a3942] flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -124,8 +123,8 @@ export const MessageThread = ({
       </div>
 
       {/* Messages area with WhatsApp wallpaper */}
-      <ScrollArea 
-        className="flex-1 px-4 py-2"
+      <div 
+        className="flex-1 overflow-y-auto px-4 py-2 min-h-0"
         ref={scrollRef}
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23182229' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -214,10 +213,10 @@ export const MessageThread = ({
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input area - WhatsApp style */}
-      <div className="px-4 py-3 bg-[#202c33] border-t border-[#2a3942]">
+      <div className="px-2 sm:px-4 py-2 sm:py-3 bg-[#202c33] border-t border-[#2a3942] flex-shrink-0">
         <div className="flex items-end gap-2 max-w-3xl mx-auto">
           <Button 
             variant="ghost" 

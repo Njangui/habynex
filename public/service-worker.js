@@ -1,159 +1,143 @@
-// Habynex Service Worker - Stable / Scalable
+// Habynex Service Worker v4.0
+const CACHE_NAME = "Habynex-v4";
+const APP_ICON = "/favicon.png";
 
-const APP_NAME = "Habynex";
-const DEFAULT_ICON = "/icons/icon-192.png";
-const DEFAULT_BADGE = "/icons/badge-72.png";
-
-// ================= INSTALL =================
-
+// Install
 self.addEventListener("install", (event) => {
+  console.log("[SW] Installing v4.0");
   self.skipWaiting();
 });
 
-// ================= ACTIVATE =================
-
+// Activate
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  console.log("[SW] Activating v4.0");
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
+    ).then(() => self.clients.claim())
+  );
 });
 
-// ================= PUSH =================
-
+// Push event - show rich personalized notification
 self.addEventListener("push", (event) => {
+  console.log("[SW] Push received");
 
-  if (!event.data) return;
-
-  let payload = {};
-
+  let data = {};
   try {
-    payload = event.data.json();
-  } catch {
-    payload = { body: event.data.text() };
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: "Habynex", body: event.data ? event.data.text() : "Nouvelle notification" };
   }
 
-  const title = payload.title || APP_NAME;
+  const title = data.title || "Habynex";
+  const body = data.body || "";
+  const icon = data.icon || APP_ICON;
+  const badge = data.badge || APP_ICON;
+  const image = data.image || undefined;
+  const notifData = data.data || {};
 
   const options = {
-    body: payload.body || "",
-    icon: payload.icon || DEFAULT_ICON,
-    badge: payload.badge || DEFAULT_BADGE,
-    image: payload.image || undefined,
-
-    // meilleure UX mobile
-    vibrate: payload.vibrate || [200, 100, 200],
-
-    // évite les notifications multiples
-    tag: payload.tag || payload.data?.type || "habynex-general",
-
+    body: body,
+    icon: icon,
+    badge: badge,
+    vibrate: [200, 100, 200, 100, 200],
+    tag: notifData.type || "default",
     renotify: true,
-
-    // important pour iOS / Android
-    requireInteraction: payload.requireInteraction || false,
-
-    data: {
-      url: payload.data?.url || "/",
-      type: payload.data?.type || "general",
-      id: payload.data?.id || null
-    },
-
-    actions: payload.actions || [
-      { action: "open", title: "Voir" },
-      { action: "dismiss", title: "Ignorer" }
-    ]
+    requireInteraction: notifData.type === "new_message" || notifData.type === "new_inquiry",
+    data: notifData,
+    actions: getActionsForType(notifData.type),
   };
 
-  event.waitUntil(handlePush(title, options));
-
-});
-
-async function handlePush(title, options) {
-
-  try {
-
-    await self.registration.showNotification(title, options);
-
-    // badge PWA (Chrome / Android)
-    if ("setAppBadge" in self.registration) {
-      try {
-        await self.registration.setAppBadge(1);
-      } catch {}
-    }
-
-  } catch (error) {
-    console.error("Push display error:", error);
+  if (image) {
+    options.image = image;
   }
 
+  event.waitUntil(
+    self.registration.showNotification(title, options).then(function() {
+      // Update PWA badge count
+      return updateBadgeCount();
+    })
+  );
+});
+
+// Count unread notifications and update badge
+function updateBadgeCount() {
+  return self.registration.getNotifications().then(function(notifications) {
+    var count = notifications.length;
+    if (navigator.setAppBadge) {
+      return navigator.setAppBadge(count > 0 ? count : undefined).catch(function() {});
+    }
+  }).catch(function() {});
 }
 
-// ================= CLICK =================
-
+// Notification click
 self.addEventListener("notificationclick", (event) => {
-
+  console.log("[SW] Notification clicked, action:", event.action);
   event.notification.close();
 
-  const action = event.action;
-  const url = event.notification.data?.url || "/";
-
-  if (action === "dismiss") return;
-
-  event.waitUntil(openApp(url));
-
-});
-
-async function openApp(url) {
-
-  const clientsList = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true
-  });
-
-  for (const client of clientsList) {
-
-    const clientUrl = new URL(client.url);
-
-    if (clientUrl.origin === self.location.origin) {
-
-      await client.focus();
-
-      if ("navigate" in client) {
-        await client.navigate(url);
-      }
-
-      return;
-
-    }
-
-  }
-
-  if (self.clients.openWindow) {
-    return self.clients.openWindow(url);
-  }
-
-}
-
-// ================= CLOSE =================
-
-self.addEventListener("notificationclose", (event) => {
-
   const data = event.notification.data || {};
+  let targetUrl = data.url || "/";
 
-  // prêt pour analytics futur
-  console.log("Notification dismissed", data);
-
-});
-
-// ================= MESSAGE =================
-
-// communication avec React
-self.addEventListener("message", (event) => {
-
-  if (!event.data) return;
-
-  if (event.data.type === "CLEAR_BADGE") {
-
-    if ("clearAppBadge" in self.registration) {
-      self.registration.clearAppBadge().catch(() => {});
-    }
-
+  if (event.action === "contact" || event.action === "reply") {
+    targetUrl = data.contactUrl || "/messages";
+  } else if (event.action === "view") {
+    targetUrl = data.url || "/";
   }
 
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function(clientList) {
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
+        }
+      }
+      return clients.openWindow(targetUrl);
+    }).then(function() {
+      if (navigator.clearAppBadge) {
+        navigator.clearAppBadge().catch(function() {});
+      }
+    })
+  );
 });
+
+// Notification close - update badge
+self.addEventListener("notificationclose", (event) => {
+  console.log("[SW] Notification closed");
+  event.waitUntil(updateBadgeCount());
+});
+
+// Get contextual actions for notification type
+function getActionsForType(type) {
+  switch (type) {
+    case "new_message":
+      return [
+        { action: "view", title: "💬 Lire" },
+        { action: "reply", title: "📩 Répondre" },
+      ];
+    case "new_inquiry":
+      return [
+        { action: "view", title: "👁️ Voir la demande" },
+        { action: "reply", title: "📩 Répondre" },
+      ];
+    case "new_property":
+    case "price_drop":
+      return [
+        { action: "view", title: "🏠 Voir l'annonce" },
+        { action: "contact", title: "📞 Contacter" },
+      ];
+    case "new_review":
+      return [{ action: "view", title: "⭐ Voir l'avis" }];
+    case "high_views":
+      return [{ action: "view", title: "📊 Voir les stats" }];
+    case "verification_update":
+    case "account_verified":
+      return [{ action: "view", title: "✅ Voir mon profil" }];
+    case "reengagement":
+      return [{ action: "view", title: "🏠 Voir les annonces" }];
+    default:
+      return [{ action: "view", title: "Ouvrir" }];
+  }
+}
