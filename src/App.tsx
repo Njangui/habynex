@@ -57,7 +57,6 @@ const App = () => (
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/search" element={<Search />} />
                 
-                
                 <Route path="/testimonials" element={<TestimonialsPage />} />
                 <Route path="/verification" element={<Verification />} />
                 <Route path="/identity-verification" element={<IdentityVerification />} />
