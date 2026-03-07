@@ -5,8 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import { usePropertyAI } from "@/hooks/usePropertyAI";
 
 const suggestions = [
-  "Studio meublé à Yaoundé moins de 100 000 FCFA",
   "Appartement 3 chambres à Douala avec parking",
+  "Studio meublé à Yaoundé moins de 100 000 FCFA",
   "Colocation proche université de Ngoa-Ekelle",
   "Maison à vendre à Bonapriso avec jardin",
 ];

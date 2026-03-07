@@ -2,13 +2,13 @@ import { useEffect, useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { registerServiceWorker } from "@/services/serviceWorkerManager";
+import { registerServiceWorker } from "src/services/serviceWorkerManager";
 import {
   subscribeToPush as subscribeToPushService,
   requestNotificationPermission,
   unsubscribeFromPush,
-} from "@/services/pushNotifications";
-import { updateAppBadge, fetchUnreadCount } from "@/services/notificationService";
+} from "src/services/pushNotifications";
+import { updateAppBadge, fetchUnreadCount } from "src/services/notificationService";
 
 export const usePushNotifications = () => {
   const { user } = useAuth();
