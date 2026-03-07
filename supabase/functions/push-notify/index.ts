@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
             // Build VAPID auth
             const url = new URL(sub.endpoint);
             const audience = `${url.protocol}//${url.host}`;
-            const jwt = await createVapidJwt(audience, "mailto:contact@habinex.com", signingKey);
+            const jwt = await createVapidJwt(audience, "mailto:contact.habynex@gmail.com", signingKey);
 
             const response = await fetch(sub.endpoint, {
               method: "POST",
