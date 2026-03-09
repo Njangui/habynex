@@ -34,11 +34,11 @@ const Footer = () => {
 
   const socialLinks = [
     { icon: Facebook, href: "https://www.facebook.com/share/1C7F5LKYxy/", label: "Facebook" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Linkedin, href: "#", label: "LinkedIn" },
-    { icon: Music2, href: "#", label: "TikTok" },
-    { icon: Youtube, href: "#", label: "YouTube" },
+//    { icon: Twitter, href: "#", label: "Twitter" },
+    { icon: Instagram, href: "https://www.instagram.com/habynex", label: "Instagram" },
+  //  { icon: Linkedin, href: "#", label: "LinkedIn" },
+    { icon: Music2, href: "https://www.tiktok.com/@habynex?_r=1&_d=ei5h107g9e1f7i&sec_uid=MS4wLjABAAAA3L0zPxi4OfCmnZF_nAt_otSuKIkWhgPih3sug-_YDMd1zESfd5rfCwGTgk63k5Ob&share_author_id=7420020090450986017&sharer_language=fr&source=h5_m&u_code=egdbj7ck8f9117&timestamp=1773051722&user_id=7420020090450986017&sec_user_id=MS4wLjABAAAA3L0zPxi4OfCmnZF_nAt_otSuKIkWhgPih3sug-_YDMd1zESfd5rfCwGTgk63k5Ob&item_author_type=1&utm_source=copy&utm_campaign=client_share&utm_medium=android&share_iid=7607365336032560918&share_link_id=a5038811-0887-4285-9403-266a87f37719&share_app_id=1233&ugbiz_name=ACCOUNT&ug_btm=b8727%2Cb4907&social_share_type=5&enable_checksum=1 ", label: "TikTok" },
+    //{ icon: Youtube, href: "#", label: "YouTube" },
   ];
 
   return (

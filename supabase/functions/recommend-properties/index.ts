@@ -6,7 +6,12 @@ import { z } from "https://esm.sh/zod@3.22.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+
+// supabase/functions/recommend-properties/index.ts
+
 
 // Schémas de validation Zod
 const RecommendationRequestSchema = z.object({
