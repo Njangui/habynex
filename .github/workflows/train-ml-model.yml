@@ -12,11 +12,11 @@ jobs:
     steps:
     # Étape 1 : Checkout du code
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # ✅ Mise à jour v4
     
     # Étape 2 : Installer Python
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5  # ✅ Mise à jour v5
       with:
         python-version: '3.10'
     
@@ -36,9 +36,9 @@ jobs:
         python scripts/train_light_ml_model.py
         echo "Entraînement terminé !"
     
-    # Étape 5 : Sauvegarder le modèle (optionnel)
+    # Étape 5 : Sauvegarder le modèle (CORRIGÉ)
     - name: Upload model artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # ✅ CORRECTION : v4 au lieu de v3
       with:
         name: trained-model-${{ github.run_id }}
         path: models/
