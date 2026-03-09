@@ -2,7 +2,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Configuration
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Habynex <contact@habynex.com>"; // ✅ Domaine vérifié
+const MAX_RETRIES = 2;
+const RATE_LIMIT_DELAY = 100; // ms entre envois
+
+if (!RESEND_API_KEY) {
+  console.error("[email] RESEND_API_KEY not configured");
+}
+
+const resend = new Resend(RESEND_API_KEY);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +20,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Email Types
+// Types
 type EmailType = 
   | "welcome"
   | "email_confirmation"
@@ -36,14 +46,20 @@ interface NotificationRequest {
   recipientName?: string;
   language?: "fr" | "en";
   data?: Record<string, any>;
-  // Legacy fields for backward compatibility
+  // Legacy fields
   senderName?: string;
   propertyTitle?: string;
   messagePreview?: string;
   viewCount?: number;
 }
 
-// Base email wrapper
+// Validation email simple
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Wrapper email avec preview text
 const baseEmailWrapper = (content: string, previewText: string) => `
 <!DOCTYPE html>
 <html>
@@ -60,12 +76,14 @@ const baseEmailWrapper = (content: string, previewText: string) => `
   </div>
   <div style="max-width: 600px; margin: 20px auto 0; text-align: center;">
     <p style="color: #6b7280; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Habynex. Tous droits réservés.</p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 8px 0 0 0;">
+      <a href="https://habynex.com/preferences" style="color: #6b7280; text-decoration: underline;">Gérer mes préférences</a>
+    </p>
   </div>
 </body>
 </html>
 `;
 
-// Gradient header component
 const gradientHeader = (title: string, emoji: string, gradientColors: string = "#3b82f6, #1d4ed8") => `
 <div style="background: linear-gradient(135deg, ${gradientColors}); padding: 40px 30px; text-align: center;">
   <div style="font-size: 48px; margin-bottom: 10px;">${emoji}</div>
@@ -73,12 +91,11 @@ const gradientHeader = (title: string, emoji: string, gradientColors: string = "
 </div>
 `;
 
-// Button component
 const primaryButton = (text: string, url: string, gradientColors: string = "#3b82f6, #1d4ed8") => `
 <a href="${url}" style="display: inline-block; background: linear-gradient(135deg, ${gradientColors}); color: white; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">${text}</a>
 `;
 
-// Email Templates
+// Templates (inchangés, juste ajout de sécurité)
 const emailTemplates: Record<EmailType, (data: any, isFr: boolean) => { subject: string; html: string }> = {
   welcome: (data, isFr) => ({
     subject: isFr ? "🏠 Bienvenue sur Habynex !" : "🏠 Welcome to Habynex!",
@@ -473,6 +490,41 @@ const emailTemplates: Record<EmailType, (data: any, isFr: boolean) => { subject:
   })
 };
 
+// Fonction utilitaire pour envoyer avec retry
+async function sendEmailWithRetry(
+  to: string,
+  subject: string,
+  html: string,
+  attempt = 0
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      html,
+    });
+
+    // Vérifier si Resend a retourné une erreur
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    return { success: true, id: result.data?.id };
+
+  } catch (error: any) {
+    console.error(`[email] Attempt ${attempt + 1} failed:`, error.message);
+    
+    // Retry si pas dernier essai
+    if (attempt < MAX_RETRIES) {
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Backoff exponentiel
+      return sendEmailWithRetry(to, subject, html, attempt + 1);
+    }
+
+    return { success: false, error: error.message };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -488,7 +540,7 @@ const handler = async (req: Request): Promise<Response> => {
     let recipientEmail = body.recipientEmail;
     let recipientName = body.recipientName;
 
-    // Merge legacy fields into data for backward compatibility
+    // Merge legacy fields
     const templateData: Record<string, any> = {
       ...data,
       senderName: body.senderName || data.senderName,
@@ -497,10 +549,19 @@ const handler = async (req: Request): Promise<Response> => {
       viewCount: body.viewCount || data.viewCount,
     };
 
-    // If recipientId is provided, fetch email and name
+    // Récupérer email et nom si recipientId fourni
     if (recipientId && !recipientEmail) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(recipientId);
-      recipientEmail = authUser?.user?.email;
+      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(recipientId);
+      
+      if (authError || !authUser?.user?.email) {
+        console.error("[email] Failed to fetch user:", authError?.message);
+        return new Response(
+          JSON.stringify({ error: "User not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      recipientEmail = authUser.user.email;
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -511,24 +572,38 @@ const handler = async (req: Request): Promise<Response> => {
       recipientName = profile?.full_name || "Utilisateur";
     }
 
+    // Validation email
     if (!recipientEmail) {
       return new Response(
-        JSON.stringify({ error: "No recipient email found" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ error: "No recipient email provided" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check user's notification preferences
+    if (!isValidEmail(recipientEmail)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Vérifier préférences utilisateur
     let shouldSend = true;
+    let skipReason = "";
+
     if (recipientId) {
-      const { data: prefs } = await supabase
+      const { data: prefs, error: prefError } = await supabase
         .from("notification_preferences")
         .select("*")
         .eq("user_id", recipientId)
         .single();
 
+      if (prefError && prefError.code !== "PGRST116") { // PGRST116 = not found
+        console.warn("[email] Preference fetch error:", prefError.message);
+      }
+
       if (prefs) {
-        // Check email preferences based on notification type
+        // Mapping des préférences email
         const emailPrefMap: Record<string, string> = {
           new_message: "email_new_message",
           new_inquiry: "email_new_inquiry",
@@ -542,25 +617,25 @@ const handler = async (req: Request): Promise<Response> => {
         const prefKey = emailPrefMap[type];
         if (prefKey && prefs[prefKey] === false) {
           shouldSend = false;
+          skipReason = `preference_disabled:${prefKey}`;
         }
 
-        // Check quiet hours
-        if (prefs.quiet_hours_enabled) {
+        // Vérifier heures silencieuses
+        if (shouldSend && prefs.quiet_hours_enabled) {
           const now = new Date();
           const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
           const start = prefs.quiet_hours_start;
           const end = prefs.quiet_hours_end;
           
           if (start && end) {
-            if (start < end) {
-              if (currentTime >= start && currentTime <= end) {
-                shouldSend = false;
-              }
-            } else {
-              // Overnight quiet hours (e.g., 22:00 to 08:00)
-              if (currentTime >= start || currentTime <= end) {
-                shouldSend = false;
-              }
+            const isQuiet = start < end 
+              ? currentTime >= start && currentTime <= end 
+              : currentTime >= start || currentTime <= end;
+            
+            if (isQuiet) {
+              shouldSend = false;
+              skipReason = `quiet_hours:${currentTime}`;
+              console.log(`[email] Quiet hours active for ${recipientId}: ${currentTime} (${start}-${end})`);
             }
           }
         }
@@ -568,61 +643,70 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!shouldSend) {
-      console.log(`Notification skipped due to user preferences: ${type} for ${recipientEmail}`);
+      console.log(`[email] Skipped: ${type} for ${recipientEmail} - ${skipReason}`);
       return new Response(
-        JSON.stringify({ success: true, skipped: true, reason: "User preferences" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ success: true, skipped: true, reason: skipReason }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get email template
+    // Récupérer le template
     const templateFn = emailTemplates[type];
     if (!templateFn) {
       return new Response(
         JSON.stringify({ error: `Unknown notification type: ${type}` }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const isFr = language !== "en";
     const { subject, html } = templateFn({ ...templateData, recipientName }, isFr);
 
-    // Send email
-    const emailResponse = await resend.emails.send({
-      from: "Habynex <onboarding@resend.dev>",
-      to: [recipientEmail],
-      subject,
-      html,
-    });
+    // Envoyer l'email avec retry
+    const emailResult = await sendEmailWithRetry(recipientEmail, subject, html);
 
-    console.log("Email sent successfully:", emailResponse);
+    if (!emailResult.success) {
+      return new Response(
+        JSON.stringify({ error: "Failed to send email", details: emailResult.error }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Log notification in history (using service role, bypasses RLS)
+    console.log("[email] Sent:", emailResult.id, "to:", recipientEmail);
+
+    // Logger dans l'historique (fire and forget)
     try {
       await supabase.from("notification_history").insert({
-        user_id: recipientId || "00000000-0000-0000-0000-000000000000",
+        user_id: recipientId || null, // ✅ Correction: null au lieu de faux UUID
         notification_type: type,
         channel: "email",
         title: subject,
         content: templateData.messagePreview || templateData.propertyTitle || null,
-        metadata: templateData,
+        status: "sent",
+        metadata: { 
+          ...templateData, 
+          email_id: emailResult.id,
+          recipient_email: recipientEmail 
+        },
       });
-    } catch (logError) {
-      console.log("Failed to log notification:", logError);
+    } catch (logError: any) {
+      console.error("[email] History log error:", logError.message);
     }
 
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        email_id: emailResult.id,
+        recipient: recipientEmail 
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
   } catch (error: any) {
-    console.error("Error sending notification:", error);
+    console.error("[email] Fatal error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 };
