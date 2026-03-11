@@ -23,7 +23,6 @@ const Footer = () => {
       { key: "footer.about", href: "#" },
       { key: "footer.careers", href: "#" },
       { key: "footer.press", href: "#" },
-      { key: "footer.contact", href: "/contact" },
     ],
     legal: [
       { key: "footer.termsOfUse", href: "#" },

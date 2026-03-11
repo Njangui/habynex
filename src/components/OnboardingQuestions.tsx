@@ -254,7 +254,7 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
         { value: "whatsapp", label: "WhatsApp", labelEn: "WhatsApp", icon: MessageSquare },
         { value: "email", label: "Email", labelEn: "Email", icon: FileText },
         { value: "phone", label: "Téléphone", labelEn: "Phone", icon: Briefcase },
-        { value: "app", label: "Messagerie Habinex", labelEn: "Habinex Messaging", icon: MessageSquare },
+        { value: "app", label: "Messagerie habynex", labelEn: "habynex Messaging", icon: MessageSquare },
       ],
     },
   ];
@@ -369,13 +369,13 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
 
       // Also mark onboarding as complete in the dedicated table
       await supabase
-        .from("onboarding_status")
-        .upsert({
-          user_id: userId,
-          completed_at: new Date().toISOString(),
-          version: 1,
-          updated_at: new Date().toISOString(),
-        });
+  .from("onboarding_status")
+  .upsert({
+    user_id: userId,
+    completed_at: new Date().toISOString(),
+    version: 1,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
 
       if (answers.account_type !== "seeker") {
         const accountType = answers.account_type as "owner" | "agent" | "agency";
