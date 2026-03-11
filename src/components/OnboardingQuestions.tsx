@@ -254,7 +254,7 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
         { value: "whatsapp", label: "WhatsApp", labelEn: "WhatsApp", icon: MessageSquare },
         { value: "email", label: "Email", labelEn: "Email", icon: FileText },
         { value: "phone", label: "Téléphone", labelEn: "Phone", icon: Briefcase },
-        { value: "app", label: "Messagerie Habynex", labelEn: "Habynex Messaging", icon: MessageSquare },
+        { value: "app", label: "Messagerie Habinex", labelEn: "Habinex Messaging", icon: MessageSquare },
       ],
     },
   ];

@@ -71,7 +71,7 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>Habynex - Trouvez votre logement idéal en Afrique | Plateforme immobilière intelligente</title>
+        <title>Habynex - Trouvez ou proposez votre logement idéal en Afrique | Plateforme immobilière intelligente</title>
         <meta 
           name="description" 
           content="Habynex est la plateforme immobilière intelligente pour trouver votre logement en Afrique. Location, colocation, vente - notre IA vous aide à trouver le bien parfait." 
@@ -81,14 +81,14 @@ const Index = () => {
         
         {/* Open Graph */}
         <meta property="og:title" content="Habynex - Plateforme immobilière intelligente en Afrique" />
-        <meta property="og:description" content="Trouvez votre logement idéal grâce à notre IA. Location, colocation, vente - des milliers d'annonces vérifiées." />
+        <meta property="og:description" content="Trouvez ou proposz votre logement idéal grâce à notre IA. Location, colocation, vente - des milliers d'annonces vérifiées." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://Habynex.com" />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Habynex - Plateforme immobilière intelligente" />
-        <meta name="twitter:description" content="Trouvez votre logement idéal grâce à notre IA." />
+        <meta name="twitter:description" content="Trouvez ou proposez votre logement idéal grâce à notre IA." />
       </Helmet>
 
       {showOnboarding && user && (

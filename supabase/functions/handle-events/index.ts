@@ -313,10 +313,10 @@ function getPushMessage(type: EventType, record: any, recipient: { firstName: st
 
     case "welcome":
       result = {
-        title: fr ? "🏠 Bienvenue sur Habinex !" : "🏠 Welcome to Habinex!",
+        title: fr ? "🏠 Bienvenue sur Habynex !" : "🏠 Welcome to Habynex!",
         body: fr
-          ? `${name}, trouvez votre logement idéal dès maintenant !`
-          : `${name}, find your ideal home now!`,
+          ? `${name}, trouvez ou proposez votre logement idéal dès maintenant !`
+          : `${name}, find or offer your ideal home now!`,
       };
       break;
 

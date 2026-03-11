@@ -55,7 +55,7 @@ const translations: Translations = {
   "nav.howItWorks": { fr: "Comment ça marche", en: "How it works" },
   
   // Hero Section
-  "hero.title": { fr: "Trouvez votre logement idéal au Cameroun", en: "Find your ideal home in Cameroon" },
+  "hero.title": { fr: "Trouvez ou proposez votre logement idéal au Cameroun", en: "Find or offer your ideal home in Cameroon" },
   "hero.subtitle": { fr: "Une plateforme intelligente qui vous aide à trouver le logement parfait grâce à l'IA", en: "A smart platform that helps you find the perfect home with AI" },
   "hero.cta": { fr: "Commencer la recherche", en: "Start searching" },
   "hero.cta2": { fr: "Publier une annonce", en: "Post a listing" },
@@ -447,7 +447,7 @@ const translations: Translations = {
   
   // How It Works
   "hiw.title": { fr: "Comment ça marche", en: "How it works" },
-  "hiw.subtitle": { fr: "Trouvez votre prochain logement en quelques étapes simples", en: "Find your next home in a few simple steps" },
+  "hiw.subtitle": { fr: "Trouvez ou proposez votre prochain logement en quelques étapes simples", en: "Find or offer your next home in a few simple steps" },
   "hiw.step1Title": { fr: "Recherchez", en: "Search" },
   "hiw.step1Desc": { fr: "Utilisez notre IA pour décrire votre logement idéal ou parcourez les annonces.", en: "Use our AI to describe your ideal home or browse listings." },
   "hiw.step2Title": { fr: "Contactez", en: "Contact" },
@@ -459,7 +459,7 @@ const translations: Translations = {
   
   // CTA Section
   "cta.seekerTitle": { fr: "Vous cherchez un logement ?", en: "Looking for a home?" },
-  "cta.seekerDesc": { fr: "Accédez à des milliers d'annonces vérifiées et trouvez votre prochain chez-vous grâce à notre IA.", en: "Access thousands of verified listings and find your next home with our AI." },
+  "cta.seekerDesc": { fr: "Accédez à des milliers d'annonces vérifiées et trouvez ou proposez votre prochain chez-vous grâce à notre IA.", en: "Access thousands of verified listings and find or offer your next home with our AI." },
   "cta.seekerBtn": { fr: "Commencer la recherche", en: "Start searching" },
   "cta.ownerTitle": { fr: "Vous êtes propriétaire ?", en: "Are you an owner?" },
   "cta.ownerDesc": { fr: "Publiez votre annonce gratuitement et trouvez des locataires fiables en quelques clics.", en: "Post your listing for free and find reliable tenants in a few clicks." },
@@ -542,7 +542,7 @@ const translations: Translations = {
   
   // Assistant Page
   "assistant.title": { fr: "Assistant IA Immobilier | Habynex", en: "Real Estate AI Assistant | Habynex" },
-  "assistant.metaDesc": { fr: "Trouvez votre logement idéal avec notre assistant IA. Décrivez vos critères en langage naturel et recevez des recommandations personnalisées.", en: "Find your ideal home with our AI assistant. Describe your criteria in natural language and receive personalized recommendations." },
+  "assistant.metaDesc": { fr: "Trouvez ou proposez votre logement idéal avec notre assistant IA. Décrivez vos critères en langage naturel et recevez des recommandations personnalisées.", en: "Find or offer your ideal home with our AI assistant. Describe your criteria in natural language and receive personalized recommendations." },
   "assistant.newConversation": { fr: "Nouvelle conversation", en: "New conversation" },
   "assistant.noConversations": { fr: "Aucune conversation", en: "No conversations" },
   "assistant.backHome": { fr: "Retour à l'accueil", en: "Back to home" },

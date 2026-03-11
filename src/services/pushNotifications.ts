@@ -1,17 +1,15 @@
-// Ajouter ces fonctions si elles n'existent pas
+// src/services/pushNotifications.ts
+import { supabase } from "@/integrations/supabase/client";
 
+// Vérifie si un utilisateur a déjà une subscription existante
 export const checkExistingSubscription = async (userId: string): Promise<PushSubscription | null> => {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    return null;
-  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
 
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
-    
     if (!subscription) return null;
 
-    // Vérifier si présent dans Supabase
     const { data } = await supabase
       .from("push_subscriptions")
       .select("id")
@@ -26,6 +24,7 @@ export const checkExistingSubscription = async (userId: string): Promise<PushSub
   }
 };
 
+// Désabonne un utilisateur des notifications push
 export const unsubscribeFromPush = async (userId: string): Promise<boolean> => {
   if (!("serviceWorker" in navigator)) return false;
 
@@ -37,7 +36,6 @@ export const unsubscribeFromPush = async (userId: string): Promise<boolean> => {
       await subscription.unsubscribe();
     }
 
-    // Supprimer de Supabase
     const { error } = await supabase
       .from("push_subscriptions")
       .delete()

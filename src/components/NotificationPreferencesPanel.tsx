@@ -22,18 +22,17 @@ export const NotificationPreferencesPanel = () => {
     );
   }
 
-  if (!preferences) {
-    return null;
-  }
+  if (!preferences) return null;
 
-  const NotificationRow = ({ 
-    icon: Icon, 
-    label, 
-    prefKey, 
-    disabled = false 
-  }: { 
-    icon: any; 
-    label: string; 
+  // Ligne de notification
+  const NotificationRow = ({
+    icon: Icon,
+    label,
+    prefKey,
+    disabled = false
+  }: {
+    icon: React.ElementType;
+    label: string;
     prefKey: keyof typeof preferences;
     disabled?: boolean;
   }) => (
@@ -46,7 +45,7 @@ export const NotificationPreferencesPanel = () => {
       </div>
       <Switch
         id={prefKey}
-        checked={preferences[prefKey] as boolean}
+        checked={!!preferences[prefKey]}
         onCheckedChange={() => togglePreference(prefKey)}
         disabled={saving || disabled}
       />
@@ -147,7 +146,7 @@ export const NotificationPreferencesPanel = () => {
             <Label htmlFor="quiet_hours_enabled">{t("notif.quietHours")}</Label>
             <Switch
               id="quiet_hours_enabled"
-              checked={preferences.quiet_hours_enabled}
+              checked={!!preferences.quiet_hours_enabled}
               onCheckedChange={() => togglePreference("quiet_hours_enabled")}
               disabled={saving}
             />

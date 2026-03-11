@@ -393,8 +393,8 @@ const AuthPage = () => {
           <div className="max-w-md">
             <h1 className="text-4xl font-bold mb-4">
               {language === "fr" 
-                ? "Trouvez votre logement idéal en Afrique" 
-                : "Find your ideal home in Africa"}
+                ? "Trouvez ou proposez votre logement idéal en Afrique" 
+                : "Find ot offer your ideal home in Africa"}
             </h1>
             <p className="text-primary-foreground/90 text-lg">
               {language === "fr"
