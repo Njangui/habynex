@@ -12,7 +12,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import logo from "@/assets/Habynex-logo.jpeg";
-import ContactUs from "@/pages/ContactUs";
+
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -69,7 +69,6 @@ const Navbar = () => {
     const baseLinks: NavLink[] = [
       { name: t("common.home"), href: "/", icon: Home },
       { name: t("common.search"), href: "/search", icon: Search },
-      { name: t("Contact"), href: "/contact", icon: ContactUs },
     ];
 
     if (!user) return baseLinks;
@@ -124,8 +123,8 @@ const Navbar = () => {
             <img src={logo} alt="Habynex" className="w-full h-full rounded-lg object-contain" />
           </div>
           <span className="text-2xl font-bold hidden sm:block">
-            <span className="text-primary">H</span>
-            <span className="text-foreground">abynex</span>
+            <span className="text-primary">Ha</span>
+            <span className="text-foreground">bynex</span>
           </span>
         </motion.a>
 
