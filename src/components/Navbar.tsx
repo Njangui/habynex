@@ -280,6 +280,17 @@ const Navbar = () => {
                 );
               })}
               
+              <Button 
+                        variant="outline" 
+                        className="gap-2 justify-center"
+                        onClick={() => {
+                          navigate("/profile");
+                          setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        <User className="w-4 h-4" />
+                        Mon profil
+                      </Button>
 
               {isAdmin && (
                 <Link
