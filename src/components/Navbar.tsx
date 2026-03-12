@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
   Home, Search, MessageCircle, User, Menu, X, Plus, Sparkles, 
-  LogOut, LayoutDashboard, Moon, Sun, Shield, Heart, Building2, Globe, Bell 
+  LogOut, LayoutDashboard, Moon, Sun, Shield, Heart, Building2, Globe, Bell, Mail 
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import logo from "@/assets/habinex-logo.jpeg";
+import logo from "@/assets/habynex-logo.jpeg";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -68,6 +68,7 @@ const Navbar = () => {
     const baseLinks: NavLink[] = [
       { name: t("common.home"), href: "/", icon: Home },
       { name: t("common.search"), href: "/search", icon: Search },
+      { name: language === "fr" ? "Contact" : "Contact", href: "/contact", icon: Mail },
     ];
 
     if (!user) return baseLinks;
@@ -119,7 +120,7 @@ const Navbar = () => {
           whileTap={{ scale: 0.98 }}
         >
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 p-1.5 shadow-sm border border-primary/20">
-            <img src={logo} alt="Habinex" className="w-full h-full rounded-lg object-contain" />
+            <img src={logo} alt="Habynex" className="w-full h-full rounded-lg object-contain" />
           </div>
           <span className="text-2xl font-bold hidden sm:block">
             <span className="text-primary">Ha</span>
