@@ -4,6 +4,7 @@ import { Upload, X, Image as ImageIcon, Loader2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ImageEnhancer } from "./ImageEnhancer";
+import { compressImage } from "@/utils/compressImage"; // ← Import ajouté
 
 interface PropertyImageUploadProps {
   images: string[];
@@ -16,7 +17,7 @@ const PropertyImageUpload = ({
   images,
   onChange,
   userId,
-  maxImages = 10,
+  maxImages = 15,
 }: PropertyImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -29,24 +30,35 @@ const PropertyImageUpload = ({
     setEnhancingIndex(null);
   };
 
+  // ⬇️ FONCTION MODIFIÉE (seule cette partie change)
   const uploadImage = async (file: File): Promise<string | null> => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    try {
+      // Compression automatique si > 5 Mo
+      const compressedFile = await compressImage(file);
+      
+      const fileExt = compressedFile.name.split(".").pop();
+      const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    const { error } = await supabase.storage
-      .from("property-images")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false });
+      const { error } = await supabase.storage
+        .from("property-images")
+        .upload(fileName, compressedFile, { cacheControl: "3600", upsert: false });
 
-    if (error) {
-      console.error("Upload error:", error);
+      if (error) {
+        console.error("Upload error:", error);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from("property-images")
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+      
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du traitement de l'image");
       return null;
     }
-
-    const { data } = supabase.storage
-      .from("property-images")
-      .getPublicUrl(fileName);
-
-    return data.publicUrl;
   };
 
   const handleFiles = useCallback(
@@ -59,15 +71,13 @@ const PropertyImageUpload = ({
         return;
       }
 
+      // ⬇️ MODIFICATION : On enlève la vérification de taille ici car compression gérée
       const validFiles = fileArray.filter((file) => {
         if (!file.type.startsWith("image/")) {
           toast.error(`${file.name} n'est pas une image valide.`);
           return false;
         }
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(`${file.name} dépasse la taille maximale de 5MB.`);
-          return false;
-        }
+        // On accepte toutes les images, la compression gérera les grosses
         return true;
       });
 
@@ -149,7 +159,7 @@ const PropertyImageUpload = ({
               {uploading ? "Téléchargement en cours..." : "Glissez vos photos ici"}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              ou cliquez pour sélectionner (max {maxImages} photos, 5MB chacune)
+              ou cliquez pour sélectionner (max {maxImages} photos, compression auto si {'>'} 5MB)
             </p>
           </div>
         </div>

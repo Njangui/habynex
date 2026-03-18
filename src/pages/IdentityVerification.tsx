@@ -19,6 +19,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import { compressImage } from "@/utils/compressImage"; // ← AJOUTÉ
 
 const IdentityVerification = () => {
   const navigate = useNavigate();
@@ -42,12 +43,15 @@ const IdentityVerification = () => {
     if (!user) return null;
 
     try {
-      const fileExt = file.name.split(".").pop();
+      // ⬇️ COMPRESSION AJOUTÉE (limite 5 Mo pour les docs d'identité)
+      const compressedFile = await compressImage(file);
+      
+      const fileExt = compressedFile.name.split(".").pop();
       const filePath = `${user.id}/identity/${docType}_${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("verification-documents")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressedFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -68,7 +72,7 @@ const IdentityVerification = () => {
           verification_id: verification.id,
           document_type: docType as any,
           file_url: urlData.publicUrl,
-          file_name: file.name,
+          file_name: compressedFile.name, // ← Utilise le nom du fichier compressé
           verification_level: "level_2",
           status: "pending",
         });
@@ -88,12 +92,13 @@ const IdentityVerification = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    // ⬇️ MODIFIÉ : Plus de limite stricte, la compression gère tout
+    // On garde juste une sécurité pour les fichiers vraiment énormes (>50 Mo)
+    if (file.size > 50 * 1024 * 1024) {
       toast.error(
         language === "fr"
-          ? "Le fichier est trop volumineux (max 10 Mo)"
-          : "File is too large (max 10MB)"
+          ? "Le fichier est trop volumineux (max 50 Mo)"
+          : "File is too large (max 50MB)"
       );
       return;
     }
@@ -117,6 +122,8 @@ const IdentityVerification = () => {
 
     setUploadingField(null);
   };
+
+  // ... reste du fichier inchangé ...
 
   const allUploaded = idFrontUrl && idBackUrl && selfieUrl;
 
@@ -345,8 +352,7 @@ const IdentityVerification = () => {
                 description={
                   language === "fr"
                     ? "Photo de vous tenant votre pièce d'identité"
-                    : "Photo of you holding your ID"
-                }
+                    : "Photo of you holding your ID"}
                 icon={Camera}
                 uploaded={!!selfieUrl}
                 inputRef={selfieRef as React.RefObject<HTMLInputElement>}
