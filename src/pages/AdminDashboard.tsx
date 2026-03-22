@@ -8,7 +8,8 @@ import {
   Filter, Loader2, ArrowLeft,
   FileText, Image, Video, TrendingUp, BarChart3, Activity, Home,
   MessageSquare, Building2, UserCheck, Globe, Percent, Target,
-  Star, ThumbsUp, Send
+  Star, ThumbsUp, Send, Ban, Trash2, Power, UserX, CheckSquare,
+  Lock, Unlock
 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay, subWeeks } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -35,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -132,6 +134,19 @@ interface SparklineData {
   value: number;
 }
 
+interface AppUser {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  user_type: string;
+  is_suspended: boolean;
+  created_at: string;
+  last_sign_in_at: string | null;
+  properties_count: number;
+  verification_status: string;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--gold))', 'hsl(var(--success))', 'hsl(var(--destructive))'];
 
 const AdminDashboard = () => {
@@ -148,18 +163,25 @@ const AdminDashboard = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [inquiries, setInquiries] = useState<PropertyInquiry[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<VerificationDocument | null>(null);
   const [selectedReport, setSelectedReport] = useState<UserReport | null>(null);
   const [selectedTestimonial, setSelectedTestimonial] = useState<Testimonial | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<PropertyInquiry | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [testimonialDialogOpen, setTestimonialDialogOpen] = useState(false);
   const [inquiryDialogOpen, setInquiryDialogOpen] = useState(false);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [userActionDialogOpen, setUserActionDialogOpen] = useState(false);
+  const [userActionType, setUserActionType] = useState<"suspend" | "delete" | "unsuspend" | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [filter, setFilter] = useState("pending");
   const [respondingToInquiry, setRespondingToInquiry] = useState(false);
+  const [selectedUserDocs, setSelectedUserDocs] = useState<VerificationDocument[]>([]);
+  const [validatingAllDocs, setValidatingAllDocs] = useState(false);
   
   // Chart dialog state
   const [chartDialogOpen, setChartDialogOpen] = useState(false);
@@ -231,6 +253,9 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Récupérer tous les utilisateurs avec leurs métadonnées
+      await fetchUsers();
+
       // Fetch verification documents
       const { data: docsData, error: docsError } = await supabase
         .from("verification_documents")
@@ -354,14 +379,64 @@ const AdminDashboard = () => {
     }
   };
 
+  // NOUVELLE FONCTION : Récupérer tous les utilisateurs avec métadonnées complètes
+  const fetchUsers = async () => {
+    try {
+      // Récupérer tous les profils avec leurs informations
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // Pour chaque profil, récupérer les infos supplémentaires
+      const enrichedUsers = await Promise.all(
+        (profilesData || []).map(async (profile) => {
+          // Compter les propriétés
+          const { count: propertiesCount } = await supabase
+            .from("properties")
+            .select("*", { count: "exact", head: true })
+            .eq("owner_id", profile.user_id);
+
+          // Vérifier le statut de vérification
+          const { data: verification } = await supabase
+            .from("user_verifications")
+            .select("level_1_status, level_2_status")
+            .eq("user_id", profile.user_id)
+            .maybeSingle();
+
+          let verificationStatus = "none";
+          if (verification?.level_2_status === "approved") {
+            verificationStatus = "level_2";
+          } else if (verification?.level_1_status === "approved") {
+            verificationStatus = "level_1";
+          }
+
+          return {
+            id: profile.id,
+            user_id: profile.user_id,
+            email: profile.email || "",
+            full_name: profile.full_name,
+            user_type: profile.user_type || "seeker",
+            is_suspended: profile.is_suspended || false,
+            created_at: profile.created_at,
+            last_sign_in_at: profile.last_sign_in_at,
+            properties_count: propertiesCount || 0,
+            verification_status: verificationStatus,
+          };
+        })
+      );
+
+      setUsers(enrichedUsers);
+      setTotalUsers(enrichedUsers.length);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
   const fetchAnalytics = async () => {
     try {
-      // Get total users count
-      const { count: usersCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-      setTotalUsers(usersCount || 0);
-
       // Get total properties count
       const { count: propertiesCount } = await supabase
         .from("properties")
@@ -387,11 +462,11 @@ const AdminDashboard = () => {
         .select("*", { count: "exact", head: true });
       setTotalInquiries(inquiriesCount || 0);
 
-      // Get verified users (level 1 completed)
+      // Get verified users (level 2 completed - identité vérifiée)
       const { count: verifiedCount } = await supabase
         .from("user_verifications")
         .select("*", { count: "exact", head: true })
-        .eq("level_1_status", "approved");
+        .eq("level_2_status", "approved");
       setVerifiedUsers(verifiedCount || 0);
 
       // Get new users this week
@@ -573,6 +648,88 @@ const AdminDashboard = () => {
   const pendingReports = reports.filter(r => r.status === "pending").length;
   const pendingTestimonials = testimonials.filter(t => !t.is_approved).length;
   const unreadInquiries = inquiries.filter(i => !i.is_read).length;
+
+  // NOUVELLE FONCTION : Valider tous les documents d'un utilisateur d'un coup
+  const handleApproveAllUserDocuments = async (userId: string) => {
+    setValidatingAllDocs(true);
+    try {
+      // Récupérer tous les documents pending de l'utilisateur pour level_2
+      const userPendingDocs = documents.filter(
+        d => d.user_id === userId && d.status === "pending" && d.verification_level === "level_2"
+      );
+
+      if (userPendingDocs.length === 0) {
+        toast({
+          variant: "destructive",
+          title: language === "fr" ? "Aucun document en attente" : "No pending documents",
+          description: language === "fr" ? "Cet utilisateur n'a pas de documents à valider" : "This user has no documents to validate"
+        });
+        return;
+      }
+
+      // Valider tous les documents
+      const { error: docsError } = await supabase
+        .from("verification_documents")
+        .update({ 
+          status: "approved",
+          verified_at: new Date().toISOString(),
+          verified_by: user?.id
+        })
+        .eq("user_id", userId)
+        .eq("verification_level", "level_2")
+        .eq("status", "pending");
+
+      if (docsError) throw docsError;
+
+      // Mettre à jour le statut de vérification level_2
+      const { error: verifError } = await supabase
+        .from("user_verifications")
+        .update({ 
+          level_2_status: "approved",
+          identity_document_verified: true,
+          selfie_verified: true,
+          level_2_completed_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (verifError) throw verifError;
+
+      // Publier automatiquement toutes les annonces en brouillon
+      const { data: draftProperties } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("owner_id", userId)
+        .eq("is_published", false);
+
+      if (draftProperties && draftProperties.length > 0) {
+        const { error: publishError } = await supabase
+          .from("properties")
+          .update({ is_published: true })
+          .eq("owner_id", userId)
+          .eq("is_published", false);
+
+        if (publishError) throw publishError;
+      }
+
+      toast({ 
+        title: language === "fr" 
+          ? `Identité vérifiée ! ${userPendingDocs.length} document(s) validé(s) et ${draftProperties?.length || 0} annonce(s) publiée(s).` 
+          : `Identity verified! ${userPendingDocs.length} document(s) approved and ${draftProperties?.length || 0} listing(s) published.`
+      });
+
+      setDocDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error approving all documents:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("admin.loadError")
+      });
+    } finally {
+      setValidatingAllDocs(false);
+    }
+  };
 
   const handleApproveDocument = async (doc: VerificationDocument) => {
     try {
@@ -836,6 +993,121 @@ const AdminDashboard = () => {
     }
   };
 
+  // NOUVELLES FONCTIONS : Gestion des utilisateurs
+  const handleSuspendUser = async (userId: string) => {
+    try {
+      // Mettre à jour le profil pour marquer comme suspendu
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_suspended: true, suspended_at: new Date().toISOString() })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      // Dépublier toutes les annonces de l'utilisateur
+      await supabase
+        .from("properties")
+        .update({ is_published: false })
+        .eq("owner_id", userId);
+
+      toast({
+        title: language === "fr" ? "Utilisateur suspendu" : "User suspended",
+        description: language === "fr" 
+          ? "Le compte a été suspendu et les annonces dépubliées" 
+          : "Account suspended and listings unpublished"
+      });
+
+      setUserActionDialogOpen(false);
+      setSelectedUser(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: language === "fr" ? "Erreur lors de la suspension" : "Error suspending user"
+      });
+    }
+  };
+
+  const handleUnsuspendUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_suspended: false, suspended_at: null })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: language === "fr" ? "Utilisateur réactivé" : "User reactivated",
+        description: language === "fr" 
+          ? "Le compte a été réactivé" 
+          : "Account reactivated"
+      });
+
+      setUserActionDialogOpen(false);
+      setSelectedUser(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error unsuspending user:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: language === "fr" ? "Erreur lors de la réactivation" : "Error reactivating user"
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // Supprimer les données associées d'abord (cascade)
+      // 1. Supprimer les propriétés
+      await supabase.from("properties").delete().eq("owner_id", userId);
+      
+      // 2. Supprimer les documents de vérification
+      await supabase.from("verification_documents").delete().eq("user_id", userId);
+      
+      // 3. Supprimer les vérifications utilisateur
+      await supabase.from("user_verifications").delete().eq("user_id", userId);
+      
+      // 4. Supprimer les témoignages
+      await supabase.from("testimonials").delete().eq("user_id", userId);
+      
+      // 5. Supprimer les messages et conversations
+      await supabase.from("messages").delete().eq("sender_id", userId);
+      await supabase.from("conversations").delete().or(`owner_id.eq.${userId},tenant_id.eq.${userId}`);
+      
+      // 6. Supprimer le profil
+      await supabase.from("profiles").delete().eq("user_id", userId);
+      
+      // 7. Supprimer l'utilisateur de auth (nécessite une fonction RPC ou edge function)
+      const { error: authError } = await supabase.rpc("delete_user", { user_id: userId });
+      
+      if (authError) {
+        console.warn("Could not delete auth user, may need manual cleanup:", authError);
+      }
+
+      toast({
+        title: language === "fr" ? "Utilisateur supprimé" : "User deleted",
+        description: language === "fr" 
+          ? "Le compte et toutes les données associées ont été supprimés" 
+          : "Account and all associated data deleted"
+      });
+
+      setUserActionDialogOpen(false);
+      setSelectedUser(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: language === "fr" ? "Erreur lors de la suppression" : "Error deleting user"
+      });
+    }
+  };
+
   const getDocTypeLabel = (type: string) => {
     const labels: Record<string, Record<string, string>> = {
       id_card: { fr: "Carte d'identité", en: "ID Card" },
@@ -863,6 +1135,15 @@ const AdminDashboard = () => {
     return labels[level]?.[language] || level;
   };
 
+  const getVerificationStatusLabel = (status: string) => {
+    const labels: Record<string, Record<string, string>> = {
+      none: { fr: "Non vérifié", en: "Not verified" },
+      level_1: { fr: "Niveau 1", en: "Level 1" },
+      level_2: { fr: "Identité vérifiée", en: "Identity verified" }
+    };
+    return labels[status]?.[language] || status;
+  };
+
   const filteredDocs = documents.filter(d => 
     filter === "all" || d.status === filter
   );
@@ -882,6 +1163,14 @@ const AdminDashboard = () => {
     if (filter === "all") return true;
     if (filter === "pending") return !i.is_read;
     if (filter === "approved") return i.is_read;
+    return true;
+  });
+
+  const filteredUsers = users.filter(u => {
+    if (filter === "all") return true;
+    if (filter === "pending") return u.verification_status === "none";
+    if (filter === "approved") return u.verification_status !== "none";
+    if (filter === "rejected") return u.is_suspended;
     return true;
   });
 
@@ -940,7 +1229,7 @@ const AdminDashboard = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8"
+              className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8"
             >
               <Card>
                 <CardContent className="p-4">
@@ -1017,6 +1306,22 @@ const AdminDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-orange-500/10">
+                      <Users className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{users.length}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {language === "fr" ? "Utilisateurs" : "Users"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
 
             {/* Tabs */}
@@ -1031,6 +1336,13 @@ const AdminDashboard = () => {
                     <TabsTrigger value="analytics" className="gap-2">
                       <BarChart3 className="w-4 h-4" />
                       {t("admin.analytics")}
+                    </TabsTrigger>
+                    <TabsTrigger value="users" className="gap-2">
+                      <Users className="w-4 h-4" />
+                      {language === "fr" ? "Utilisateurs" : "Users"}
+                      <Badge variant="secondary" className="ml-1">
+                        {users.length}
+                      </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="properties" className="gap-2">
                       <Building2 className="w-4 h-4" />
@@ -1415,7 +1727,7 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Additional Charts Row */}
-                    <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="grid lg:grid-cols-3 gap-6">
                       <Card>
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
@@ -1519,6 +1831,124 @@ const AdminDashboard = () => {
                       </Card>
                     </div>
                   </div>
+                </TabsContent>
+
+                {/* NOUVEL ONGLET : Utilisateurs */}
+                <TabsContent value="users">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        {language === "fr" ? "Gestion des utilisateurs" : "User Management"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {filteredUsers.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-muted-foreground">
+                            {language === "fr" ? "Aucun utilisateur" : "No users"}
+                          </p>
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-[600px]">
+                          <div className="space-y-3">
+                            {filteredUsers.map((appUser) => (
+                              <div
+                                key={appUser.id}
+                                className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                                  appUser.is_suspended 
+                                    ? "border-destructive/50 bg-destructive/5" 
+                                    : "border-border hover:bg-secondary/50"
+                                }`}
+                              >
+                                <div className="flex items-center gap-4 flex-1">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                    appUser.is_suspended ? "bg-destructive/20" : "bg-primary/10"
+                                  }`}>
+                                    <UserCheck className={`w-5 h-5 ${
+                                      appUser.is_suspended ? "text-destructive" : "text-primary"
+                                    }`} />
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium">{appUser.full_name || appUser.email}</p>
+                                      {appUser.is_suspended && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          <Ban className="w-3 h-3 mr-1" />
+                                          {language === "fr" ? "Suspendu" : "Suspended"}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{appUser.email}</p>
+                                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                      <span className="capitalize">{appUser.user_type}</span>
+                                      <span>•</span>
+                                      <span>{getVerificationStatusLabel(appUser.verification_status)}</span>
+                                      <span>•</span>
+                                      <span>{appUser.properties_count} {language === "fr" ? "annonces" : "listings"}</span>
+                                      <span>•</span>
+                                      <span>{format(new Date(appUser.created_at), "dd MMM yyyy", { locale: dateLocale })}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUser(appUser);
+                                      setUserDialogOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                  {appUser.is_suspended ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-success hover:text-success"
+                                      onClick={() => {
+                                        setSelectedUser(appUser);
+                                        setUserActionType("unsuspend");
+                                        setUserActionDialogOpen(true);
+                                      }}
+                                    >
+                                      <Unlock className="w-4 h-4" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        setSelectedUser(appUser);
+                                        setUserActionType("suspend");
+                                        setUserActionDialogOpen(true);
+                                      }}
+                                    >
+                                      <Lock className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUser(appUser);
+                                      setUserActionType("delete");
+                                      setUserActionDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 {/* Properties Tab - Grouped by User */}
@@ -1788,7 +2218,7 @@ const AdminDashboard = () => {
                   </Card>
                 </TabsContent>
 
-                {/* Documents Tab - Grouped by User */}
+                {/* Documents Tab - Grouped by User avec validation groupée */}
                 <TabsContent value="documents">
                   <Card>
                     <CardHeader>
@@ -1811,88 +2241,110 @@ const AdminDashboard = () => {
                                 acc[key].push(doc);
                                 return acc;
                               }, {})
-                            ).map(([userId, userDocs]) => (
-                              <div key={userId} className="rounded-xl border border-border p-4 space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                      <Users className="w-5 h-5 text-primary" />
-                                    </div>
-                                    <div>
-                                      <p className="font-semibold">{userDocs[0].user_name}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {userDocs.length} {language === "fr" ? "document(s)" : "document(s)"} • {getLevelLabel(userDocs[0].verification_level)}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <Badge variant={
-                                    userDocs.every(d => d.status === "approved") ? "default" :
-                                    userDocs.some(d => d.status === "rejected") ? "destructive" : "secondary"
-                                  } className={userDocs.every(d => d.status === "approved") ? "bg-success" : ""}>
-                                    {userDocs.every(d => d.status === "approved") 
-                                      ? (language === "fr" ? "Tous validés" : "All approved")
-                                      : userDocs.some(d => d.status === "rejected")
-                                      ? (language === "fr" ? "Rejeté" : "Rejected")
-                                      : (language === "fr" ? "En attente" : "Pending")}
-                                  </Badge>
-                                </div>
-                                
-                                {/* Individual documents in grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                  {userDocs.map((doc) => (
-                                    <div
-                                      key={doc.id}
-                                      className="rounded-lg border border-border overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-                                      onClick={() => {
-                                        setSelectedDoc(doc);
-                                        setDocDialogOpen(true);
-                                      }}
-                                    >
-                                      {/* Image preview */}
-                                      <div className="aspect-[4/3] bg-muted relative">
-                                        <img
-                                          src={doc.file_url}
-                                          alt={getDocTypeLabel(doc.document_type)}
-                                          className="w-full h-full object-cover"
-                                          crossOrigin="anonymous"
-                                          onError={(e) => {
-                                            const img = e.target as HTMLImageElement;
-                                            // Try signed URL if public URL fails
-                                            if (!img.dataset.retried) {
-                                              img.dataset.retried = "true";
-                                              const path = doc.file_url.split("/verification-documents/").pop();
-                                              if (path) {
-                                                supabase.storage.from("verification-documents").createSignedUrl(path, 3600).then(({ data }) => {
-                                                  if (data?.signedUrl) img.src = data.signedUrl;
-                                                  else img.style.display = "none";
-                                                });
-                                              }
-                                            } else {
-                                              img.style.display = "none";
-                                            }
-                                          }}
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                          <FileText className="w-8 h-8 text-muted-foreground opacity-30" />
-                                        </div>
-                                        <Badge 
-                                          variant={doc.status === "approved" ? "default" : doc.status === "rejected" ? "destructive" : "secondary"}
-                                          className={`absolute top-2 right-2 text-xs ${doc.status === "approved" ? "bg-success" : ""}`}
-                                        >
-                                          {doc.status === "approved" ? "✓" : doc.status === "rejected" ? "✗" : "⏳"}
-                                        </Badge>
+                            ).map(([userId, userDocs]) => {
+                              const pendingDocsForUser = userDocs.filter(d => d.status === "pending");
+                              const hasPendingLevel2 = pendingDocsForUser.some(d => d.verification_level === "level_2");
+
+                              return (
+                                <div key={userId} className="rounded-xl border border-border p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Users className="w-5 h-5 text-primary" />
                                       </div>
-                                      <div className="p-2">
-                                        <p className="text-xs font-medium truncate">{getDocTypeLabel(doc.document_type)}</p>
+                                      <div>
+                                        <p className="font-semibold">{userDocs[0].user_name}</p>
                                         <p className="text-xs text-muted-foreground">
-                                          {format(new Date(doc.created_at), "dd MMM yyyy", { locale: dateLocale })}
+                                          {userDocs.length} {language === "fr" ? "document(s)" : "document(s)"} • {getLevelLabel(userDocs[0].verification_level)}
                                         </p>
                                       </div>
                                     </div>
-                                  ))}
+                                    <div className="flex items-center gap-2">
+                                      {hasPendingLevel2 && pendingDocsForUser.length >= 3 && (
+                                        <Button
+                                          size="sm"
+                                          className="gap-2 bg-success hover:bg-success/90"
+                                          onClick={() => handleApproveAllUserDocuments(userId)}
+                                          disabled={validatingAllDocs}
+                                        >
+                                          {validatingAllDocs ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <CheckSquare className="w-4 h-4" />
+                                          )}
+                                          {language === "fr" ? "Tout valider" : "Validate all"}
+                                        </Button>
+                                      )}
+                                      <Badge variant={
+                                        userDocs.every(d => d.status === "approved") ? "default" :
+                                        userDocs.some(d => d.status === "rejected") ? "destructive" : "secondary"
+                                      } className={userDocs.every(d => d.status === "approved") ? "bg-success" : ""}>
+                                        {userDocs.every(d => d.status === "approved") 
+                                          ? (language === "fr" ? "Tous validés" : "All approved")
+                                          : userDocs.some(d => d.status === "rejected")
+                                          ? (language === "fr" ? "Rejeté" : "Rejected")
+                                          : (language === "fr" ? "En attente" : "Pending")}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Individual documents in grid */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    {userDocs.map((doc) => (
+                                      <div
+                                        key={doc.id}
+                                        className="rounded-lg border border-border overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                                        onClick={() => {
+                                          setSelectedDoc(doc);
+                                          setDocDialogOpen(true);
+                                        }}
+                                      >
+                                        {/* Image preview */}
+                                        <div className="aspect-[4/3] bg-muted relative">
+                                          <img
+                                            src={doc.file_url}
+                                            alt={getDocTypeLabel(doc.document_type)}
+                                            className="w-full h-full object-cover"
+                                            crossOrigin="anonymous"
+                                            onError={(e) => {
+                                              const img = e.target as HTMLImageElement;
+                                              // Try signed URL if public URL fails
+                                              if (!img.dataset.retried) {
+                                                img.dataset.retried = "true";
+                                                const path = doc.file_url.split("/verification-documents/").pop();
+                                                if (path) {
+                                                  supabase.storage.from("verification-documents").createSignedUrl(path, 3600).then(({ data }) => {
+                                                    if (data?.signedUrl) img.src = data.signedUrl;
+                                                    else img.style.display = "none";
+                                                  });
+                                                }
+                                              } else {
+                                                img.style.display = "none";
+                                              }
+                                            }}
+                                          />
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <FileText className="w-8 h-8 text-muted-foreground opacity-30" />
+                                          </div>
+                                          <Badge 
+                                            variant={doc.status === "approved" ? "default" : doc.status === "rejected" ? "destructive" : "secondary"}
+                                            className={`absolute top-2 right-2 text-xs ${doc.status === "approved" ? "bg-success" : ""}`}
+                                          >
+                                            {doc.status === "approved" ? "✓" : doc.status === "rejected" ? "✗" : "⏳"}
+                                          </Badge>
+                                        </div>
+                                        <div className="p-2">
+                                          <p className="text-xs font-medium truncate">{getDocTypeLabel(doc.document_type)}</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {format(new Date(doc.created_at), "dd MMM yyyy", { locale: dateLocale })}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </ScrollArea>
                       )}
@@ -2266,6 +2718,168 @@ const AdminDashboard = () => {
                 </DialogFooter>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* NOUVEAU : User Details Dialog */}
+        <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {language === "fr" ? "Détails de l'utilisateur" : "User Details"}
+              </DialogTitle>
+              <DialogDescription>
+                {selectedUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedUser && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">{language === "fr" ? "Nom" : "Name"}</p>
+                    <p className="font-medium">{selectedUser.full_name || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Type</p>
+                    <p className="font-medium capitalize">{selectedUser.user_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{language === "fr" ? "Inscription" : "Registered"}</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedUser.created_at), "dd/MM/yyyy")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{language === "fr" ? "Dernière connexion" : "Last login"}</p>
+                    <p className="font-medium">
+                      {selectedUser.last_sign_in_at 
+                        ? format(new Date(selectedUser.last_sign_in_at), "dd/MM/yyyy HH:mm")
+                        : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{language === "fr" ? "Vérification" : "Verification"}</p>
+                    <p className="font-medium">{getVerificationStatusLabel(selectedUser.verification_status)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{language === "fr" ? "Annonces" : "Listings"}</p>
+                    <p className="font-medium">{selectedUser.properties_count}</p>
+                  </div>
+                </div>
+
+                {selectedUser.is_suspended && (
+                  <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+                    <p className="text-sm text-destructive font-medium">
+                      {language === "fr" ? "Compte suspendu" : "Account suspended"}
+                    </p>
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setUserDialogOpen(false)}
+                  >
+                    {language === "fr" ? "Fermer" : "Close"}
+                  </Button>
+                  {selectedUser.is_suspended ? (
+                    <Button
+                      variant="outline"
+                      className="text-success"
+                      onClick={() => {
+                        setUserDialogOpen(false);
+                        setUserActionType("unsuspend");
+                        setUserActionDialogOpen(true);
+                      }}
+                    >
+                      <Unlock className="w-4 h-4 mr-2" />
+                      {language === "fr" ? "Réactiver" : "Reactivate"}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => {
+                        setUserDialogOpen(false);
+                        setUserActionType("suspend");
+                        setUserActionDialogOpen(true);
+                      }}
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {language === "fr" ? "Suspendre" : "Suspend"}
+                    </Button>
+                  )}
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* NOUVEAU : User Action Confirmation Dialog */}
+        <Dialog open={userActionDialogOpen} onOpenChange={setUserActionDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {userActionType === "suspend" && <Lock className="w-5 h-5 text-destructive" />}
+                {userActionType === "unsuspend" && <Unlock className="w-5 h-5 text-success" />}
+                {userActionType === "delete" && <Trash2 className="w-5 h-5 text-destructive" />}
+                {userActionType === "suspend" && (language === "fr" ? "Confirmer la suspension" : "Confirm suspension")}
+                {userActionType === "unsuspend" && (language === "fr" ? "Confirmer la réactivation" : "Confirm reactivation")}
+                {userActionType === "delete" && (language === "fr" ? "Confirmer la suppression" : "Confirm deletion")}
+              </DialogTitle>
+              <DialogDescription>
+                {userActionType === "suspend" && (language === "fr" 
+                  ? `Voulez-vous vraiment suspendre le compte de ${selectedUser?.full_name || selectedUser?.email} ? Les annonces seront dépubliées.` 
+                  : `Do you really want to suspend ${selectedUser?.full_name || selectedUser?.email}'s account? Listings will be unpublished.`)}
+                {userActionType === "unsuspend" && (language === "fr" 
+                  ? `Voulez-vous vraiment réactiver le compte de ${selectedUser?.full_name || selectedUser?.email} ?` 
+                  : `Do you really want to reactivate ${selectedUser?.full_name || selectedUser?.email}'s account?`)}
+                {userActionType === "delete" && (language === "fr" 
+                  ? `ATTENTION : Cette action est irréversible. Toutes les données de ${selectedUser?.full_name || selectedUser?.email} seront supprimées définitivement.` 
+                  : `WARNING: This action is irreversible. All data for ${selectedUser?.full_name || selectedUser?.email} will be permanently deleted.`)}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setUserActionDialogOpen(false);
+                  setUserActionType(null);
+                }}
+              >
+                {language === "fr" ? "Annuler" : "Cancel"}
+              </Button>
+              {userActionType === "suspend" && (
+                <Button
+                  variant="destructive"
+                  onClick={() => selectedUser && handleSuspendUser(selectedUser.user_id)}
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  {language === "fr" ? "Suspendre" : "Suspend"}
+                </Button>
+              )}
+              {userActionType === "unsuspend" && (
+                <Button
+                  variant="default"
+                  className="bg-success hover:bg-success/90"
+                  onClick={() => selectedUser && handleUnsuspendUser(selectedUser.user_id)}
+                >
+                  <Unlock className="w-4 h-4 mr-2" />
+                  {language === "fr" ? "Réactiver" : "Reactivate"}
+                </Button>
+              )}
+              {userActionType === "delete" && (
+                <Button
+                  variant="destructive"
+                  onClick={() => selectedUser && handleDeleteUser(selectedUser.user_id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {language === "fr" ? "Supprimer définitivement" : "Delete permanently"}
+                </Button>
+              )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

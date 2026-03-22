@@ -33,6 +33,7 @@ import {
   Settings,
   MessageSquare
 } from "lucide-react";
+import { compressImage } from "@/utils/compressImage"; // ← AJOUTÉ
 
 interface Profile {
   id: string;
@@ -190,12 +191,13 @@ const ProfilePage = () => {
 
     setUploadingAvatar(true);
     try {
-      const fileExt = file.name.split(".").pop();
+      const compressedFile = await compressImage(file);
+      const fileExt = compressedFile.name.split(".").pop();
       const filePath = `${user.id}/avatar.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressedFile, { upsert: true });
 
       if (uploadError) throw uploadError;
 

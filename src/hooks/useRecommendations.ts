@@ -23,7 +23,7 @@ interface Property {
   owner_id?: string;
 }
 
-export function useRecommendations(limit: number = 6) {
+export function useRecommendations(limit: number = 10) {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,40 +34,44 @@ export function useRecommendations(limit: number = 6) {
     setError(null);
 
     try {
-      // Try edge function first
       const { data, error: fnError } = await supabase.functions.invoke("recommend-properties", {
         body: { user_id: user?.id || null, limit },
       });
+
+      // AJOUT: Vérification explicite des erreurs pour forcer le fallback en cas de CORS/erreur réseau
+      if (fnError) {
+        console.warn("Edge function error (possible CORS):", fnError);
+        throw fnError;
+      }
 
       if (!fnError && data?.recommendations?.length > 0) {
         setRecommendations(data.recommendations);
         return;
       }
 
-      // Fallback: fetch published properties sorted by recency
-      const { data: fallbackData } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("is_published", true)
-        .eq("is_available", true)
-        .order("created_at", { ascending: false })
-        .limit(limit);
+      // AJOUT: Si pas de données, on force le fallback
+      throw new Error("No recommendations from edge function");
 
-      setRecommendations(fallbackData || []);
     } catch (err) {
-      console.error("Error fetching recommendations:", err);
+      console.warn("Falling back to direct query due to:", err);
       
-      // Ultimate fallback
+      // Fallback: fetch published properties sorted by recency
       try {
-        const { data: fallbackData } = await supabase
+        const { data: fallbackData, error: fallbackError } = await supabase
           .from("properties")
           .select("*")
           .eq("is_published", true)
+          .eq("is_available", true)
           .order("created_at", { ascending: false })
           .limit(limit);
+
+        // AJOUT: Gestion d'erreur du fallback
+        if (fallbackError) throw fallbackError;
         setRecommendations(fallbackData || []);
-      } catch {
+      } catch (fallbackErr) {
+        console.error("Fallback error:", fallbackErr);
         setError("Erreur lors du chargement des recommandations");
+        setRecommendations([]);
       }
     } finally {
       setLoading(false);
@@ -88,7 +92,6 @@ export function useRecommendations(limit: number = 6) {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
         () => {
-          // Profile preferences changed -> refresh recommendations
           fetchRecommendations();
         }
       )

@@ -16,6 +16,7 @@ import { ReportDialog } from "@/components/ReportDialog";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { BookingDialog } from "@/components/BookingDialog";
 import { PropertyRatingDialog } from "@/components/PropertyRatingDialog";
+import { SimilarProperties } from "@/components/SimilarProperties";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -35,15 +36,13 @@ import {
   Loader2,
   AlertCircle,
   Flag,
-  MessageCircle
+  MessageCircle,
+  Sofa,
+  Utensils,
+  DoorOpen,
+  WashingMachine,
+  BadgeCheck
 } from "lucide-react";
-
-// Import demo images
-import property1 from "@/assets/property-1.jpg";
-import property2 from "@/assets/property-2.jpg";
-import property3 from "@/assets/property-3.jpg";
-import property4 from "@/assets/property-4.jpg";
-import property5 from "@/assets/property-5.jpg";
 
 // Types
 interface Property {
@@ -63,6 +62,10 @@ interface Property {
   deposit: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
+  living_rooms: number | null;
+  kitchens: number | null;
+  dining_rooms: number | null;
+  laundry_rooms: number | null;
   area: number | null;
   floor_number: number | null;
   total_floors: number | null;
@@ -74,6 +77,7 @@ interface Property {
   available_to: string | null;
   is_available: boolean;
   is_verified: boolean;
+  is_agent_verified: boolean;
   created_at: string;
   visit_price?: number | null;
   rental_months?: number | null;
@@ -86,52 +90,6 @@ interface OwnerProfile {
   phone: string | null;
   whatsapp_number: string | null;
 }
-
-// Demo property for when no real data exists
-const demoProperty: Property = {
-  id: "demo",
-  owner_id: "demo-owner",
-  title: "Appartement moderne avec terrasse - Bastos",
-  description: `Magnifique appartement de 3 chambres situé dans le quartier prisé de Bastos à Yaoundé. 
-  
-Cet appartement lumineux offre un cadre de vie exceptionnel avec ses finitions haut de gamme, sa cuisine entièrement équipée et sa grande terrasse avec vue panoramique sur la ville.
-
-L'appartement comprend :
-- Un grand salon lumineux avec accès terrasse
-- Une cuisine américaine moderne entièrement équipée
-- 3 chambres spacieuses dont une suite parentale
-- 2 salles de bain modernes
-- Un espace buanderie
-- Un parking privé sécurisé
-
-Le quartier de Bastos offre un environnement calme et sécurisé, proche des ambassades, restaurants et commerces.
-
-Idéal pour les familles ou les professionnels expatriés recherchant le confort et la sécurité.`,
-  property_type: "apartment",
-  listing_type: "rent",
-  address: "Rue des Ambassades, Bastos",
-  city: "Yaoundé",
-  neighborhood: "Bastos",
-  latitude: 3.8680,
-  longitude: 11.5021,
-  price: 250000,
-  price_unit: "month",
-  deposit: 500000,
-  bedrooms: 3,
-  bathrooms: 2,
-  area: 120,
-  floor_number: 4,
-  total_floors: 6,
-  amenities: ["wifi", "parking", "security", "water", "electricity", "ac", "tv", "kitchen", "laundry", "garden"],
-  rules: ["Pas d'animaux", "Non-fumeur", "Pas de fêtes"],
-  min_stay_days: 30,
-  images: [property1, property2, property3, property4, property5],
-  available_from: new Date().toISOString().split('T')[0],
-  available_to: null,
-  is_available: true,
-  is_verified: true,
-  created_at: new Date().toISOString(),
-};
 
 const PropertyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -151,24 +109,18 @@ const PropertyDetail = () => {
 
   // Track property view
   usePropertyView({ 
-    propertyId: id && id !== "demo" ? id : "", 
+    propertyId: id || "", 
     source 
   });
 
   useEffect(() => {
-    fetchProperty();
+    if (id) {
+      fetchProperty();
+    }
   }, [id]);
 
   const fetchProperty = async () => {
     setLoading(true);
-
-    // If demo or no id, show demo property
-    if (!id || id === "demo") {
-      setProperty(demoProperty);
-      setOwner({ full_name: "Jean-Pierre Kamga", avatar_url: null, is_verified: true, phone: "+237699999999", whatsapp_number: "+237699999999" });
-      setLoading(false);
-      return;
-    }
 
     try {
       // Fetch property
@@ -206,15 +158,16 @@ const PropertyDetail = () => {
           setIsFavorite(!!favData);
         }
       } else {
-        // No property found, show demo
-        setProperty(demoProperty);
-        setOwner({ full_name: "Jean-Pierre Kamga", avatar_url: null, is_verified: true, phone: "+237699999999", whatsapp_number: "+237699999999" });
+        // No property found
+        setProperty(null);
       }
     } catch (error) {
       console.error("Error fetching property:", error);
-      // Show demo on error
-      setProperty(demoProperty);
-      setOwner({ full_name: "Jean-Pierre Kamga", avatar_url: null, is_verified: true, phone: "+237699999999", whatsapp_number: "+237699999999" });
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("error.generic"),
+      });
     } finally {
       setLoading(false);
     }
@@ -229,7 +182,7 @@ const PropertyDetail = () => {
       return;
     }
 
-    if (!property || property.id === "demo") return;
+    if (!property) return;
 
     try {
       if (isFavorite) {
@@ -316,9 +269,17 @@ const PropertyDetail = () => {
         <main className="pt-24 pb-16">
           <div className="container mx-auto px-4 text-center">
             <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Annonce introuvable</h1>
-            <p className="text-muted-foreground mb-6">Cette annonce n'existe pas ou a été supprimée.</p>
-            <Button onClick={() => navigate("/")}>Retour à l'accueil</Button>
+            <h1 className="text-2xl font-bold mb-2">
+              {language === "fr" ? "Annonce introuvable" : "Property not found"}
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              {language === "fr" 
+                ? "Cette annonce n'existe pas ou a été supprimée." 
+                : "This property does not exist or has been removed."}
+            </p>
+            <Button onClick={() => navigate("/")}>
+              {language === "fr" ? "Retour à l'accueil" : "Back to home"}
+            </Button>
           </div>
         </main>
       </div>
@@ -351,7 +312,7 @@ const PropertyDetail = () => {
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Retour</span>
+                <span>{language === "fr" ? "Retour" : "Back"}</span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -405,7 +366,13 @@ const PropertyDetail = () => {
                     {property.is_verified && (
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent flex items-center gap-1">
                         <Check className="w-3 h-3" />
-                        Vérifié
+                        {language === "fr" ? "Vérifié" : "Verified"}
+                      </span>
+                    )}
+                    {property.is_agent_verified && (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 flex items-center gap-1">
+                        <BadgeCheck className="w-3 h-3" />
+                        {language === "fr" ? "Agent Vérifié" : "Agent Verified"}
                       </span>
                     )}
                   </div>
@@ -421,18 +388,70 @@ const PropertyDetail = () => {
 
                   {/* Quick Stats */}
                   <div className="flex flex-wrap gap-6 mt-4 pt-4 border-t border-border">
-                    {property.bedrooms && (
+                    {property.bedrooms !== null && (
                       <div className="flex items-center gap-2">
                         <Bed className="w-5 h-5 text-muted-foreground" />
                         <span className="font-medium">{property.bedrooms}</span>
-                        <span className="text-muted-foreground">chambre{property.bedrooms > 1 ? "s" : ""}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `chambre${property.bedrooms > 1 ? "s" : ""}` 
+                            : `bedroom${property.bedrooms > 1 ? "s" : ""}`}
+                        </span>
                       </div>
                     )}
-                    {property.bathrooms && (
+                    {property.bathrooms !== null && (
                       <div className="flex items-center gap-2">
                         <Bath className="w-5 h-5 text-muted-foreground" />
                         <span className="font-medium">{property.bathrooms}</span>
-                        <span className="text-muted-foreground">sdb</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `sdb${property.bathrooms > 1 ? "s" : ""}` 
+                            : `bath${property.bathrooms > 1 ? "s" : ""}`}
+                        </span>
+                      </div>
+                    )}
+                    {property.living_rooms !== null && (
+                      <div className="flex items-center gap-2">
+                        <Sofa className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{property.living_rooms}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `salon${property.living_rooms > 1 ? "s" : ""}` 
+                            : `living room${property.living_rooms > 1 ? "s" : ""}`}
+                        </span>
+                      </div>
+                    )}
+                    {property.kitchens !== null && (
+                      <div className="flex items-center gap-2">
+                        <Utensils className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{property.kitchens}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `cuisine${property.kitchens > 1 ? "s" : ""}` 
+                            : `kitchen${property.kitchens > 1 ? "s" : ""}`}
+                        </span>
+                      </div>
+                    )}
+                    {property.dining_rooms !== null && (
+                      <div className="flex items-center gap-2">
+                        <DoorOpen className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{property.dining_rooms}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `salle à manger${property.dining_rooms > 1 ? "s" : ""}` 
+                            : `dining room${property.dining_rooms > 1 ? "s" : ""}`}
+                        </span>
+                      </div>
+                    )}
+                    {property.laundry_rooms !== null && (
+                      <div className="flex items-center gap-2">
+                        <WashingMachine className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{property.laundry_rooms}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" 
+                            ? `buanderie${property.laundry_rooms > 1 ? "s" : ""}` 
+                            : `laundry${property.laundry_rooms > 1 ? " rooms" : " room"}`}
+                        </span>
                       </div>
                     )}
                     {property.area && (
@@ -452,9 +471,11 @@ const PropertyDetail = () => {
                   transition={{ delay: 0.2 }}
                   className="space-y-4"
                 >
-                  <h2 className="text-lg font-semibold text-foreground">Description</h2>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {language === "fr" ? "Description" : "Description"}
+                  </h2>
                   <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-line">
-                    {property.description}
+                    {property.description || (language === "fr" ? "Aucune description disponible." : "No description available.")}
                   </div>
                 </motion.div>
 
@@ -477,7 +498,9 @@ const PropertyDetail = () => {
                     transition={{ delay: 0.35 }}
                     className="space-y-4"
                   >
-                    <h3 className="text-lg font-semibold text-foreground">Règles du logement</h3>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {language === "fr" ? "Règles du logement" : "House Rules"}
+                    </h3>
                     <div className="flex flex-wrap gap-2">
                       {property.rules.map((rule, i) => (
                         <span
@@ -491,18 +514,45 @@ const PropertyDetail = () => {
                   </motion.div>
                 )}
 
-                {/* Map */}
+                {/* Map - Enhanced with larger dimensions */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
+                  className="space-y-4"
                 >
-                  <PropertyMap
-                    latitude={property.latitude || undefined}
-                    longitude={property.longitude || undefined}
-                    address={property.address || undefined}
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {language === "fr" ? "Localisation" : "Location"}
+                  </h3>
+                  <div className="h-[450px] rounded-xl overflow-hidden border border-border shadow-sm">
+                    <PropertyMap
+                      latitude={property.latitude || undefined}
+                      longitude={property.longitude || undefined}
+                      address={property.address || undefined}
+                      city={property.city}
+                      neighborhood={property.neighborhood || undefined}
+                    />
+                  </div>
+                  {property.address && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      {property.address}
+                    </p>
+                  )}
+                </motion.div>
+
+                {/* Similar Properties - AI Recommendations */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="pt-8 border-t border-border"
+                >
+                  <SimilarProperties 
+                    currentPropertyId={property.id}
+                    propertyType={property.property_type}
                     city={property.city}
-                    neighborhood={property.neighborhood || undefined}
+                    price={property.price}
                   />
                 </motion.div>
               </div>
@@ -540,17 +590,21 @@ const PropertyDetail = () => {
                       </div>
                     )}
 
-                    {(property as any).visit_price && (
+                    {property.visit_price && (
                       <div className="flex items-center justify-between py-2 border-t border-border">
-                        <span className="text-muted-foreground">{language === "fr" ? "Prix de visite" : "Visit price"}</span>
-                        <span className="font-medium">{(property as any).visit_price.toLocaleString('fr-FR')} FCFA</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" ? "Prix de visite" : "Visit price"}
+                        </span>
+                        <span className="font-medium">{property.visit_price.toLocaleString('fr-FR')} FCFA</span>
                       </div>
                     )}
 
-                    {(property as any).rental_months && (
+                    {property.rental_months && (
                       <div className="flex items-center justify-between py-2 border-t border-border">
-                        <span className="text-muted-foreground">{language === "fr" ? "Durée du bail" : "Lease duration"}</span>
-                        <span className="font-medium">{(property as any).rental_months} {language === "fr" ? "mois" : "months"}</span>
+                        <span className="text-muted-foreground">
+                          {language === "fr" ? "Durée du bail" : "Lease duration"}
+                        </span>
+                        <span className="font-medium">{property.rental_months} {language === "fr" ? "mois" : "months"}</span>
                       </div>
                     )}
 
@@ -624,13 +678,13 @@ const PropertyDetail = () => {
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-foreground">
-                          {owner?.full_name || "Propriétaire"}
+                          {owner?.full_name || (language === "fr" ? "Propriétaire" : "Owner")}
                         </p>
                         <div className="flex items-center gap-2 text-sm">
                           {owner?.is_verified && (
                             <span className="flex items-center gap-1 text-accent">
                               <Shield className="w-3 h-3" />
-                              Vérifié
+                              {language === "fr" ? "Vérifié" : "Verified"}
                             </span>
                           )}
                           <span className="flex items-center gap-1 text-muted-foreground">

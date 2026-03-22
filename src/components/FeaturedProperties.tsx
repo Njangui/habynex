@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import PropertyCard from "./PropertyCard";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, SlidersHorizontal, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowRight, SlidersHorizontal, Loader2, Sparkles } from "lucide-react";
 import { useRecommendations } from "@/hooks/useRecommendations";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -104,11 +104,12 @@ const fallbackProperties = [
 ];
 
 const FeaturedProperties = () => {
-  const { recommendations, loading, error, refetch } = useRecommendations(6);
+  const ITEMS_PER_PAGE = 10; // 10 annonces par page
+  const { recommendations, loading, error, refetch } = useRecommendations(ITEMS_PER_PAGE);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [visibleCount, setVisibleCount] = useState(6);
   const [ownerTypes, setOwnerTypes] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { t, language } = useLanguage();
 
   // Fetch owner types for badges
@@ -168,29 +169,33 @@ const FeaturedProperties = () => {
     ownerType: ownerTypes[prop.owner_id] || undefined,
   }));
 
-  // Use DB data or fallback
   const displayProperties = transformedProperties.length > 0 ? transformedProperties : fallbackProperties.map(p => ({
     ...p,
     listingType: p.type === "Location" ? "rent" : p.type === "Vente" ? "sale" : p.type === "Colocation" ? "colocation" : "short_term"
   }));
 
-  // Filter logic
+  // Apply filter
   const allFiltered = activeFilter === "all" 
     ? displayProperties 
     : displayProperties.filter((p) => p.listingType === activeFilter);
-  const filteredProperties = allFiltered.slice(0, visibleCount);
-  const hasMore = allFiltered.length > visibleCount;
+
+  const totalPages = Math.ceil(allFiltered.length / ITEMS_PER_PAGE);
+  const paginatedProperties = allFiltered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Reset page on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
 
   return (
     <section id="search" className="py-20 bg-background">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
+          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-5 h-5 text-primary" />
               <span className="text-sm font-medium text-primary">{t("featured.recommended")}</span>
@@ -203,12 +208,7 @@ const FeaturedProperties = () => {
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="flex gap-3"
-          >
+          <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="flex gap-3">
             <Link to="/search">
               <Button variant="outline" size="sm" className="gap-2">
                 <SlidersHorizontal className="w-4 h-4" />
@@ -225,12 +225,7 @@ const FeaturedProperties = () => {
         </div>
 
         {/* Filter Chips */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="flex flex-wrap gap-2 mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex flex-wrap gap-2 mb-8">
           {filterLabels.map((filter) => (
             <button
               key={filter.key}
@@ -246,7 +241,7 @@ const FeaturedProperties = () => {
           ))}
         </motion.div>
 
-        {/* Loading State */}
+        {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -254,7 +249,7 @@ const FeaturedProperties = () => {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error */}
         {error && !loading && (
           <div className="text-center py-12">
             <p className="text-destructive mb-4">{error}</p>
@@ -268,20 +263,28 @@ const FeaturedProperties = () => {
         {!loading && !error && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProperties.map((property) => (
+              {paginatedProperties.map((property) => (
                 <PropertyCard key={property.id} {...property} />
               ))}
             </div>
 
             {/* Pagination */}
-            {allFiltered.length > 6 && (
+            {totalPages > 1 && (
               <div className="flex justify-center mt-8 gap-2">
-                {Array.from({ length: Math.ceil(allFiltered.length / 6) }, (_, i) => (
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+                >
+                  Précédent
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
-                    onClick={() => setVisibleCount((i + 1) * 6)}
-                    className={`w-10 h-10 rounded-full text-sm font-medium transition-all ${
-                      Math.ceil(visibleCount / 6) === i + 1
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`px-4 py-2 rounded ${
+                      currentPage === i + 1
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                     }`}
@@ -289,43 +292,25 @@ const FeaturedProperties = () => {
                     {i + 1}
                   </button>
                 ))}
+
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+                >
+                  Suivant
+                </button>
               </div>
             )}
           </>
         )}
 
         {/* Empty state */}
-        {!loading && !error && filteredProperties.length === 0 && (
+        {!loading && !error && paginatedProperties.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">{t("featured.noResults")}</p>
           </div>
         )}
-
-        {/* Load More */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-center mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
-        >
-          {hasMore && (
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="gap-2"
-              onClick={() => setVisibleCount(prev => prev + 6)}
-            >
-              {language === "fr" ? "Voir plus de recommandations" : "See more recommendations"}
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-          <Link to="/search">
-            <Button variant="ghost" size="lg" className="gap-2">
-              {t("featured.viewMore")}
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </motion.div>
       </div>
     </section>
   );
