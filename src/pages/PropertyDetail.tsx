@@ -540,21 +540,6 @@ const PropertyDetail = () => {
                     </p>
                   )}
                 </motion.div>
-
-                {/* Similar Properties - AI Recommendations */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="pt-8 border-t border-border"
-                >
-                  <SimilarProperties 
-                    currentPropertyId={property.id}
-                    propertyType={property.property_type}
-                    city={property.city}
-                    price={property.price}
-                  />
-                </motion.div>
               </div>
 
               {/* Sidebar */}
@@ -727,6 +712,21 @@ const PropertyDetail = () => {
                 </motion.div>
               </div>
             </div>
+
+            {/* Similar Properties - EN BAS DE PAGE, PLEINE LARGEUR */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-12 pt-8 border-t border-border"
+            >
+              <SimilarProperties 
+                currentPropertyId={property.id}
+                propertyType={property.property_type}
+                city={property.city}
+                price={property.price}
+              />
+            </motion.div>
           </div>
         </main>
       </div>

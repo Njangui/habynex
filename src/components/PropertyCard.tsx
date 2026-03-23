@@ -18,9 +18,9 @@ interface PropertyCardProps {
   price: number;
   priceUnit: string;
   image: string;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  area?: number;
   rating?: number;
   isVerified?: boolean;
   type: string;
@@ -36,7 +36,6 @@ interface PropertyCardProps {
   totalFloors?: number;
   isFurnished?: boolean;
   ownerAgencyName?: string;
-  // NOUVEAU: Ajout de listing_type pour le type d'annonce
   listingType?: "rent" | "sale" | "colocation" | "short_term";
 }
 
@@ -47,19 +46,19 @@ const PropertyCard = ({
   price,
   priceUnit,
   image,
-  bedrooms,
-  bathrooms,
-  area,
+  bedrooms = 0,
+  bathrooms = 0,
+  area = 0,
   rating: ratingProp,
   isVerified = false,
   type,
   source = "recommendation",
   ownerTrustScore,
   ownerType,
-  livingRooms,
-  kitchens,
-  diningRooms,
-  laundryRooms,
+  livingRooms = 0,
+  kitchens = 0,
+  diningRooms = 0,
+  laundryRooms = 0,
   propertyCategory,
   floor,
   totalFloors,
@@ -159,10 +158,9 @@ const PropertyCard = ({
     }
   };
 
-  // Fonction pour traduire le type de propriété - COMPLÈTE avec tous les types de CreateListing
+  // Fonction pour traduire le type de propriété
   const getPropertyTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      // Résidentiel
       studio: "Studio",
       room: "Chambre",
       apartment: "Appartement",
@@ -172,9 +170,7 @@ const PropertyCard = ({
       penthouse: "Penthouse",
       furnished_apartment: "Appart. meublé",
       shared_room: "Chambre partagée",
-      // Terrain
       land: "Terrain",
-      // Commercial
       shop: "Boutique",
       store: "Magasin",
       commercial_space: "Espace commercial",
@@ -185,7 +181,7 @@ const PropertyCard = ({
     return labels[type] || type;
   };
 
-  // Fonction pour déterminer la catégorie à partir du type
+  // Déterminer la catégorie à partir du type
   const getCategoryFromType = (type: string): "residential" | "land" | "commercial" => {
     const residentialTypes = ["studio", "room", "apartment", "duplex", "house", "villa", "penthouse", "furnished_apartment", "shared_room"];
     const landTypes = ["land"];
@@ -199,9 +195,8 @@ const PropertyCard = ({
 
   const category = propertyCategory || getCategoryFromType(type);
 
-  // 1. Type d'annonce (Location, Vente, Colocation, Court séjour)
+  // Type d'annonce
   const getListingTypeLabel = () => {
-    // Utiliser listingType si disponible, sinon déduire de priceUnit
     if (listingType) {
       switch (listingType) {
         case "rent": return "Location";
@@ -211,7 +206,6 @@ const PropertyCard = ({
         default: return listingType;
       }
     }
-    // Fallback sur priceUnit
     switch (priceUnit) {
       case "month": return "Location";
       case "day": return "Court séjour";
@@ -231,7 +225,7 @@ const PropertyCard = ({
     }
   };
 
-  // 2. Catégorie du bien (Résidentiel, Commercial, Terrain)
+  // Catégorie du bien
   const getCategoryLabel = () => {
     switch (category) {
       case "residential": return "Résidentiel";
@@ -259,7 +253,7 @@ const PropertyCard = ({
     }
   };
 
-  // 3. Type d'agent (Habynex Agent, Habynex Agence, ou rien pour propriétaires)
+  // Type d'agent
   const getAgentBadge = () => {
     if (!ownerType || ownerType === "owner") return null;
     
@@ -282,7 +276,7 @@ const PropertyCard = ({
     return null;
   };
 
-  // Formater le prix avec unité
+  // Formater le prix
   const formatPrice = () => {
     const formatted = price.toLocaleString('fr-FR');
     let unitLabel = "";
@@ -296,8 +290,12 @@ const PropertyCard = ({
   };
 
   const { formatted: priceFormatted, unitLabel } = formatPrice();
-
   const agentBadge = getAgentBadge();
+
+  // Helper pour vérifier si une valeur est valide (> 0)
+  const hasValue = (val: number | undefined | null): boolean => {
+    return val !== undefined && val !== null && val > 0;
+  };
 
   return (
     <motion.article
@@ -316,29 +314,21 @@ const PropertyCard = ({
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         
-        {/* Overlay Badges - ORDRE CORRECT:
-          1. Type d'annonce (Location, Vente, Colocation, Court séjour)
-          2. Catégorie du bien (Résidentiel, Commercial, Terrain)
-          3. Type d'agent (Habynex Agent, Habynex Agence) - uniquement si agent/agence
-          4. Type de bien (Villa, Appartement, Studio, etc.)
-          5. Meublé (si activé)
-          6. Vérifié (si applicable)
-          7. Trust Score (si applicable)
-        */}
+        {/* Overlay Badges - CORRIGÉ */}
         <div className="absolute top-3 left-3 right-12 flex flex-wrap gap-2">
           
-          {/* 1. Type d'annonce */}
+          {/* 1. Type d'annonce (Location, Vente, etc.) */}
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getListingTypeColor()}`}>
             <span>{getListingTypeLabel()}</span>
           </div>
 
-          {/* 2. Catégorie du bien */}
+          {/* 2. Catégorie du bien (Résidentiel, Commercial, Terrain) */}
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getCategoryColor()}`}>
             {getCategoryIcon()}
             <span>{getCategoryLabel()}</span>
           </div>
 
-          {/* 3. Type d'agent (Habynex Agent ou Habynex Agence) - uniquement si défini et différent de "owner" */}
+          {/* 3. Type d'agent (uniquement si agent/agence) */}
           {agentBadge && (
             <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${agentBadge.color}`}>
               {agentBadge.icon}
@@ -346,12 +336,12 @@ const PropertyCard = ({
             </span>
           )}
 
-          {/* 4. Type de bien (Villa, Appartement, Studio, etc.) */}
+          {/* 4. Type de bien spécifique (Villa, Appartement, etc.) */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm bg-white/90 text-gray-800">
             <span>{getPropertyTypeLabel(type)}</span>
           </div>
 
-          {/* 5. Meublé (si activé) */}
+          {/* 5. Meublé */}
           {isFurnished && (
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/90 backdrop-blur-sm text-amber-800 shadow-sm">
               <Sofa className="w-3 h-3 shrink-0" />
@@ -411,25 +401,28 @@ const PropertyCard = ({
           </div>
         </div>
 
-        {/* Features Grid */}
+        {/* Features Grid - CORRIGÉ */}
         <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs text-muted-foreground mb-4 bg-muted/30 p-2.5 rounded-lg">
           
           {/* Résidentiel */}
           {category === "residential" && (
             <>
+              {/* Chambres - toujours afficher */}
               <div className="flex items-center gap-1.5">
                 <Bed className="w-3.5 h-3.5 text-primary/60" />
-                <span className="font-medium text-foreground">{bedrooms ?? 0}</span>
+                <span className="font-medium text-foreground">{bedrooms || 0}</span>
                 <span className="text-muted-foreground/80">ch.</span>
               </div>
+
+              {/* Salles de bain - toujours afficher */}
               <div className="flex items-center gap-1.5">
                 <Bath className="w-3.5 h-3.5 text-primary/60" />
-                <span className="font-medium text-foreground">{bathrooms ?? 0}</span>
+                <span className="font-medium text-foreground">{bathrooms || 0}</span>
                 <span className="text-muted-foreground/80">sdb</span>
               </div>
               
-              {/* Salon - Affiché uniquement si défini et > 0 */}
-              {livingRooms !== undefined && livingRooms > 0 && (
+              {/* Salon */}
+              {hasValue(livingRooms) && (
                 <div className="flex items-center gap-1.5">
                   <Sofa className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{livingRooms}</span>
@@ -437,8 +430,8 @@ const PropertyCard = ({
                 </div>
               )}
 
-              {/* Cuisine - Affichée uniquement si définie et > 0 */}
-              {kitchens !== undefined && kitchens > 0 && (
+              {/* Cuisine */}
+              {hasValue(kitchens) && (
                 <div className="flex items-center gap-1.5">
                   <Utensils className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{kitchens}</span>
@@ -446,8 +439,8 @@ const PropertyCard = ({
                 </div>
               )}
 
-              {/* Salle à manger - Affichée uniquement si définie et > 0 */}
-              {diningRooms !== undefined && diningRooms > 0 && (
+              {/* Salle à manger */}
+              {hasValue(diningRooms) && (
                 <div className="flex items-center gap-1.5">
                   <DoorOpen className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{diningRooms}</span>
@@ -455,8 +448,8 @@ const PropertyCard = ({
                 </div>
               )}
 
-              {/* Buanderie - Affichée uniquement si définie et > 0 */}
-              {laundryRooms !== undefined && laundryRooms > 0 && (
+              {/* Buanderie */}
+              {hasValue(laundryRooms) && (
                 <div className="flex items-center gap-1.5">
                   <WashingMachine className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{laundryRooms}</span>
@@ -464,8 +457,8 @@ const PropertyCard = ({
                 </div>
               )}
 
-              {/* Étage - Affiché uniquement si défini */}
-              {floor !== undefined && floor !== null && (
+              {/* Étage */}
+              {(floor !== undefined && floor !== null) && (
                 <div className="flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">
@@ -476,7 +469,7 @@ const PropertyCard = ({
               )}
 
               {/* Surface */}
-              {area !== undefined && area !== null && area > 0 && (
+              {hasValue(area) && (
                 <div className="flex items-center gap-1.5">
                   <Square className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{area}</span>
@@ -488,13 +481,11 @@ const PropertyCard = ({
 
           {/* Terrain */}
           {category === "land" && (
-            <>
-              <div className="flex items-center gap-1.5 col-span-2">
-                <Trees className="w-3.5 h-3.5 text-green-600" />
-                <span className="font-medium text-foreground text-sm">{area ?? 0} m²</span>
-                <span className="text-muted-foreground/80">de terrain</span>
-              </div>
-            </>
+            <div className="flex items-center gap-1.5 col-span-2">
+              <Trees className="w-3.5 h-3.5 text-green-600" />
+              <span className="font-medium text-foreground text-sm">{area || 0} m²</span>
+              <span className="text-muted-foreground/80">de terrain</span>
+            </div>
           )}
 
           {/* Commercial */}
@@ -502,11 +493,10 @@ const PropertyCard = ({
             <>
               <div className="flex items-center gap-1.5 col-span-2">
                 <Store className="w-3.5 h-3.5 text-purple-600" />
-                <span className="font-medium text-foreground text-sm">{area ?? 0} m²</span>
+                <span className="font-medium text-foreground text-sm">{area || 0} m²</span>
                 <span className="text-muted-foreground/80">surface</span>
               </div>
-              {/* Étages pour commercial */}
-              {bedrooms !== undefined && bedrooms > 0 && (
+              {hasValue(bedrooms) && (
                 <div className="flex items-center gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-primary/60" />
                   <span className="font-medium text-foreground">{bedrooms}</span>
@@ -517,7 +507,7 @@ const PropertyCard = ({
           )}
         </div>
 
-        {/* Footer avec Rating et Lien */}
+        {/* Footer */}
         <div className="mt-auto pt-3 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />

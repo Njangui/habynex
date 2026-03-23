@@ -7,6 +7,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Credentials": "true"
 };
 
 const CONFIG = {
@@ -538,6 +539,7 @@ class ScoringEngine {
     }
 
     // 2. Embedding Similarity (user preference)
+    const vector = property.property_embeddings?.[0]?.vector;
     if (userEmbedding && property.property_embeddings?.vector) {
       embeddingSimilarity = this.embeddingService.cosineSimilarity(userEmbedding, property.property_embeddings.vector);
       if (WEIGHTS.embeddingSimilarity) {
@@ -811,12 +813,12 @@ async function generateCandidates(supabase: any, userProfile: UserProfile | null
   try {
     let query = supabase
       .from("properties")
-      .select(`*, property_embeddings!inner(vector)`)
+      .select(`*, property_embeddings(vector)`)
       .eq("is_published", true)
       .eq("is_available", true);
 
     if (excludedIds.length > 0) {
-      query = query.not("id", "in", `(${excludedIds.slice(0, 100).join(",")})`);
+      query = query.not("id", "in", `(${excludedIds.map(id => `"${id}"`).join(",")})`);
     }
 
     // Filtres dynamiques basés sur le profil
@@ -883,7 +885,7 @@ async function handleRecommendation(req: Request, requestStartTime: number, cach
     const WEIGHTS = WEIGHT_CONFIGS[abGroup as keyof typeof WEIGHT_CONFIGS] || WEIGHT_CONFIGS.control;
 
     // Cache check
-    const cacheKey = `rec:${user_id || 'anon'}:${abGroup}:${JSON.stringify(context)}:${limit}:${offset}`;
+    const cacheKey = `rec:${user_id || 'anon'}:${abGroup}:${limit}:${offset}`;
     const cached = await cache.get(cacheKey);
     if (cached) {
       return new Response(JSON.stringify({ ...cached, cached: true }), {
@@ -1066,11 +1068,12 @@ const globalCache = new DistributedCache();
 
 Deno.serve(async (req) => {
   // AJOUT: Gestion explicite du preflight CORS - DOIT ÊTRE EN PREMIER
-  if (req.method === "OPTIONS") {
-    return new Response(null, { 
-      status: 204,
-      headers: CORS_HEADERS 
-    });
+ if (req.method === "OPTIONS") {
+  return new Response("ok", {
+    status: 200,
+    headers: CORS_HEADERS,
+  });
+}
   }
 
   const requestStartTime = Date.now();
