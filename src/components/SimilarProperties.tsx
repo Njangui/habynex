@@ -34,37 +34,35 @@ interface RawProperty {
   is_furnished?: boolean;
 }
 
-// ================= HELPER MAPPING =================
+// ================= MAPPING =================
 
-const mapPropertyToCard = (property: RawProperty) => {
-  return {
-    id: property.id,
-    title: property.title,
-    price: property.price,
-    priceUnit: property.price_unit,
+const mapPropertyToCard = (property: RawProperty) => ({
+  id: property.id,
+  title: property.title,
+  price: property.price,
+  priceUnit: property.price_unit,
 
-    location: `${property.neighborhood || ""}${
-      property.neighborhood ? ", " : ""
-    }${property.city}`,
+  location: `${property.neighborhood || ""}${
+    property.neighborhood ? ", " : ""
+  }${property.city}`,
 
-    image: property.images?.[0] || "/placeholder.jpg",
+  image: property.images?.[0] || "/placeholder.jpg",
 
-    bedrooms: property.bedrooms ?? 0,
-    bathrooms: property.bathrooms ?? 0,
-    area: property.area ?? 0,
+  bedrooms: property.bedrooms ?? 0,
+  bathrooms: property.bathrooms ?? 0,
+  area: property.area ?? 0,
 
-    type: property.property_type,
-    isVerified: property.is_verified || property.is_agent_verified,
+  type: property.property_type,
+  isVerified: property.is_verified || property.is_agent_verified,
 
-    livingRooms: property.living_rooms ?? 0,
-    kitchens: property.kitchens ?? 0,
-    diningRooms: property.dining_rooms ?? 0,
-    laundryRooms: property.laundry_rooms ?? 0,
-    floor: property.floor,
-    totalFloors: property.total_floors,
-    isFurnished: property.is_furnished,
-  };
-};
+  livingRooms: property.living_rooms ?? 0,
+  kitchens: property.kitchens ?? 0,
+  diningRooms: property.dining_rooms ?? 0,
+  laundryRooms: property.laundry_rooms ?? 0,
+  floor: property.floor,
+  totalFloors: property.total_floors,
+  isFurnished: property.is_furnished,
+});
 
 // ================= COMPONENT =================
 
@@ -86,42 +84,41 @@ export const SimilarProperties = ({
   const [visibleCount, setVisibleCount] = useState(limit);
 
   useEffect(() => {
-    if (currentPropertyId) fetchSimilarProperties();
+    if (currentPropertyId) {
+      fetchSimilarProperties();
+    }
   }, [currentPropertyId]);
 
-  // ================= FETCH AVEC ALGORITHME =================
+  // ================= FETCH =================
 
   const fetchSimilarProperties = async () => {
+    if (!currentPropertyId) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      // ÉTAPE 1: Appeler l'algorithme de recommandations via la fonction Edge
-      const { data: recData, error: recError } = await supabase.functions.invoke(
-        "recommend-properties",
-        {
-          body: {
-            // Pas de user_id = mode anonyme, l'algorithme utilisera la popularité/tendance
-            limit: limit * 3, // On demande plus pour avoir de la marge
-            context: {
-              source: "similar", // Indique qu'on veut des biens similaires
-              device: "desktop",
-            },
-          },
-        }
-      );
+      console.log("Fetching similar for:", currentPropertyId);
 
-      // Si la fonction Edge répond avec des recommandations
-      if (!recError && recData?.recommendations?.length > 0) {
-        // Extraire les IDs des propriétés recommandées
+      // ================= STEP 1: ALGO =================
+      const { data: recData, error: recError } =
+        await supabase.functions.invoke("recommend-properties", {
+          body: {
+            limit: limit * 3,
+            context: { source: "similar" },
+          },
+        });
+
+      console.log("REC DATA:", recData);
+      console.log("REC ERROR:", recError);
+
+      if (!recError && recData?.recommendations?.length) {
         const recommendedIds = recData.recommendations
           .map((r: any) => r.id)
-          .filter((id: string) => id !== currentPropertyId) // Exclure la propriété actuelle
-          .slice(0, 50);
+          .filter((id: string) => id !== currentPropertyId);
 
-        if (recommendedIds.length > 0) {
-          // Récupérer les détails complets
-          const { data: fullData, error: detailsError } = await supabase
+        if (recommendedIds.length) {
+          const { data, error } = await supabase
             .from("properties")
             .select(`
               id, title, price, price_unit, city, neighborhood,
@@ -133,10 +130,12 @@ export const SimilarProperties = ({
             .in("id", recommendedIds)
             .eq("is_available", true);
 
-          if (!detailsError && fullData) {
-            // Garder l'ordre des recommandations de l'algorithme
+          if (error) throw error;
+
+          if (data?.length) {
+            // garder l’ordre des recommandations
             const ordered = recommendedIds
-              .map((id: string) => fullData.find((p) => p.id === id))
+              .map((id: string) => data.find((p) => p.id === id))
               .filter(Boolean) as RawProperty[];
 
             setProperties(ordered);
@@ -145,15 +144,19 @@ export const SimilarProperties = ({
         }
       }
 
-      // ÉTAPE 2: Fallback si l'algorithme échoue (CORS ou pas de résultats)
-      console.warn("Algorithm failed, using fallback:", recError);
+      // ================= STEP 2: FALLBACK =================
 
-      // Fallback: propriétés similaires basiques (même ville/type)
-      const { data: currentProperty } = await supabase
+      console.warn("Algo failed → fallback");
+
+      const { data: currentProperty, error: currentError } = await supabase
         .from("properties")
         .select("city, neighborhood, property_type, price")
         .eq("id", currentPropertyId)
         .single();
+
+      if (currentError || !currentProperty) {
+        throw new Error("Current property not found");
+      }
 
       const { data: fallbackData, error: fallbackError } = await supabase
         .from("properties")
@@ -165,54 +168,60 @@ export const SimilarProperties = ({
           floor, total_floors, is_furnished
         `)
         .neq("id", currentPropertyId)
+        .eq("city", currentProperty.city)
+        .eq("property_type", currentProperty.property_type)
         .eq("is_available", true)
-        .eq("city", currentProperty?.city || "")
-        .eq("property_type", currentProperty?.property_type || "")
-        .limit(50);
+        .limit(20);
 
       if (fallbackError) throw fallbackError;
 
-      // Trier par pertinence
+      // tri simple
       const sorted = (fallbackData || []).sort((a, b) => {
         const scoreA =
-          (a.neighborhood === currentProperty?.neighborhood ? 2 : 0) +
-          (Math.abs(a.price - (currentProperty?.price || 0)) < 50000 ? 1 : 0);
+          (a.neighborhood === currentProperty.neighborhood ? 2 : 0) +
+          (Math.abs(a.price - currentProperty.price) < 50000 ? 1 : 0);
+
         const scoreB =
-          (b.neighborhood === currentProperty?.neighborhood ? 2 : 0) +
-          (Math.abs(b.price - (currentProperty?.price || 0)) < 50000 ? 1 : 0);
+          (b.neighborhood === currentProperty.neighborhood ? 2 : 0) +
+          (Math.abs(b.price - currentProperty.price) < 50000 ? 1 : 0);
+
         return scoreB - scoreA;
       });
 
       setProperties(sorted);
-    } catch (err: any) {
-      console.error("ERROR SIMILAR:", err);
+    } catch (err) {
+      console.error("SIMILAR ERROR:", err);
+
+      // ❗ IMPORTANT: ne pas casser l'UI
       setError(
         language === "fr"
-          ? "Erreur lors du chargement"
-          : "Error loading data"
+          ? "Impossible de charger les recommandations"
+          : "Failed to load recommendations"
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // ================= UI STATES =================
+  // ================= UI =================
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="py-8 text-center">
+      <div className="py-10 text-center">
         <Loader2 className="w-6 h-6 animate-spin mx-auto" />
       </div>
     );
+  }
 
-  if (error)
+  if (error && !properties.length) {
     return (
       <div className="py-6 text-center text-red-500">
         {error}
       </div>
     );
+  }
 
-  if (!properties.length)
+  if (!properties.length) {
     return (
       <div className="py-6 text-center text-muted-foreground">
         {language === "fr"
@@ -220,22 +229,25 @@ export const SimilarProperties = ({
           : "No similar properties"}
       </div>
     );
+  }
 
-  // ================= DATA =================
-
-  const displayed = properties.slice(0, visibleCount).map(mapPropertyToCard);
+  const displayed = properties
+    .slice(0, visibleCount)
+    .map(mapPropertyToCard);
 
   const hasMore = properties.length > visibleCount;
 
   // ================= RENDER =================
 
   return (
-    <div className="py-8">
+    <div className="py-10">
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          {language === "fr" ? "Annonces similaires" : "Similar properties"}
+          {language === "fr"
+            ? "Annonces similaires"
+            : "Similar properties"}
         </h3>
 
         <Button variant="ghost" size="sm" onClick={() => navigate("/search")}>
@@ -253,7 +265,7 @@ export const SimilarProperties = ({
 
       {/* LOAD MORE */}
       {hasMore && (
-        <div className="text-center mt-6">
+        <div className="text-center mt-8">
           <Button
             variant="outline"
             onClick={() => setVisibleCount((prev) => prev + limit)}
