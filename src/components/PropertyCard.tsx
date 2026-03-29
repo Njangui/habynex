@@ -524,9 +524,9 @@ const PropertyCard = ({
         )}
 
         {/* Footer */}
-        <div className="mt-auto pt-3 border-t flex items-center justify-between ${
-          isDark ? 'border-gray-800' : 'border-border'
-        }`}>
+      <div className={`mt-auto pt-3 border-t flex items-center justify-between ${
+      isDark ? 'border-gray-800' : 'border-border'
+      }`}>
           <div className="flex items-center gap-2">
             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
             {realRating && realRating.count > 0 ? (
