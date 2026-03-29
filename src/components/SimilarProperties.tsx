@@ -84,7 +84,10 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
         {
           body: {
             limit: limit * 3,
-            context: { source: "similar" },
+            context: { 
+              source: "similar",
+              device: "desktop" // ✅ Correction : ajout de device obligatoire
+            },
           },
         }
       );

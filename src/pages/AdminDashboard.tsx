@@ -275,7 +275,7 @@ const AdminDashboard = () => {
           
           return {
             ...doc,
-            user_name: profile?.full_name || (language === "fr" ? "Utilisateur inconnu" : "Unknown user")
+            user_name: profile?.full_name || user.auth || (language === "fr" ? "Utilisateur inconnu" : "Unknown user")
           };
         })
       );
@@ -435,6 +435,8 @@ const AdminDashboard = () => {
     }
   };
 
+  fetchUsers();
+
   const fetchAnalytics = async () => {
     try {
       // Get total properties count
@@ -500,7 +502,15 @@ const AdminDashboard = () => {
           apartment: language === "fr" ? "Appartement" : "Apartment",
           house: language === "fr" ? "Maison" : "House",
           villa: "Villa",
-          room: language === "fr" ? "Chambre" : "Room"
+          room: language === "fr" ? "Chambre" : "Room",
+          duplex: "duplex",
+          land: language === "fr" ? "Terrain" : "Land",
+          shop: language === "fr" ? "Boutique" : "Shop",
+          store: language === "fr" ? "Magasin" : "Store",
+          commercial_space: language === "fr" ? "Espace commercial" : "Commercial space",
+          warehouse: language === "fr" ? "Entrepôt" : "Warehouse",
+          office: language === "fr" ? "Bureau" : "Office",
+          building: language === "fr" ? "Bâtiment" : "Building",
         };
         
         setPropertyTypeStats(Object.entries(typeCounts).map(([key, value], index) => ({

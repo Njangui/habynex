@@ -23,7 +23,20 @@ import {
   Trees,
   Store,
   Warehouse,
-  Factory
+  Factory,
+  // Ajoute ces icônes :
+  Scissors,        // Pour salon de coiffure
+  Coffee,          // Pour café
+  UtensilsCrossed, // Pour restaurant
+  Wine,            // Pour bar
+  BedDouble,       // Pour hôtel
+  Pill,            // Pour pharmacie
+  Stethoscope,     // Pour clinique
+  Dumbbell,        // Pour salle de sport
+  Users,           // Pour coworking
+  Presentation,    // Pour showroom
+  Wrench,          // Pour atelier
+  Sparkles as SparklesIcon, // Pour institut de beauté (utilise un alias)
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,13 +57,26 @@ const listingSchema = z.object({
   title: z.string().min(10).max(100),
   description: z.string().min(50).max(2000),
 
-  property_type: z.enum([
-    "studio","apartment","house","room","villa","duplex",
-    "penthouse",
-    "furnished_apartment",
-    "shared_room",
-    "land","shop","store","commercial_space","building","warehouse","office"
-  ]),
+property_type: z.enum([
+  "studio","apartment","house","room","villa","duplex",
+  "penthouse",
+  "furnished_apartment",
+  "shared_room",
+  "land","shop","store","commercial_space","building","warehouse","office",
+  // Ajoute ces nouveaux types :
+  "beauty_salon",      // Institut de beauté
+  "hair_salon",        // Salon de coiffure
+  "restaurant",        // Restaurant
+  "cafe",              // Café
+  "bar",               // Bar
+  "hotel",             // Hôtel
+  "pharmacy",          // Pharmacie
+  "clinic",            // Clinique
+  "gym",               // Salle de sport
+  "coworking",         // Espace de coworking
+  "showroom",          // Showroom
+  "workshop",          // Atelier
+]),
 
   listing_type: z.enum(["rent", "sale", "colocation", "short_term"]),
 
@@ -129,6 +155,24 @@ const CreateListing = () => {
     { value: "warehouse", label: language === "fr" ? "Entrepôt" : "Warehouse", icon: "🏭", category: "commercial" },
     { value: "office", label: language === "fr" ? "Bureau" : "Office", icon: "💼", category: "commercial" },
     { value: "building", label: language === "fr" ? "Bâtiment" : "Building", icon: "🏗️", category: "commercial" },
+      // NOUVEAUX TYPES - Santé et Bien-être
+  { value: "beauty_salon", label: language === "fr" ? "Institut de beauté" : "Beauty salon", icon: "✨", category: "commercial" },
+  { value: "hair_salon", label: language === "fr" ? "Salon de coiffure" : "Hair salon", icon: "💇", category: "commercial" },
+  { value: "gym", label: language === "fr" ? "Salle de sport" : "Gym", icon: "💪", category: "commercial" },
+  { value: "pharmacy", label: language === "fr" ? "Pharmacie" : "Pharmacy", icon: "💊", category: "commercial" },
+  { value: "clinic", label: language === "fr" ? "Clinique" : "Clinic", icon: "🏥", category: "commercial" },
+  
+  // NOUVEAUX TYPES - Restauration et Hôtellerie
+  { value: "restaurant", label: language === "fr" ? "Restaurant" : "Restaurant", icon: "🍽️", category: "commercial" },
+  { value: "cafe", label: language === "fr" ? "Café" : "Café", icon: "☕", category: "commercial" },
+  { value: "bar", label: language === "fr" ? "Bar" : "Bar", icon: "🍸", category: "commercial" },
+  { value: "hotel", label: language === "fr" ? "Hôtel" : "Hotel", icon: "🏨", category: "commercial" },
+  
+  // NOUVEAUX TYPES - Autres commerces
+  { value: "coworking", label: language === "fr" ? "Espace coworking" : "Coworking space", icon: "👥", category: "commercial" },
+  { value: "showroom", label: language === "fr" ? "Showroom" : "Showroom", icon: "🎨", category: "commercial" },
+  { value: "workshop", label: language === "fr" ? "Atelier" : "Workshop", icon: "🔧", category: "commercial" },
+
   ];
 
   const LISTING_TYPES = [
@@ -173,6 +217,16 @@ const CreateListing = () => {
     { value: "storage", label: language === "fr" ? "Stockage" : "Storage" },
     { value: "loading_dock", label: language === "fr" ? "Quai de chargement" : "Loading dock" },
     { value: "meeting_room", label: language === "fr" ? "Salle de réunion" : "Meeting room" },
+    { value: "display_window", label: language === "fr" ? "Vitrine" : "Display window" },
+    { value: "kitchen_facilities", label: language === "fr" ? "Cuisine équipée" : "Kitchen facilities" },
+    { value: "bar_counter", label: language === "fr" ? "Comptoir bar" : "Bar counter" },
+    { value: "dining_area", label: language === "fr" ? "Espace restauration" : "Dining area" },
+    { value: "terrace", label: language === "fr" ? "Terrasse" : "Terrace" },
+    { value: "alarm_system", label: language === "fr" ? "Système d'alarme" : "Alarm system" },
+    { value: "fire_safety", label: language === "fr" ? "Sécurité incendie" : "Fire safety" },
+    { value: "handicap_access", label: language === "fr" ? "Accès handicapé" : "Handicap access" },
+    { value: "high_ceiling", label: language === "fr" ? "Haut plafond" : "High ceiling" },
+    { value: "loading_area", label: language === "fr" ? "Zone de chargement" : "Loading area" },
   ];
 
   const [formData, setFormData] = useState<ListingData>({
@@ -399,6 +453,18 @@ const CreateListing = () => {
         warehouse: language === "fr" ? "Entrepôt" : "Warehouse",
         office: language === "fr" ? "Bureau" : "Office",
         building: language === "fr" ? "Bâtiment" : "Building",
+        beauty_salon: language === "fr" ? "Institut de beauté" : "Beauty salon",
+        hair_salon: language === "fr" ? "Salon de coiffure" : "Hair salon",
+        restaurant: language === "fr" ? "Restaurant" : "Restaurant",
+        cafe: language === "fr" ? "Café" : "Café",
+        bar: language === "fr" ? "Bar" : "Bar",
+        hotel: language === "fr" ? "Hôtel" : "Hotel",
+        pharmacy: language === "fr" ? "Pharmacie" : "Pharmacy",
+        clinic: language === "fr" ? "Clinique" : "Clinic",
+        gym: language === "fr" ? "Salle de sport" : "Gym",
+        coworking: language === "fr" ? "Espace coworking" : "Coworking space",
+        showroom: language === "fr" ? "Showroom" : "Showroom",
+        workshop: language === "fr" ? "Atelier" : "Workshop",
       };
 
       const listingTypeLabels: Record<string, string> = {
@@ -508,10 +574,15 @@ The description should be in English, professional, attractive, and about 100-15
 
   const isLand = (type: string) => type === "land";
 
-  const isCommercial = (type: string) => {
-    const commercialTypes = ["shop", "store", "commercial_space", "warehouse", "office", "building"];
-    return commercialTypes.includes(type);
-  };
+const isCommercial = (type: string) => {
+  const commercialTypes = [
+    "shop", "store", "commercial_space", "warehouse", "office", "building",
+    // Ajoute les nouveaux types :
+    "beauty_salon", "hair_salon", "restaurant", "cafe", "bar", "hotel",
+    "pharmacy", "clinic", "gym", "coworking", "showroom", "workshop"
+  ];
+  return commercialTypes.includes(type);
+};
 
   return (
     <div className="min-h-screen bg-background">

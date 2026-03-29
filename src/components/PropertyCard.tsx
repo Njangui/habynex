@@ -1,13 +1,15 @@
 import { motion } from "framer-motion";
 import { 
-  Heart, MapPin, Bed, Bath, Square, Star, Check, Shield, 
+  Heart, MapPin, Bed, Bath, Square, Star, Shield, 
   Sofa, Utensils, DoorOpen, WashingMachine, Building2, Trees,
-  Home, Store, LandPlot, BadgeCheck, ArrowRight, User, Building
+  Home, Store, LandPlot, BadgeCheck, ArrowRight, User, Building,
+  Camera
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,9 +71,13 @@ const PropertyCard = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [realRating, setRealRating] = useState<{ avg: number; count: number } | null>(null);
+  const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const { toast } = useToast();
+
+  const isDark = theme === 'dark';
 
   // Fetch real reviews rating
   useEffect(() => {
@@ -195,7 +201,7 @@ const PropertyCard = ({
 
   const category = propertyCategory || getCategoryFromType(type);
 
-  // Type d'annonce
+  // Type d'annonce - CORRIGÉ : un seul badge
   const getListingTypeLabel = () => {
     if (listingType) {
       switch (listingType) {
@@ -214,8 +220,17 @@ const PropertyCard = ({
     }
   };
 
-  const getListingTypeColor = () => {
+  const getListingTypeColor = (isDark: boolean) => {
     const label = getListingTypeLabel();
+    if (isDark) {
+      switch (label) {
+        case "Location": return "bg-blue-900/80 text-blue-200";
+        case "Vente": return "bg-rose-900/80 text-rose-200";
+        case "Colocation": return "bg-purple-900/80 text-purple-200";
+        case "Court séjour": return "bg-orange-900/80 text-orange-200";
+        default: return "bg-gray-800/80 text-gray-200";
+      }
+    }
     switch (label) {
       case "Location": return "bg-blue-100 text-blue-700";
       case "Vente": return "bg-rose-100 text-rose-700";
@@ -235,7 +250,15 @@ const PropertyCard = ({
     }
   };
 
-  const getCategoryColor = () => {
+  const getCategoryColor = (isDark: boolean) => {
+    if (isDark) {
+      switch (category) {
+        case "residential": return "bg-emerald-900/80 text-emerald-200";
+        case "land": return "bg-green-900/80 text-green-200";
+        case "commercial": return "bg-indigo-900/80 text-indigo-200";
+        default: return "bg-gray-800/80 text-gray-200";
+      }
+    }
     switch (category) {
       case "residential": return "bg-emerald-100 text-emerald-700";
       case "land": return "bg-green-100 text-green-700";
@@ -259,31 +282,31 @@ const PropertyCard = ({
     
     if (ownerType === "agency") {
       return {
-        label: "Habynex Agence",
+        label: ownerAgencyName || "Agence",
         icon: <Building className="w-3 h-3" />,
-        color: "bg-amber-100 text-amber-800",
+        color: isDark ? "bg-amber-900/80 text-amber-200" : "bg-amber-100 text-amber-800",
       };
     }
     
     if (ownerType === "agent") {
       return {
-        label: "Habynex Agent",
+        label: ownerAgencyName || "Agent",
         icon: <User className="w-3 h-3" />,
-        color: "bg-amber-100 text-amber-800",
+        color: isDark ? "bg-amber-900/80 text-amber-200" : "bg-amber-100 text-amber-800",
       };
     }
     
     return null;
   };
 
-  // Formater le prix
+  // Formater le prix avec gestion du mode sombre
   const formatPrice = () => {
     const formatted = price.toLocaleString('fr-FR');
     let unitLabel = "";
     switch (priceUnit) {
       case "month": unitLabel = "/mois"; break;
       case "day": unitLabel = "/jour"; break;
-      case "sale": unitLabel = " vente"; break;
+      case "sale": unitLabel = ""; break;
       default: unitLabel = `/${priceUnit}`;
     }
     return { formatted, unitLabel };
@@ -297,6 +320,64 @@ const PropertyCard = ({
     return val !== undefined && val !== null && val > 0;
   };
 
+  // Fonction pour obtenir les features à afficher
+  const getFeaturesToShow = () => {
+    const features = [];
+    
+    if (category === "residential") {
+      if (hasValue(bedrooms)) {
+        features.push({
+          icon: <Bed className="w-3.5 h-3.5" />,
+          label: `${bedrooms} ch.`
+        });
+      }
+      if (hasValue(bathrooms)) {
+        features.push({
+          icon: <Bath className="w-3.5 h-3.5" />,
+          label: `${bathrooms} sdb`
+        });
+      }
+      if (hasValue(livingRooms)) {
+        features.push({
+          icon: <Sofa className="w-3.5 h-3.5" />,
+          label: `${livingRooms} salon${livingRooms > 1 ? 's' : ''}`
+        });
+      }
+      if (hasValue(kitchens)) {
+        features.push({
+          icon: <Utensils className="w-3.5 h-3.5" />,
+          label: `${kitchens} cuisine${kitchens > 1 ? 's' : ''}`
+        });
+      }
+      if (hasValue(area)) {
+        features.push({
+          icon: <Square className="w-3.5 h-3.5" />,
+          label: `${area} m²`
+        });
+      }
+    } else if (category === "land") {
+      features.push({
+        icon: <Trees className="w-3.5 h-3.5" />,
+        label: `${area || 0} m²`
+      });
+    } else if (category === "commercial") {
+      features.push({
+        icon: <Store className="w-3.5 h-3.5" />,
+        label: `${area || 0} m²`
+      });
+      if (hasValue(bedrooms)) {
+        features.push({
+          icon: <Building2 className="w-3.5 h-3.5" />,
+          label: `${bedrooms} étage${bedrooms > 1 ? 's' : ''}`
+        });
+      }
+    }
+    
+    return features;
+  };
+
+  const features = getFeaturesToShow();
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
@@ -304,31 +385,63 @@ const PropertyCard = ({
       viewport={{ once: true }}
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3 }}
-      className="group bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elegant transition-all duration-300 border border-border/50 flex flex-col h-full"
+      className={`group rounded-2xl overflow-hidden shadow-sm hover:shadow-elegant transition-all duration-300 border flex flex-col h-full ${
+        isDark 
+          ? 'bg-gray-900 border-gray-800 hover:shadow-gray-800/30' 
+          : 'bg-card border-border/50 hover:shadow-gray-200'
+      }`}
     >
       {/* Image Container */}
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-200 dark:bg-gray-800">
+        {!imageError && image ? (
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Camera className="w-12 h-12 text-gray-400 dark:text-gray-600" />
+          </div>
+        )}
         
-        {/* Overlay Badges - CORRIGÉ */}
-        <div className="absolute top-3 left-3 right-12 flex flex-wrap gap-2">
+        {/* Overlay Badges - CORRIGÉ : plus de duplication */}
+        <div className="absolute top-3 left-3 right-12 flex flex-wrap gap-2 max-w-[calc(100%-60px)]">
           
-          {/* 1. Type d'annonce (Location, Vente, etc.) */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getListingTypeColor()}`}>
+          {/* 1. Type d'annonce (UN SEUL BADGE) */}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getListingTypeColor(isDark)}`}>
             <span>{getListingTypeLabel()}</span>
           </div>
 
-          {/* 2. Catégorie du bien (Résidentiel, Commercial, Terrain) */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getCategoryColor()}`}>
-            {getCategoryIcon()}
-            <span>{getCategoryLabel()}</span>
+          {/* 2. Type de bien spécifique */}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
+            isDark ? 'bg-gray-800/90 text-gray-200' : 'bg-white/90 text-gray-800'
+          }`}>
+            <span>{getPropertyTypeLabel(type)}</span>
           </div>
 
-          {/* 3. Type d'agent (uniquement si agent/agence) */}
+          {/* 3. Meublé */}
+          {isFurnished && (
+            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${
+              isDark ? 'bg-amber-900/80 text-amber-200' : 'bg-amber-100/90 text-amber-800'
+            }`}>
+              <Sofa className="w-3 h-3 shrink-0" />
+              <span>Meublé</span>
+            </span>
+          )}
+
+          {/* 4. Vérifié */}
+          {isVerified && (
+            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
+              isDark ? 'bg-emerald-900/80 text-emerald-200' : 'bg-emerald-100/90 text-emerald-700'
+            }`}>
+              <BadgeCheck className="w-3 h-3" />
+              <span>{t("card.verified") || "Vérifié"}</span>
+            </span>
+          )}
+
+          {/* 5. Agent/Agence */}
           {agentBadge && (
             <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${agentBadge.color}`}>
               {agentBadge.icon}
@@ -336,31 +449,12 @@ const PropertyCard = ({
             </span>
           )}
 
-          {/* 4. Type de bien spécifique (Villa, Appartement, etc.) */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm bg-white/90 text-gray-800">
-            <span>{getPropertyTypeLabel(type)}</span>
-          </div>
-
-          {/* 5. Meublé */}
-          {isFurnished && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/90 backdrop-blur-sm text-amber-800 shadow-sm">
-              <Sofa className="w-3 h-3 shrink-0" />
-              <span>Meublé</span>
-            </span>
-          )}
-
-          {/* 6. Vérifié */}
-          {isVerified && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100/90 backdrop-blur-sm text-emerald-700 shadow-sm">
-              <BadgeCheck className="w-3 h-3" />
-              <span>{t("card.verified") || "Vérifié"}</span>
-            </span>
-          )}
-
-          {/* 7. Trust Score */}
+          {/* 6. Trust Score */}
           {ownerTrustScore !== undefined && ownerTrustScore >= 60 && (
-            <span className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-teal-100/90 backdrop-blur-sm text-teal-700 shadow-sm">
-              <Star className="w-3 h-3 fill-teal-700" />
+            <span className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
+              isDark ? 'bg-teal-900/80 text-teal-200' : 'bg-teal-100/90 text-teal-700'
+            }`}>
+              <Star className="w-3 h-3 fill-current" />
               <span>{ownerTrustScore}%</span>
             </span>
           )}
@@ -370,21 +464,31 @@ const PropertyCard = ({
         <button
           onClick={toggleFavorite}
           disabled={isLoading}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50 shadow-sm"
+          className={`absolute top-3 right-3 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-50 shadow-sm ${
+            isDark ? 'bg-gray-800/90 hover:bg-gray-700' : 'bg-white/90 hover:bg-white'
+          }`}
         >
           <Heart
             className={`w-5 h-5 transition-colors ${
-              isLiked ? "fill-rose-500 text-rose-500" : "text-gray-600"
+              isLiked 
+                ? "fill-rose-500 text-rose-500" 
+                : isDark ? "text-gray-400" : "text-gray-600"
             }`}
           />
         </button>
 
-        {/* Price Badge */}
-        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-lg bg-white/95 backdrop-blur-sm shadow-lg">
-          <span className="text-base font-bold text-foreground">
+        {/* Price Badge - CORRIGÉ : style adapté au mode sombre */}
+        <div className={`absolute bottom-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-sm shadow-lg ${
+          isDark ? 'bg-gray-900/95' : 'bg-white/95'
+        }`}>
+          <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-foreground'}`}>
             {priceFormatted} FCFA
           </span>
-          <span className="text-xs text-muted-foreground font-medium">{unitLabel}</span>
+          {unitLabel && (
+            <span className={`text-xs font-medium ml-0.5 ${isDark ? 'text-gray-300' : 'text-muted-foreground'}`}>
+              {unitLabel}
+            </span>
+          )}
         </div>
       </div>
 
@@ -392,132 +496,52 @@ const PropertyCard = ({
       <div className="p-4 flex flex-col flex-grow">
         {/* Title & Location */}
         <div className="mb-3">
-          <h3 className="font-semibold text-foreground mb-1 line-clamp-1 group-hover:text-primary transition-colors text-base">
+          <h3 className={`font-semibold mb-1 line-clamp-1 group-hover:text-primary transition-colors text-base ${
+            isDark ? 'text-white' : 'text-foreground'
+          }`}>
             {title}
           </h3>
-          <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+          <div className={`flex items-center gap-1.5 text-sm ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
             <MapPin className="w-3.5 h-3.5 shrink-0 text-primary/70" />
             <span className="line-clamp-1">{location}</span>
           </div>
         </div>
 
         {/* Features Grid - CORRIGÉ */}
-        <div className="grid grid-cols-2 gap-y-2 gap-x-3 text-xs text-muted-foreground mb-4 bg-muted/30 p-2.5 rounded-lg">
-          
-          {/* Résidentiel */}
-          {category === "residential" && (
-            <>
-              {/* Chambres - toujours afficher */}
-              <div className="flex items-center gap-1.5">
-                <Bed className="w-3.5 h-3.5 text-primary/60" />
-                <span className="font-medium text-foreground">{bedrooms || 0}</span>
-                <span className="text-muted-foreground/80">ch.</span>
+        {features.length > 0 && (
+          <div className={`grid grid-cols-2 gap-y-2 gap-x-3 text-xs mb-4 p-2.5 rounded-lg ${
+            isDark ? 'bg-gray-800/50' : 'bg-muted/30'
+          }`}>
+            {features.map((feature, index) => (
+              <div key={index} className={`flex items-center gap-1.5 ${isDark ? 'text-gray-300' : 'text-muted-foreground'}`}>
+                <span className="text-primary/60">{feature.icon}</span>
+                <span className={`font-medium ${isDark ? 'text-gray-200' : 'text-foreground'}`}>
+                  {feature.label}
+                </span>
               </div>
-
-              {/* Salles de bain - toujours afficher */}
-              <div className="flex items-center gap-1.5">
-                <Bath className="w-3.5 h-3.5 text-primary/60" />
-                <span className="font-medium text-foreground">{bathrooms || 0}</span>
-                <span className="text-muted-foreground/80">sdb</span>
-              </div>
-              
-              {/* Salon */}
-              {hasValue(livingRooms) && (
-                <div className="flex items-center gap-1.5">
-                  <Sofa className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{livingRooms}</span>
-                  <span className="text-muted-foreground/80">salon{livingRooms > 1 ? 's' : ''}</span>
-                </div>
-              )}
-
-              {/* Cuisine */}
-              {hasValue(kitchens) && (
-                <div className="flex items-center gap-1.5">
-                  <Utensils className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{kitchens}</span>
-                  <span className="text-muted-foreground/80">cuisine{kitchens > 1 ? 's' : ''}</span>
-                </div>
-              )}
-
-              {/* Salle à manger */}
-              {hasValue(diningRooms) && (
-                <div className="flex items-center gap-1.5">
-                  <DoorOpen className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{diningRooms}</span>
-                  <span className="text-muted-foreground/80">salle{diningRooms > 1 ? 's' : ''} à manger</span>
-                </div>
-              )}
-
-              {/* Buanderie */}
-              {hasValue(laundryRooms) && (
-                <div className="flex items-center gap-1.5">
-                  <WashingMachine className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{laundryRooms}</span>
-                  <span className="text-muted-foreground/80">buanderie{laundryRooms > 1 ? 's' : ''}</span>
-                </div>
-              )}
-
-              {/* Étage */}
-              {(floor !== undefined && floor !== null) && (
-                <div className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">
-                    {floor}{totalFloors ? `/${totalFloors}` : ''}
-                  </span>
-                  <span className="text-muted-foreground/80">étage</span>
-                </div>
-              )}
-
-              {/* Surface */}
-              {hasValue(area) && (
-                <div className="flex items-center gap-1.5">
-                  <Square className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{area}</span>
-                  <span className="text-muted-foreground/80">m²</span>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Terrain */}
-          {category === "land" && (
-            <div className="flex items-center gap-1.5 col-span-2">
-              <Trees className="w-3.5 h-3.5 text-green-600" />
-              <span className="font-medium text-foreground text-sm">{area || 0} m²</span>
-              <span className="text-muted-foreground/80">de terrain</span>
-            </div>
-          )}
-
-          {/* Commercial */}
-          {category === "commercial" && (
-            <>
-              <div className="flex items-center gap-1.5 col-span-2">
-                <Store className="w-3.5 h-3.5 text-purple-600" />
-                <span className="font-medium text-foreground text-sm">{area || 0} m²</span>
-                <span className="text-muted-foreground/80">surface</span>
-              </div>
-              {hasValue(bedrooms) && (
-                <div className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-primary/60" />
-                  <span className="font-medium text-foreground">{bedrooms}</span>
-                  <span className="text-muted-foreground/80">étage(s)</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
-        <div className="mt-auto pt-3 border-t border-border flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+        <div className="mt-auto pt-3 border-t flex items-center justify-between ${
+          isDark ? 'border-gray-800' : 'border-border'
+        }`}>
+          <div className="flex items-center gap-2">
             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
             {realRating && realRating.count > 0 ? (
               <>
-                <span className="font-semibold text-foreground text-sm">{realRating.avg.toFixed(1)}</span>
-                <span className="text-muted-foreground text-xs">({realRating.count})</span>
+                <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-foreground'}`}>
+                  {realRating.avg.toFixed(1)}
+                </span>
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                  ({realRating.count})
+                </span>
               </>
             ) : (
-              <span className="text-muted-foreground text-xs italic">Avis</span>
+              <span className={`text-xs italic ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                Avis
+              </span>
             )}
           </div>
           <Link 

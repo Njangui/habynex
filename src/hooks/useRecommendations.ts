@@ -35,27 +35,31 @@ export function useRecommendations(limit: number = 10) {
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke("recommend-properties", {
-        body: { user_id: user?.id || null, limit },
+        body: { 
+          user_id: user?.id, // ✅ Correction : undefined au lieu de null
+          limit,
+          context: {
+            source: 'homepage',
+            device: 'desktop'
+          }
+        },
       });
 
-      // AJOUT: Vérification explicite des erreurs pour forcer le fallback en cas de CORS/erreur réseau
       if (fnError) {
-        console.warn("Edge function error (possible CORS):", fnError);
+        console.warn("Edge function error:", fnError);
         throw fnError;
       }
 
-      if (!fnError && data?.recommendations?.length > 0) {
+      if (data?.recommendations?.length > 0) {
         setRecommendations(data.recommendations);
         return;
       }
 
-      // AJOUT: Si pas de données, on force le fallback
       throw new Error("No recommendations from edge function");
 
     } catch (err) {
       console.warn("Falling back to direct query due to:", err);
       
-      // Fallback: fetch published properties sorted by recency
       try {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("properties")
@@ -65,7 +69,6 @@ export function useRecommendations(limit: number = 10) {
           .order("created_at", { ascending: false })
           .limit(limit);
 
-        // AJOUT: Gestion d'erreur du fallback
         if (fallbackError) throw fallbackError;
         setRecommendations(fallbackData || []);
       } catch (fallbackErr) {
@@ -82,7 +85,6 @@ export function useRecommendations(limit: number = 10) {
     fetchRecommendations();
   }, [fetchRecommendations]);
 
-  // Listen for profile preference changes to auto-refresh
   useEffect(() => {
     if (!user) return;
 
