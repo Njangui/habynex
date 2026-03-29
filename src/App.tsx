@@ -16,7 +16,6 @@ import Dashboard from "./pages/Dashboard";
 import SeekerDashboard from "./pages/SeekerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Search from "./pages/Search";
-import {ThemeProvider} from '@/contexts/ThemeContext';
 import TestimonialsPage from "./pages/TestimonialsPage";
 import Verification from "./pages/Verification";
 import IdentityVerification from "./pages/IdentityVerification";
@@ -56,7 +55,7 @@ const App = () => (
                 <Route path="/seeker-dashboard" element={<SeekerDashboard />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/search" element={<Search />} />
-                <Route path="/theme" element={<ThemeProvider />} />
+          
                 <Route path="/testimonials" element={<TestimonialsPage />} />
                 <Route path="/verification" element={<Verification />} />
                 <Route path="/identity-verification" element={<IdentityVerification />} />
