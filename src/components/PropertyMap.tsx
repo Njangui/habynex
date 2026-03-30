@@ -10,7 +10,7 @@ interface PropertyMapProps {
 
 const PropertyMap = ({ latitude, longitude, address, city, neighborhood }: PropertyMapProps) => {
   // Use OpenStreetMap embed as a fallback (no API key required)
-  const hasCoordinates = latitude && longitude;
+  const hasCoordinates = latitude != null && longitude != null;
   
   // Amélioration de l'URL de la carte pour un meilleur rendu
   const mapUrl = hasCoordinates

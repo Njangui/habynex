@@ -1,8 +1,6 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Heart, MapPin, Bed, Bath, Square, Star, Check, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Loader2, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PropertyCard from "@/components/PropertyCard";
 
 interface Property {
   id: string;
@@ -28,14 +26,24 @@ interface SearchResultsProps {
   onPageChange?: (page: number) => void;
 }
 
-const SearchResults = ({ 
-  properties, 
-  loading, 
+// Fonction de formatage des prix
+const formatPrice = (price: number) => {
+  const safePrice = typeof price === "number" && !isNaN(price) ? price : 0;
+  const formatted = new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(safePrice);
+  return `${formatted} FCFA`;
+};
+
+const SearchResults = ({
+  properties,
+  loading,
   totalCount,
   currentPage = 0,
   totalPages = 1,
-  onPageChange
+  onPageChange,
 }: SearchResultsProps) => {
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -44,6 +52,7 @@ const SearchResults = ({
     );
   }
 
+  // Empty state
   if (properties.length === 0) {
     return (
       <div className="text-center py-20">
@@ -60,11 +69,14 @@ const SearchResults = ({
     );
   }
 
+  // Rendu principal
   return (
     <div>
+      {/* En-tête avec nombre de résultats et page actuelle */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-muted-foreground">
-          <span className="font-semibold text-foreground">{totalCount}</span> bien{totalCount > 1 ? "s" : ""} trouvé{totalCount > 1 ? "s" : ""}
+          <span className="font-semibold text-foreground">{totalCount}</span>{" "}
+          bien{totalCount > 1 ? "s" : ""} trouvé{totalCount > 1 ? "s" : ""}
         </p>
         {totalPages > 1 && (
           <p className="text-sm text-muted-foreground">
@@ -73,9 +85,16 @@ const SearchResults = ({
         )}
       </div>
 
+      {/* Grid de PropertyCard */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {properties.map((property, index) => (
-          <PropertySearchCard key={property.id} property={property} index={index} />
+        {properties.map((property) => (
+          <PropertyCard
+            key={property.id}
+            property={{
+              ...property,
+              priceFormatted: formatPrice(property.price),
+            }}
+          />
         ))}
       </div>
 
@@ -92,7 +111,7 @@ const SearchResults = ({
             <ChevronLeft className="w-4 h-4" />
             Précédent
           </Button>
-          
+
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum: number;
@@ -105,7 +124,7 @@ const SearchResults = ({
               } else {
                 pageNum = currentPage - 2 + i;
               }
-              
+
               return (
                 <Button
                   key={pageNum}
@@ -119,7 +138,7 @@ const SearchResults = ({
               );
             })}
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -133,128 +152,6 @@ const SearchResults = ({
         </div>
       )}
     </div>
-  );
-};
-
-const PropertySearchCard = ({ property, index }: { property: Property; index: number }) => {
-  const [isLiked, setIsLiked] = useState(false);
-  
-  const image = property.images?.[0] || "/placeholder.svg";
-  const location = property.neighborhood 
-    ? `${property.neighborhood}, ${property.city}`
-    : property.city;
-
-  const propertyTypeLabels: Record<string, string> = {
-    studio: "Studio",
-    apartment: "Appartement",
-    house: "Maison",
-    room: "Chambre",
-    villa: "Villa",
-    duplex: "Duplex",
-  };
-
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-      whileHover={{ y: -4 }}
-      className="group bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elegant transition-all duration-300 border border-border/50"
-    >
-      {/* Image Container */}
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={image}
-          alt={property.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        
-        {/* Overlay Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-card/90 backdrop-blur-sm text-foreground">
-            {propertyTypeLabels[property.property_type] || property.property_type}
-          </span>
-          {property.is_verified && (
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-accent/90 backdrop-blur-sm text-accent-foreground flex items-center gap-1">
-              <Check className="w-3 h-3" />
-              Vérifié
-            </span>
-          )}
-        </div>
-
-        {/* Like Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsLiked(!isLiked);
-          }}
-          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors"
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              isLiked ? "fill-primary text-primary" : "text-muted-foreground"
-            }`}
-          />
-        </button>
-
-        {/* Price Badge */}
-        <div className="absolute bottom-3 left-3 px-4 py-2 rounded-xl bg-card/95 backdrop-blur-sm">
-          <span className="text-lg font-bold text-foreground">
-            {property.price.toLocaleString('fr-FR')} FCFA
-          </span>
-          <span className="text-sm text-muted-foreground">/{property.price_unit}</span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4">
-        {/* Title & Location */}
-        <h3 className="font-semibold text-foreground mb-1 line-clamp-1 group-hover:text-primary transition-colors">
-          {property.title}
-        </h3>
-        <div className="flex items-center gap-1 text-muted-foreground text-sm mb-3">
-          <MapPin className="w-4 h-4 shrink-0" />
-          <span className="line-clamp-1">{location}</span>
-        </div>
-
-        {/* Features */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-          {property.bedrooms != null && (
-            <div className="flex items-center gap-1">
-              <Bed className="w-4 h-4" />
-              <span>{property.bedrooms}</span>
-            </div>
-          )}
-          {property.bathrooms != null && (
-            <div className="flex items-center gap-1">
-              <Bath className="w-4 h-4" />
-              <span>{property.bathrooms}</span>
-            </div>
-          )}
-          {property.area != null && (
-            <div className="flex items-center gap-1">
-              <Square className="w-4 h-4" />
-              <span>{property.area} m²</span>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-gold text-gold" />
-            <span className="font-medium text-foreground">4.5</span>
-            <span className="text-muted-foreground text-sm">(nouveau)</span>
-          </div>
-          <Link 
-            to={`/property/${property.id}`} 
-            className="text-primary text-sm font-medium hover:underline"
-          >
-            Voir détails
-          </Link>
-        </div>
-      </div>
-    </motion.article>
   );
 };
 

@@ -1,558 +1,744 @@
-import { motion } from "framer-motion";
-import { 
-  Heart, MapPin, Bed, Bath, Square, Star, Shield, 
-  Sofa, Utensils, DoorOpen, WashingMachine, Building2, Trees,
-  Home, Store, LandPlot, BadgeCheck, ArrowRight, User, Building,
-  Camera
-} from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { motion } from "framer-motion";
+import { 
+  MapPin, 
+  Bed, 
+  Bath, 
+  Maximize, 
+  Heart, 
+  Share2, 
+  Phone,
+  MessageCircle,
+  BadgeCheck,
+  Calendar,
+  Star
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface PropertyCardProps {
-  id: number | string;
-  title: string;
-  location: string;
-  price: number;
-  priceUnit: string;
-  image: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  area?: number;
-  rating?: number;
-  isVerified?: boolean;
-  type: string;
-  source?: "search" | "recommendation" | "direct";
-  ownerTrustScore?: number;
-  ownerType?: "owner" | "agent" | "agency";
-  livingRooms?: number;
-  kitchens?: number;
-  diningRooms?: number;
-  laundryRooms?: number;
-  propertyCategory?: "residential" | "land" | "commercial";
-  floor?: number;
-  totalFloors?: number;
-  isFurnished?: boolean;
-  ownerAgencyName?: string;
-  listingType?: "rent" | "sale" | "colocation" | "short_term";
+  property?: {
+    id: string;
+    title: string;
+    price: number;
+    location: string;
+    city?: string;
+    neighborhood?: string;
+    images?: string[] | null;
+    bedrooms?: number;
+    bathrooms?: number;
+    area?: number;
+    is_furnished?: boolean;
+    is_available?: boolean;
+    created_at: string;
+    owner_id: string;
+    owner_profile?: {
+      full_name: string | null;
+      avatar_url: string | null;
+      is_verified?: boolean;
+    };
+    category?: string;
+    rating?: number;
+    review_count?: number;
+  };
+  variant?: "default" | "compact" | "featured";
+  onFavorite?: (id: string) => void;
+  isFavorite?: boolean;
 }
 
-const PropertyCard = ({
-  id,
-  title,
-  location,
-  price,
-  priceUnit,
-  image,
-  bedrooms = 0,
-  bathrooms = 0,
-  area = 0,
-  rating: ratingProp,
-  isVerified = false,
-  type,
-  source = "recommendation",
-  ownerTrustScore,
-  ownerType,
-  livingRooms = 0,
-  kitchens = 0,
-  diningRooms = 0,
-  laundryRooms = 0,
-  propertyCategory,
-  floor,
-  totalFloors,
-  isFurnished,
-  ownerAgencyName,
-  listingType,
+// Détection du thème système ou localStorage
+const getInitialTheme = () => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
+};
+
+export const PropertyCard = ({ 
+  property, 
+  variant = "default",
+  onFavorite,
+  isFavorite = false
 }: PropertyCardProps) => {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [realRating, setRealRating] = useState<{ avg: number; count: number } | null>(null);
-  const [imageError, setImageError] = useState(false);
-  const { user } = useAuth();
-  const { t, language } = useLanguage();
-  const { theme } = useTheme();
-  const { toast } = useToast();
+  const { language } = useLanguage();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [theme, setTheme] = useState(getInitialTheme());
 
-  const isDark = theme === 'dark';
+  // Vérification de sécurité si property est undefined
+  if (!property) {
+    console.warn("PropertyCard: property is undefined");
+    return null;
+  }
 
-  // Fetch real reviews rating
+  // Vérification des propriétés requises
+  if (!property.id) {
+    console.warn("PropertyCard: property.id is missing", property);
+    return null;
+  }
+
+  const isDark = theme === "dark";
+
+  // Appliquer le thème au montage
   useEffect(() => {
-    const fetchRating = async () => {
-      if (!id || String(id).startsWith("fallback")) return;
-      try {
-        const { data } = await supabase
-          .from("property_reviews")
-          .select("rating")
-          .eq("property_id", id.toString());
-        if (data && data.length > 0) {
-          const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
-          setRealRating({ avg, count: data.length });
-        }
-      } catch (e) {
-        // silently fail
-      }
-    };
-    fetchRating();
-  }, [id]);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
 
-  // Check if property is already in favorites on mount
-  useEffect(() => {
-    const checkFavoriteStatus = async () => {
-      if (!user || id === "demo") return;
+  // Classes dynamiques basées sur le thème
+  const themeClasses = {
+    card: isDark 
+      ? "bg-slate-900 border-slate-700 hover:border-orange-500/50" 
+      : "bg-white border-slate-200 hover:border-orange-300",
+    text: isDark ? "text-slate-100" : "text-slate-900",
+    textMuted: isDark ? "text-slate-400" : "text-slate-500",
+    badge: isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600",
+    price: isDark ? "text-orange-400" : "text-orange-600",
+  };
+
+  // Sécurisation des images avec valeur par défaut
+  const images = Array.isArray(property.images) ? property.images : [];
+  const hasMultipleImages = images.length > 1;
+
+  const fullLocation = [
+    property.neighborhood,
+    property.city || property.location
+  ].filter(Boolean).join(", ");
+
+  const formatPrice = (price: number) => {
+  const safePrice = typeof price === "number" && !isNaN(price) ? price : 0;
+  const formatted = new Intl.NumberFormat(language === "fr" ? "fr-FR" : "en-US", {
+    maximumFractionDigits: 0
+  }).format(safePrice);
+  return `${formatted} FCFA`;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
       
-      try {
-        const { data } = await supabase
-          .from("property_favorites")
-          .select("id")
-          .eq("property_id", id.toString())
-          .eq("user_id", user.id)
-          .maybeSingle();
-        
-        setIsLiked(!!data);
-      } catch (error) {
-        console.error("Error checking favorite status:", error);
-      }
-    };
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    checkFavoriteStatus();
-  }, [user, id]);
+      if (diffDays === 1) return language === "fr" ? "Aujourd'hui" : "Today";
+      if (diffDays <= 7) return language === "fr" ? "Cette semaine" : "This week";
+      if (diffDays <= 30) return language === "fr" ? "Ce mois" : "This month";
+      return date.toLocaleDateString(language === "fr" ? "fr-FR" : "en-US");
+    } catch (e) {
+      return "";
+    }
+  };
 
-  const toggleFavorite = async (e: React.MouseEvent) => {
+  const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!user) {
-      toast({
-        title: t("toast.loginRequired"),
-        description: t("toast.loginToFavorite"),
-      });
-      return;
-    }
-
-    if (id === "demo" || isLoading) return;
-
-    setIsLoading(true);
-    try {
-      if (isLiked) {
-        await supabase
-          .from("property_favorites")
-          .delete()
-          .eq("property_id", id.toString())
-          .eq("user_id", user.id);
-        setIsLiked(false);
-        toast({ title: t("toast.removedFromFavorites") });
-      } else {
-        await supabase
-          .from("property_favorites")
-          .insert({ property_id: id.toString(), user_id: user.id });
-        setIsLiked(true);
-        toast({ title: t("toast.addedToFavorites") });
-      }
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-      toast({
-        title: t("common.error"),
-        description: t("error.tryAgain"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
     }
   };
 
-  // Fonction pour traduire le type de propriété
-  const getPropertyTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      studio: "Studio",
-      room: "Chambre",
-      apartment: "Appartement",
-      duplex: "Duplex",
-      house: "Maison",
-      villa: "Villa",
-      penthouse: "Penthouse",
-      furnished_apartment: "Appart. meublé",
-      shared_room: "Chambre partagée",
-      land: "Terrain",
-      shop: "Boutique",
-      store: "Magasin",
-      commercial_space: "Espace commercial",
-      warehouse: "Entrepôt",
-      office: "Bureau",
-      building: "Bâtiment",
-    };
-    return labels[type] || type;
-  };
-
-  // Déterminer la catégorie à partir du type
-  const getCategoryFromType = (type: string): "residential" | "land" | "commercial" => {
-    const residentialTypes = ["studio", "room", "apartment", "duplex", "house", "villa", "penthouse", "furnished_apartment", "shared_room"];
-    const landTypes = ["land"];
-    const commercialTypes = ["shop", "store", "commercial_space", "warehouse", "office", "building"];
-    
-    if (residentialTypes.includes(type)) return "residential";
-    if (landTypes.includes(type)) return "land";
-    if (commercialTypes.includes(type)) return "commercial";
-    return "residential";
-  };
-
-  const category = propertyCategory || getCategoryFromType(type);
-
-  // Type d'annonce - CORRIGÉ : un seul badge
-  const getListingTypeLabel = () => {
-    if (listingType) {
-      switch (listingType) {
-        case "rent": return "Location";
-        case "sale": return "Vente";
-        case "colocation": return "Colocation";
-        case "short_term": return "Court séjour";
-        default: return listingType;
-      }
-    }
-    switch (priceUnit) {
-      case "month": return "Location";
-      case "day": return "Court séjour";
-      case "sale": return "Vente";
-      default: return priceUnit;
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (images.length > 0) {
+      setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
     }
   };
 
-  const getListingTypeColor = (isDark: boolean) => {
-    const label = getListingTypeLabel();
-    if (isDark) {
-      switch (label) {
-        case "Location": return "bg-blue-900/80 text-blue-200";
-        case "Vente": return "bg-rose-900/80 text-rose-200";
-        case "Colocation": return "bg-purple-900/80 text-purple-200";
-        case "Court séjour": return "bg-orange-900/80 text-orange-200";
-        default: return "bg-gray-800/80 text-gray-200";
-      }
-    }
-    switch (label) {
-      case "Location": return "bg-blue-100 text-blue-700";
-      case "Vente": return "bg-rose-100 text-rose-700";
-      case "Colocation": return "bg-purple-100 text-purple-700";
-      case "Court séjour": return "bg-orange-100 text-orange-700";
-      default: return "bg-gray-100 text-gray-700";
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (property.id && onFavorite) {
+      onFavorite(property.id);
     }
   };
 
-  // Catégorie du bien
-  const getCategoryLabel = () => {
-    switch (category) {
-      case "residential": return "Résidentiel";
-      case "land": return "Terrain";
-      case "commercial": return "Commercial";
-      default: return "Résidentiel";
-    }
-  };
+  // Récupération sécurisée du titre
+  const title = property.title || (language === "fr" ? "Sans titre" : "Untitled");
+  
+  // Récupération sécurisée du prix
+  const price = typeof property.price === "number" ? property.price : 0;
 
-  const getCategoryColor = (isDark: boolean) => {
-    if (isDark) {
-      switch (category) {
-        case "residential": return "bg-emerald-900/80 text-emerald-200";
-        case "land": return "bg-green-900/80 text-green-200";
-        case "commercial": return "bg-indigo-900/80 text-indigo-200";
-        default: return "bg-gray-800/80 text-gray-200";
-      }
-    }
-    switch (category) {
-      case "residential": return "bg-emerald-100 text-emerald-700";
-      case "land": return "bg-green-100 text-green-700";
-      case "commercial": return "bg-indigo-100 text-indigo-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getCategoryIcon = () => {
-    switch (category) {
-      case "residential": return <Home className="w-3 h-3" />;
-      case "land": return <LandPlot className="w-3 h-3" />;
-      case "commercial": return <Store className="w-3 h-3" />;
-      default: return <Home className="w-3 h-3" />;
-    }
-  };
-
-  // Type d'agent
-  const getAgentBadge = () => {
-    if (!ownerType || ownerType === "owner") return null;
-    
-    if (ownerType === "agency") {
-      return {
-        label: ownerAgencyName || "Agence",
-        icon: <Building className="w-3 h-3" />,
-        color: isDark ? "bg-amber-900/80 text-amber-200" : "bg-amber-100 text-amber-800",
-      };
-    }
-    
-    if (ownerType === "agent") {
-      return {
-        label: ownerAgencyName || "Agent",
-        icon: <User className="w-3 h-3" />,
-        color: isDark ? "bg-amber-900/80 text-amber-200" : "bg-amber-100 text-amber-800",
-      };
-    }
-    
-    return null;
-  };
-
-  // Formater le prix avec gestion du mode sombre
-  const formatPrice = () => {
-    const formatted = price.toLocaleString('fr-FR');
-    let unitLabel = "";
-    switch (priceUnit) {
-      case "month": unitLabel = "/mois"; break;
-      case "day": unitLabel = "/jour"; break;
-      case "sale": unitLabel = ""; break;
-      default: unitLabel = `/${priceUnit}`;
-    }
-    return { formatted, unitLabel };
-  };
-
-  const { formatted: priceFormatted, unitLabel } = formatPrice();
-  const agentBadge = getAgentBadge();
-
-  // Helper pour vérifier si une valeur est valide (> 0)
-  const hasValue = (val: number | undefined | null): boolean => {
-    return val !== undefined && val !== null && val > 0;
-  };
-
-  // Fonction pour obtenir les features à afficher
-  const getFeaturesToShow = () => {
-    const features = [];
-    
-    if (category === "residential") {
-      if (hasValue(bedrooms)) {
-        features.push({
-          icon: <Bed className="w-3.5 h-3.5" />,
-          label: `${bedrooms} ch.`
-        });
-      }
-      if (hasValue(bathrooms)) {
-        features.push({
-          icon: <Bath className="w-3.5 h-3.5" />,
-          label: `${bathrooms} sdb`
-        });
-      }
-      if (hasValue(livingRooms)) {
-        features.push({
-          icon: <Sofa className="w-3.5 h-3.5" />,
-          label: `${livingRooms} salon${livingRooms > 1 ? 's' : ''}`
-        });
-      }
-      if (hasValue(kitchens)) {
-        features.push({
-          icon: <Utensils className="w-3.5 h-3.5" />,
-          label: `${kitchens} cuisine${kitchens > 1 ? 's' : ''}`
-        });
-      }
-      if (hasValue(area)) {
-        features.push({
-          icon: <Square className="w-3.5 h-3.5" />,
-          label: `${area} m²`
-        });
-      }
-    } else if (category === "land") {
-      features.push({
-        icon: <Trees className="w-3.5 h-3.5" />,
-        label: `${area || 0} m²`
-      });
-    } else if (category === "commercial") {
-      features.push({
-        icon: <Store className="w-3.5 h-3.5" />,
-        label: `${area || 0} m²`
-      });
-      if (hasValue(bedrooms)) {
-        features.push({
-          icon: <Building2 className="w-3.5 h-3.5" />,
-          label: `${bedrooms} étage${bedrooms > 1 ? 's' : ''}`
-        });
-      }
-    }
-    
-    return features;
-  };
-
-  const features = getFeaturesToShow();
-
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-      className={`group rounded-2xl overflow-hidden shadow-sm hover:shadow-elegant transition-all duration-300 border flex flex-col h-full ${
-        isDark 
-          ? 'bg-gray-900 border-gray-800 hover:shadow-gray-800/30' 
-          : 'bg-card border-border/50 hover:shadow-gray-200'
-      }`}
-    >
-      {/* Image Container */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-200 dark:bg-gray-800">
-        {!imageError && image ? (
-          <img
-            src={image}
-            alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Camera className="w-12 h-12 text-gray-400 dark:text-gray-600" />
-          </div>
+  if (variant === "compact") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4 }}
+        className={cn(
+          "group relative rounded-xl overflow-hidden border transition-all duration-300",
+          "hover:shadow-xl hover:shadow-orange-500/10",
+          themeClasses.card
         )}
-        
-        {/* Overlay Badges - CORRIGÉ : plus de duplication */}
-        <div className="absolute top-3 left-3 right-12 flex flex-wrap gap-2 max-w-[calc(100%-60px)]">
-          
-          {/* 1. Type d'annonce (UN SEUL BADGE) */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${getListingTypeColor(isDark)}`}>
-            <span>{getListingTypeLabel()}</span>
-          </div>
-
-          {/* 2. Type de bien spécifique */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
-            isDark ? 'bg-gray-800/90 text-gray-200' : 'bg-white/90 text-gray-800'
-          }`}>
-            <span>{getPropertyTypeLabel(type)}</span>
-          </div>
-
-          {/* 3. Meublé */}
-          {isFurnished && (
-            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${
-              isDark ? 'bg-amber-900/80 text-amber-200' : 'bg-amber-100/90 text-amber-800'
-            }`}>
-              <Sofa className="w-3 h-3 shrink-0" />
-              <span>Meublé</span>
-            </span>
-          )}
-
-          {/* 4. Vérifié */}
-          {isVerified && (
-            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
-              isDark ? 'bg-emerald-900/80 text-emerald-200' : 'bg-emerald-100/90 text-emerald-700'
-            }`}>
-              <BadgeCheck className="w-3 h-3" />
-              <span>{t("card.verified") || "Vérifié"}</span>
-            </span>
-          )}
-
-          {/* 5. Agent/Agence */}
-          {agentBadge && (
-            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm shadow-sm ${agentBadge.color}`}>
-              {agentBadge.icon}
-              <span>{agentBadge.label}</span>
-            </span>
-          )}
-
-          {/* 6. Trust Score */}
-          {ownerTrustScore !== undefined && ownerTrustScore >= 60 && (
-            <span className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm shadow-sm ${
-              isDark ? 'bg-teal-900/80 text-teal-200' : 'bg-teal-100/90 text-teal-700'
-            }`}>
-              <Star className="w-3 h-3 fill-current" />
-              <span>{ownerTrustScore}%</span>
-            </span>
-          )}
-        </div>
-
-        {/* Like Button */}
-        <button
-          onClick={toggleFavorite}
-          disabled={isLoading}
-          className={`absolute top-3 right-3 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-50 shadow-sm ${
-            isDark ? 'bg-gray-800/90 hover:bg-gray-700' : 'bg-white/90 hover:bg-white'
-          }`}
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              isLiked 
-                ? "fill-rose-500 text-rose-500" 
-                : isDark ? "text-gray-400" : "text-gray-600"
-            }`}
-          />
-        </button>
-
-        {/* Price Badge - CORRIGÉ : style adapté au mode sombre */}
-        <div className={`absolute bottom-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-sm shadow-lg ${
-          isDark ? 'bg-gray-900/95' : 'bg-white/95'
-        }`}>
-          <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-foreground'}`}>
-            {priceFormatted} FCFA
-          </span>
-          {unitLabel && (
-            <span className={`text-xs font-medium ml-0.5 ${isDark ? 'text-gray-300' : 'text-muted-foreground'}`}>
-              {unitLabel}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-4 flex flex-col flex-grow">
-        {/* Title & Location */}
-        <div className="mb-3">
-          <h3 className={`font-semibold mb-1 line-clamp-1 group-hover:text-primary transition-colors text-base ${
-            isDark ? 'text-white' : 'text-foreground'
-          }`}>
-            {title}
-          </h3>
-          <div className={`flex items-center gap-1.5 text-sm ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-primary/70" />
-            <span className="line-clamp-1">{location}</span>
-          </div>
-        </div>
-
-        {/* Features Grid - CORRIGÉ */}
-        {features.length > 0 && (
-          <div className={`grid grid-cols-2 gap-y-2 gap-x-3 text-xs mb-4 p-2.5 rounded-lg ${
-            isDark ? 'bg-gray-800/50' : 'bg-muted/30'
-          }`}>
-            {features.map((feature, index) => (
-              <div key={index} className={`flex items-center gap-1.5 ${isDark ? 'text-gray-300' : 'text-muted-foreground'}`}>
-                <span className="text-primary/60">{feature.icon}</span>
-                <span className={`font-medium ${isDark ? 'text-gray-200' : 'text-foreground'}`}>
-                  {feature.label}
-                </span>
+      >
+        <Link to={`/property/${property.id}`} className="flex gap-4 p-3">
+          {/* Image */}
+          <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+            {images.length > 0 && images[0] ? (
+              <img
+                src={images[0]}
+                alt={title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center">
+                <MapPin className="w-8 h-8 text-orange-400" />
               </div>
-            ))}
+            )}
+            <div className="absolute top-1 left-1">
+              <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5">
+                {formatPrice(price)}
+              </Badge>
+            </div>
           </div>
-        )}
 
-        {/* Footer */}
-      <div className={`mt-auto pt-3 border-t flex items-center justify-between ${
-      isDark ? 'border-gray-800' : 'border-border'
-      }`}>
-          <div className="flex items-center gap-2">
-            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-            {realRating && realRating.count > 0 ? (
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <h3 className={cn("font-semibold text-sm truncate mb-1", themeClasses.text)}>
+              {title}
+            </h3>
+            <p className={cn("text-xs truncate mb-2", themeClasses.textMuted)}>
+              <MapPin className="w-3 h-3 inline mr-1" />
+              {fullLocation || (language === "fr" ? "Localisation inconnue" : "Unknown location")}
+            </p>
+            <div className="flex items-center gap-3 text-xs">
+              {typeof property.bedrooms === "number" && property.bedrooms > 0 && (
+                <span className={cn("flex items-center gap-1", themeClasses.textMuted)}>
+                  <Bed className="w-3 h-3" />
+                  {property.bedrooms}
+                </span>
+              )}
+              {typeof property.bathrooms === "number" && property.bathrooms > 0 && (
+                <span className={cn("flex items-center gap-1", themeClasses.textMuted)}>
+                  <Bath className="w-3 h-3" />
+                  {property.bathrooms}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+    );
+  }
+
+  if (variant === "featured") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -8 }}
+        onHoverStart={() => setIsHovered(true)}
+        onHoverEnd={() => setIsHovered(false)}
+        className={cn(
+          "group relative rounded-2xl overflow-hidden border-2 transition-all duration-500",
+          "hover:shadow-2xl hover:shadow-orange-500/20",
+          themeClasses.card,
+          "border-transparent hover:border-orange-400/50"
+        )}
+      >
+        <Link to={`/property/${property.id}`} className="block">
+          {/* Image Gallery */}
+          <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
+            {images.length > 0 ? (
               <>
-                <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-foreground'}`}>
-                  {realRating.avg.toFixed(1)}
-                </span>
-                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
-                  ({realRating.count})
-                </span>
+                <motion.img
+                  key={currentImageIndex}
+                  src={images[currentImageIndex]}
+                  alt={title}
+                  className="w-full h-full object-cover"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '';
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                {/* Navigation Arrows */}
+                {hasMultipleImages && isHovered && (
+                  <>
+                    <button
+                      onClick={handlePrevImage}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={handleNextImage}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+
+                {/* Image Indicators */}
+                {hasMultipleImages && (
+                  <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
+                    {images.map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all",
+                          idx === currentImageIndex ? "bg-white w-6" : "bg-white/50"
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
-              <span className={`text-xs italic ${isDark ? 'text-gray-400' : 'text-muted-foreground'}`}>
-                Avis
-              </span>
+              <div className="w-full h-full bg-gradient-to-br from-orange-100 via-yellow-100 to-green-100 dark:from-orange-900/30 dark:via-yellow-900/20 dark:to-green-900/30 flex items-center justify-center">
+                <MapPin className="w-16 h-16 text-orange-400" />
+              </div>
+            )}
+
+            {/* Badges */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2">
+              {property.is_available !== false && (
+                <Badge className="bg-green-500 text-white border-0 shadow-lg">
+                  {language === "fr" ? "Disponible" : "Available"}
+                </Badge>
+              )}
+              {property.is_furnished && (
+                <Badge className={cn("border-0 shadow-lg", themeClasses.badge)}>
+                  {language === "fr" ? "Meublé" : "Furnished"}
+                </Badge>
+              )}
+              {property.category && (
+                <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-0 shadow-lg">
+                  {property.category}
+                </Badge>
+              )}
+              {/* Habynex badges */}
+            {property.owner_profile?.role === "agent" && (
+            <Badge className="bg-blue-500 text-white border-0 shadow-lg">
+              Habynex Agent
+            </Badge>
+            )}
+            {property.owner_profile?.role === "agency" && (
+            <Badge className="bg-indigo-500 text-white border-0 shadow-lg">
+              Habynex Agency
+            </Badge>
+            )}
+            {property.owner_profile?.role === "owner" && (
+            <Badge className="bg-gray-500 text-white border-0 shadow-lg">
+              Propriétaire
+            </Badge>
+            )}
+            {/* Type du bien (Rent / Sale / Short Stay / Colocation) */}
+{property.type && (
+  <>
+    {property.type === "rent" && (
+      <Badge className="bg-green-500 text-white border-0 shadow-lg">
+        {language === "fr" ? "À louer" : "For Rent"}
+      </Badge>
+    )}
+    {property.type === "sale" && (
+      <Badge className="bg-blue-500 text-white border-0 shadow-lg">
+        {language === "fr" ? "À vendre" : "For Sale"}
+      </Badge>
+    )}
+    {property.type === "short_stay" && (
+      <Badge className="bg-orange-500 text-white border-0 shadow-lg">
+        {language === "fr" ? "Court séjour" : "Short Stay"}
+      </Badge>
+    )}
+    {property.type === "shared" && (
+      <Badge className="bg-purple-500 text-white border-0 shadow-lg">
+        {language === "fr" ? "Colocation" : "Shared"}
+      </Badge>
+    )}
+     </>
+    )}
+            </div>
+
+            {/* Favorite & Share */}
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                onClick={handleFavorite}
+                className={cn(
+                  "w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110",
+                  isFavorite 
+                    ? "bg-red-500 text-white" 
+                    : "bg-white/20 text-white hover:bg-white/30"
+                )}
+              >
+                <Heart className={cn("w-5 h-5", isFavorite && "fill-current")} />
+              </button>
+              <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all hover:scale-110">
+                <Share2 className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Price Tag */}
+            <div className="absolute bottom-4 left-4">
+              <div className="bg-white dark:bg-slate-900 rounded-xl px-4 py-2 shadow-xl">
+                <p className={cn("text-2xl font-bold", themeClasses.price)}>
+                  {formatPrice(price)}
+                </p>
+                <p className={cn("text-xs", themeClasses.textMuted)}>
+                  {language === "fr" ? "/mois" : "/month"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex-1 min-w-0">
+                <h3 className={cn("text-xl font-bold mb-2 line-clamp-1", themeClasses.text)}>
+                  {title}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  <p className={cn("text-sm truncate", themeClasses.textMuted)}>
+                    {fullLocation || (language === "fr" ? "Localisation inconnue" : "Unknown location")}
+                  </p>
+                </div>
+              </div>
+              {typeof property.rating === "number" && property.rating > 0 && (
+                <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-lg flex-shrink-0">
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  <span className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">
+                    {property.rating.toFixed(1)}
+                  </span>
+                  {typeof property.review_count === "number" && property.review_count > 0 && (
+                    <span className={cn("text-xs", themeClasses.textMuted)}>
+                      ({property.review_count})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Features */}
+            <div className="flex items-center gap-4 py-4 border-y border-dashed border-slate-200 dark:border-slate-700 mb-4">
+              {typeof property.bedrooms === "number" && property.bedrooms > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Bed className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.bedrooms}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Chambres" : "Bedrooms"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.bathrooms === "number" && property.bathrooms > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <Bath className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.bathrooms}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Salles de bain" : "Bathrooms"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.area === "number" && property.area > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                    <Maximize className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.area}m²
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Surface" : "Area"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Owner & Actions */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 p-[2px]">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      {property.owner_profile?.avatar_url ? (
+                        <img
+                          src={property.owner_profile.avatar_url}
+                          alt={property.owner_profile.full_name || ""}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-lg font-bold text-slate-400">
+                          {property.owner_profile?.full_name?.charAt(0) || "U"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {property.owner_profile?.is_verified && (
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-white dark:border-slate-900">
+                      <BadgeCheck className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className={cn("text-sm font-semibold truncate", themeClasses.text)}>
+                    {property.owner_profile?.full_name || (language === "fr" ? "Propriétaire" : "Owner")}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {formatDate(property.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 flex-shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    "rounded-full border-orange-200 dark:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/20",
+                    themeClasses.text
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                  }}
+                >
+                  <Phone className="w-4 h-4 mr-1 text-orange-500" />
+                  <span className="hidden sm:inline">{language === "fr" ? "Appeler" : "Call"}</span>
+                </Button>
+                <Button
+                  size="sm"
+                  className="rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all"
+                  onClick={(e) => {
+                    e.preventDefault();
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">{language === "fr" ? "Message" : "Message"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+    );
+  }
+
+  // Default variant
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      className={cn(
+        "group relative rounded-xl overflow-hidden border transition-all duration-300",
+        "hover:shadow-lg hover:shadow-orange-500/10",
+        themeClasses.card
+      )}
+    >
+      <Link to={`/property/${property.id}`} className="block">
+        {/* Image */}
+        <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
+          {images.length > 0 && images[0] ? (
+            <img
+              src={images[0]}
+              alt={title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center">
+              <MapPin className="w-12 h-12 text-orange-400" />
+            </div>
+          )}
+          
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          {/* Badges */}
+          <div className="absolute top-3 left-3 flex gap-2">
+            {property.is_available !== false && (
+              <Badge className="bg-green-500 text-white border-0">
+                {language === "fr" ? "Dispo" : "Available"}
+              </Badge>
+            )}
+            {property.is_furnished && (
+              <Badge className={cn("border-0", themeClasses.badge)}>
+                {language === "fr" ? "Meublé" : "Furnished"}
+              </Badge>
             )}
           </div>
-          <Link 
-            to={`/property/${id}?source=${source}`} 
-            className="text-primary text-sm font-medium hover:underline flex items-center gap-1"
+
+          {/* Favorite */}
+          <button
+            onClick={handleFavorite}
+            className={cn(
+              "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110",
+              isFavorite 
+                ? "bg-red-500 text-white" 
+                : "bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:bg-white"
+            )}
           >
-            {t("card.viewDetails") || "Détails"}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+            <Heart className={cn("w-4 h-4", isFavorite && "fill-current")} />
+          </button>
+
+          {/* Price */}
+          <div className="absolute bottom-3 left-3">
+            <Badge className="bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-bold text-lg border-0 shadow-lg">
+              {formatPrice(price)}
+            </Badge>
+          </div>
         </div>
-      </div>
-    </motion.article>
+
+        {/* Content */}
+        <div className="p-4">
+          <h3 className={cn("font-semibold mb-2 line-clamp-1", themeClasses.text)}>
+            {title}
+          </h3>
+          
+          <div className="flex items-center gap-1 mb-3">
+            <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
+            <p className={cn("text-sm truncate", themeClasses.textMuted)}>
+              {fullLocation || (language === "fr" ? "Localisation inconnue" : "Unknown location")}
+            </p>
+          </div>
+
+          {/* Features */}
+          <div className="flex items-center gap-3 text-sm">
+            {typeof property.bedrooms === "number" && property.bedrooms > 0 && (
+              <span className={cn("flex items-center gap-1", themeClasses.textMuted)}>
+                <Bed className="w-4 h-4" />
+                {property.bedrooms}
+              </span>
+            )}
+            {typeof property.bathrooms === "number" && property.bathrooms > 0 && (
+              <span className={cn("flex items-center gap-1", themeClasses.textMuted)}>
+                <Bath className="w-4 h-4" />
+                {property.bathrooms}
+              </span>
+            )}
+            {typeof property.area === "number" && property.area > 0 && (
+              <span className={cn("flex items-center gap-1", themeClasses.textMuted)}>
+                <Maximize className="w-4 h-4" />
+                {property.area}m²
+              </span>
+            )}
+
+            {typeof property.kitchens === "number" && property.kitchens > 0 && (
+  <div className="flex items-center gap-2">
+    <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+      🍳
+    </div>
+    <div>
+      <p className={cn("text-sm font-semibold", themeClasses.text)}>
+        {property.kitchens}
+      </p>
+      <p className={cn("text-xs", themeClasses.textMuted)}>
+        {language === "fr" ? "Cuisine" : "Kitchen"}
+      </p>
+    </div>
+  </div>
+)}
+
+{typeof property.living_rooms === "number" && property.living_rooms > 0 && (
+  <div className="flex items-center gap-2">
+    <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+      🛋️
+    </div>
+    <div>
+      <p className={cn("text-sm font-semibold", themeClasses.text)}>
+        {property.living_rooms}
+      </p>
+      <p className={cn("text-xs", themeClasses.textMuted)}>
+        {language === "fr" ? "Salon" : "Living Room"}
+      </p>
+    </div>
+  </div>
+)}
+
+{typeof property.dining_rooms === "number" && property.dining_rooms > 0 && (
+  <div className="flex items-center gap-2">
+    <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+      🍽️
+    </div>
+    <div>
+      <p className={cn("text-sm font-semibold", themeClasses.text)}>
+        {property.dining_rooms}
+      </p>
+      <p className={cn("text-xs", themeClasses.textMuted)}>
+        {language === "fr" ? "Salle à manger" : "Dining Room"}
+      </p>
+    </div>
+  </div>
+)}
+
+{typeof property.floor === "number" && property.floor > 0 && (
+  <div className="flex items-center gap-2">
+    <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+      🏢
+    </div>
+    <div>
+      <p className={cn("text-sm font-semibold", themeClasses.text)}>
+        {property.floor}
+      </p>
+      <p className={cn("text-xs", themeClasses.textMuted)}>
+        {language === "fr" ? "Étage" : "Floor"}
+      </p>
+    </div>
+  </div>
+)}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white text-sm font-semibold">
+                {property.owner_profile?.full_name?.charAt(0) || "U"}
+              </div>
+              <span className={cn("text-xs", themeClasses.textMuted)}>
+                {formatDate(property.created_at)}
+              </span>
+            </div>
+            {typeof property.rating === "number" && property.rating > 0 && (
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                <span className={cn("text-sm font-medium", themeClasses.text)}>
+                  {property.rating.toFixed(1)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Link>
+    </motion.div>
   );
 };
 

@@ -2,13 +2,13 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import PropertyCard from "./PropertyCard";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, SlidersHorizontal, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, SlidersHorizontal, Sparkles, Home } from "lucide-react";
 import { useRecommendations } from "@/hooks/useRecommendations";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
-// Fallback static data
+// IMAGES FALLBACK
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
 import property3 from "@/assets/property-3.jpg";
@@ -16,299 +16,301 @@ import property4 from "@/assets/property-4.jpg";
 import property5 from "@/assets/property-5.jpg";
 import property6 from "@/assets/property-6.jpg";
 
+// DONNÉES FALLBACK COMPLÈTES
 const fallbackProperties = [
   {
-    id: "fallback-1",
+    id: "fb-1",
     title: "Appartement moderne avec terrasse",
-    location: "Bastos, Yaoundé",
     price: 250000,
-    priceUnit: "mois",
-    image: property1,
+    price_unit: "month",
+    images: [property1],
     bedrooms: 3,
     bathrooms: 2,
     area: 120,
     rating: 4.8,
-    isVerified: true,
-    type: "Location",
+    is_verified: true,
+    is_furnished: false,
+    is_available: true,
+    listing_type: "rent",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-1",
+    owner_profile: { full_name: "Jean Dupont", avatar_url: null, is_verified: true },
+    city: "Yaoundé",
+    neighborhood: "Bastos",
+    location: "Bastos, Yaoundé",
   },
   {
-    id: "fallback-2",
+    id: "fb-2",
     title: "Studio lumineux centre-ville",
-    location: "Bonanjo, Douala",
     price: 75000,
-    priceUnit: "mois",
-    image: property2,
+    price_unit: "month",
+    images: [property2],
     bedrooms: 1,
     bathrooms: 1,
     area: 35,
     rating: 4.5,
-    isVerified: true,
-    type: "Location",
+    is_verified: true,
+    is_furnished: true,
+    is_available: true,
+    listing_type: "rent",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-2",
+    owner_profile: { full_name: "Marie Claire", avatar_url: null, is_verified: true },
+    city: "Douala",
+    neighborhood: "Bonanjo",
+    location: "Bonanjo, Douala",
   },
   {
-    id: "fallback-3",
+    id: "fb-3",
     title: "Villa traditionnelle avec jardin",
-    location: "Bonapriso, Douala",
     price: 45000000,
-    priceUnit: "vente",
-    image: property3,
+    price_unit: "sale",
+    images: [property3],
     bedrooms: 5,
     bathrooms: 3,
     area: 280,
     rating: 4.9,
-    isVerified: true,
-    type: "Vente",
+    is_verified: true,
+    is_furnished: false,
+    is_available: true,
+    listing_type: "sale",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-3",
+    owner_profile: { full_name: "Pierre Martin", avatar_url: null, is_verified: true },
+    city: "Douala",
+    neighborhood: "Bonapriso",
+    location: "Bonapriso, Douala",
   },
   {
-    id: "fallback-4",
+    id: "fb-4",
     title: "Colocation ambiance conviviale",
-    location: "Messa, Yaoundé",
     price: 50000,
-    priceUnit: "mois",
-    image: property4,
+    price_unit: "month",
+    images: [property4],
     bedrooms: 1,
     bathrooms: 1,
     area: 18,
     rating: 4.6,
-    isVerified: false,
-    type: "Colocation",
+    is_verified: false,
+    is_furnished: true,
+    is_available: true,
+    listing_type: "colocation",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-4",
+    owner_profile: { full_name: "Sophie Alain", avatar_url: null, is_verified: false },
+    city: "Yaoundé",
+    neighborhood: "Messa",
+    location: "Messa, Yaoundé",
   },
   {
-    id: "fallback-5",
+    id: "fb-5",
     title: "Penthouse vue panoramique",
-    location: "Akwa, Douala",
     price: 500000,
-    priceUnit: "mois",
-    image: property5,
+    price_unit: "month",
+    images: [property5],
     bedrooms: 4,
     bathrooms: 3,
     area: 200,
     rating: 5.0,
-    isVerified: true,
-    type: "Location",
+    is_verified: true,
+    is_furnished: true,
+    is_available: true,
+    listing_type: "rent",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-5",
+    owner_profile: { full_name: "Robert Kamga", avatar_url: null, is_verified: true },
+    city: "Douala",
+    neighborhood: "Akwa",
+    location: "Akwa, Douala",
   },
   {
-    id: "fallback-6",
+    id: "fb-6",
     title: "Chambre meublée étudiant",
-    location: "Ngoa-Ekelle, Yaoundé",
     price: 35000,
-    priceUnit: "mois",
-    image: property6,
+    price_unit: "month",
+    images: [property6],
     bedrooms: 1,
     bathrooms: 1,
     area: 15,
     rating: 4.3,
-    isVerified: false,
-    type: "Chambre",
+    is_verified: false,
+    is_furnished: true,
+    is_available: true,
+    listing_type: "short_term",
+    created_at: new Date().toISOString(),
+    owner_id: "owner-6",
+    owner_profile: { full_name: "Alice M.", avatar_url: null, is_verified: false },
+    city: "Yaoundé",
+    neighborhood: "Ngoa-Ekelle",
+    location: "Ngoa-Ekelle, Yaoundé",
   },
 ];
 
+// THEME
+const getInitialTheme = () => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
+};
+
 const FeaturedProperties = () => {
-  const ITEMS_PER_PAGE = 10; // 10 annonces par page
-  const { recommendations, loading, error, refetch } = useRecommendations(ITEMS_PER_PAGE);
+  const ITEMS_PER_PAGE = 6;
+  const { recommendations, loading, error } = useRecommendations(ITEMS_PER_PAGE);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [ownerTypes, setOwnerTypes] = useState<Record<string, string>>({});
-  const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const { t, language } = useLanguage();
+  const [theme, setTheme] = useState(getInitialTheme());
+  const { language } = useLanguage();
 
-  // Fetch owner types for badges
+  const isDark = theme === "dark";
+
   useEffect(() => {
-    const fetchOwnerTypes = async () => {
-      if (recommendations.length === 0) return;
-      const ownerIds = [...new Set(recommendations.map((p: any) => p.owner_id).filter(Boolean))];
-      if (ownerIds.length === 0) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("user_id, user_type")
-        .in("user_id", ownerIds);
-      if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((p: any) => { map[p.user_id] = p.user_type || "seeker"; });
-        setOwnerTypes(map);
-      }
-    };
-    fetchOwnerTypes();
-  }, [recommendations]);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+  const themeClasses = {
+    bg: isDark ? "bg-slate-950" : "bg-slate-50",
+    text: isDark ? "text-slate-100" : "text-slate-900",
+    textMuted: isDark ? "text-slate-400" : "text-slate-500",
   };
 
-  const listingTypeLabels: Record<string, string> = {
-    rent: t("listing.rent"),
-    sale: t("listing.sale"),
-    colocation: t("listing.colocation"),
-    short_term: t("listing.shortTerm"),
+  const labels = {
+    all: language === "fr" ? "Tous" : "All",
+    rent: language === "fr" ? "Location" : "Rent",
+    sale: language === "fr" ? "Vente" : "Sale",
+    colocation: language === "fr" ? "Colocation" : "Colocation",
+    short_term: language === "fr" ? "Court séjour" : "Short term",
   };
 
-  const filterLabels = [
-    { key: "all", label: t("featured.all") },
-    { key: "rent", label: t("listing.rent") },
-    { key: "sale", label: t("listing.sale") },
-    { key: "colocation", label: t("listing.colocation") },
-    { key: "short_term", label: t("listing.shortTerm") },
-  ];
+  // DÉCISION: utiliser fallback si erreur OU pas de données OU chargement terminé sans résultat
+  const shouldUseFallback = error || (!loading && recommendations.length === 0);
+  
+  // DONNÉES À AFFICHER
+  const displayData = shouldUseFallback ? fallbackProperties : recommendations;
 
-  // Transform DB properties to card format
-  const transformedProperties = recommendations.map((prop: any) => ({
-    id: prop.id,
-    title: prop.title,
-    location: prop.neighborhood ? `${prop.neighborhood}, ${prop.city}` : prop.city,
-    price: prop.price,
-    priceUnit: prop.price_unit === "month" ? (language === "fr" ? "mois" : "month") : prop.price_unit,
-    image: prop.images?.[0] || property1,
-    bedrooms: prop.bedrooms || 1,
-    bathrooms: prop.bathrooms || 1,
-    area: prop.area || 0,
-    isVerified: prop.is_verified || false,
-    type: listingTypeLabels[prop.listing_type] || t("listing.rent"),
-    listingType: prop.listing_type,
-    ownerType: ownerTypes[prop.owner_id] || undefined,
-  }));
+  console.log("=== FeaturedProperties ===");
+  console.log("Loading:", loading);
+  console.log("Error:", error);
+  console.log("DB count:", recommendations.length);
+  console.log("Use fallback:", shouldUseFallback);
+  console.log("Display count:", displayData.length);
 
-  const displayProperties = transformedProperties.length > 0 ? transformedProperties : fallbackProperties.map(p => ({
-    ...p,
-    listingType: p.type === "Location" ? "rent" : p.type === "Vente" ? "sale" : p.type === "Colocation" ? "colocation" : "short_term"
-  }));
+  // FILTRAGE
+  const filtered = activeFilter === "all" 
+    ? displayData 
+    : displayData.filter((p: any) => p.listing_type === activeFilter);
 
-  // Apply filter
-  const allFiltered = activeFilter === "all" 
-    ? displayProperties 
-    : displayProperties.filter((p) => p.listingType === activeFilter);
-
-  const totalPages = Math.ceil(allFiltered.length / ITEMS_PER_PAGE);
-  const paginatedProperties = allFiltered.slice(
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Reset page on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeFilter]);
+  useEffect(() => setCurrentPage(1), [activeFilter]);
 
+  // RENDU
   return (
-    <section id="search" className="py-20 bg-background">
+    <section className={cn("py-20", themeClasses.bg)}>
       <div className="container mx-auto px-4">
-        {/* Section Header */}
+        
+        {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium text-primary">{t("featured.recommended")}</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm font-medium text-orange-500">{labels.all}</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
-              {t("featured.title")}
+            <h2 className={cn("text-3xl sm:text-4xl font-bold mb-2", themeClasses.text)}>
+              {language === "fr" ? "Propriétés en vedette" : "Featured Properties"}
             </h2>
-            <p className="text-muted-foreground">
-              {t("featured.subtitle")}
+            <p className={themeClasses.textMuted}>
+              {language === "fr" ? "Découvrez les meilleures offres" : "Discover the best offers"}
             </p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="flex gap-3">
+          <div className="flex gap-3">
             <Link to="/search">
-              <Button variant="outline" size="sm" className="gap-2">
-                <SlidersHorizontal className="w-4 h-4" />
-                {t("search.filters")}
+              <Button variant="outline" size="sm" className="gap-2 border-orange-200 dark:border-orange-800">
+                <SlidersHorizontal className="w-4 h-4 text-orange-500" />
+                {language === "fr" ? "Filtres" : "Filters"}
               </Button>
             </Link>
-            <Link to="/search">
-              <Button variant="ghost" size="sm" className="gap-2">
-                {t("common.view")} {t("common.all").toLowerCase()}
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-          </motion.div>
+          </div>
         </div>
 
-        {/* Filter Chips */}
-        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex flex-wrap gap-2 mb-8">
-          {filterLabels.map((filter) => (
+        {/* FILTRES */}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {Object.entries(labels).map(([key, label]) => (
             <button
-              key={filter.key}
-              onClick={() => setActiveFilter(filter.key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                activeFilter === filter.key
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
+              key={key}
+              onClick={() => setActiveFilter(key)}
+              className={cn(
+                "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                activeFilter === key
+                  ? "bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg"
+                  : cn("hover:bg-orange-100 dark:hover:bg-orange-900/20", themeClasses.text, "bg-slate-100 dark:bg-slate-800")
+              )}
             >
-              {filter.label}
+              {label}
             </button>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <span className="ml-3 text-muted-foreground">{t("featured.loading")}</span>
+        {/* MESSAGE FALLBACK */}
+        {shouldUseFallback && (
+          <div className="mb-6 p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800">
+            <p className="text-yellow-700 dark:text-yellow-400 text-sm text-center">
+              ⚠️ {language === "fr" ? "Mode démo : affichage des annonces de test" : "Demo mode: showing test listings"}
+            </p>
           </div>
         )}
 
-        {/* Error */}
-        {error && !loading && (
-          <div className="text-center py-12">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              {t("error.tryAgain")}
-            </Button>
+        {/* GRID */}
+        {paginated.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginated.map((property, index) => (
+              <motion.div
+                key={property.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <PropertyCard property={property} variant="featured" />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Home className="w-16 h-16 mx-auto mb-4 text-orange-400" />
+            <p className={themeClasses.text}>Aucune propriété trouvée</p>
           </div>
         )}
 
-        {/* Properties Grid */}
-        {!loading && !error && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {paginatedProperties.map((property) => (
-                <PropertyCard key={property.id} {...property} />
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-8 gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
-                >
-                  Précédent
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 rounded ${
-                      currentPage === i + 1
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Empty state */}
-        {!loading && !error && paginatedProperties.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">{t("featured.noResults")}</p>
+        {/* PAGINATION */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-10 gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-50"
+            >
+              ←
+            </button>
+            <span className={cn("px-4 py-2", themeClasses.text)}>
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-50"
+            >
+              →
+            </button>
           </div>
         )}
       </div>

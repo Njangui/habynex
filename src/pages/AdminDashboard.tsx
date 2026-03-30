@@ -380,62 +380,88 @@ const AdminDashboard = () => {
   };
 
   // NOUVELLE FONCTION : Récupérer tous les utilisateurs avec métadonnées complètes
-  const fetchUsers = async () => {
-    try {
-      // Récupérer tous les profils avec leurs informations
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+// REMPLACER la fonction fetchUsers par celle-ci :
+const fetchUsers = async () => {
+  try {
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (profilesError) throw profilesError;
-
-      // Pour chaque profil, récupérer les infos supplémentaires
-      const enrichedUsers = await Promise.all(
-        (profilesData || []).map(async (profile) => {
-          // Compter les propriétés
-          const { count: propertiesCount } = await supabase
-            .from("properties")
-            .select("*", { count: "exact", head: true })
-            .eq("owner_id", profile.user_id);
-
-          // Vérifier le statut de vérification
-          const { data: verification } = await supabase
-            .from("user_verifications")
-            .select("level_1_status, level_2_status")
-            .eq("user_id", profile.user_id)
-            .maybeSingle();
-
-          let verificationStatus = "none";
-          if (verification?.level_2_status === "approved") {
-            verificationStatus = "level_2";
-          } else if (verification?.level_1_status === "approved") {
-            verificationStatus = "level_1";
-          }
-
-          return {
-            id: profile.id,
-            user_id: profile.user_id,
-            email: profile.email || "",
-            full_name: profile.full_name,
-            user_type: profile.user_type || "seeker",
-            is_suspended: profile.is_suspended || false,
-            created_at: profile.created_at,
-            last_sign_in_at: profile.last_sign_in_at,
-            properties_count: propertiesCount || 0,
-            verification_status: verificationStatus,
-          };
-        })
-      );
-
-      setUsers(enrichedUsers);
-      setTotalUsers(enrichedUsers.length);
-    } catch (error) {
-      console.error("Error fetching users:", error);
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      throw profilesError;
     }
-  };
 
-  fetchUsers();
+    console.log("Profiles data:", profilesData); // Debug
+
+    if (!profilesData || profilesData.length === 0) {
+      console.warn("No profiles found in database");
+      setUsers([]);
+      setTotalUsers(0);
+      return;
+    }
+
+    // Pour chaque profil, récupérer les infos supplémentaires
+    const enrichedUsers = await Promise.all(
+      profilesData.map(async (profile) => {
+        // Compter les propriétés
+        const { count: propertiesCount, error: countError } = await supabase
+          .from("properties")
+          .select("*", { count: "exact", head: true })
+          .eq("owner_id", profile.user_id);
+
+        if (countError) {
+          console.error("Error counting properties:", countError);
+        }
+
+        // Vérifier le statut de vérification
+        const { data: verification, error: verifError } = await supabase
+          .from("user_verifications")
+          .select("level_1_status, level_2_status")
+          .eq("user_id", profile.user_id)
+          .maybeSingle();
+
+        if (verifError) {
+          console.error("Error fetching verification:", verifError);
+        }
+
+        let verificationStatus = "none";
+        if (verification?.level_2_status === "approved") {
+          verificationStatus = "level_2";
+        } else if (verification?.level_1_status === "approved") {
+          verificationStatus = "level_1";
+        }
+
+        return {
+          id: profile.id,
+          user_id: profile.user_id,
+          email: profile.email || "",
+          full_name: profile.full_name,
+          user_type: profile.user_type || "seeker",
+          is_suspended: profile.is_suspended || false,
+          created_at: profile.created_at,
+          last_sign_in_at: profile.last_sign_in_at,
+          properties_count: propertiesCount || 0,
+          verification_status: verificationStatus,
+        };
+      })
+    );
+
+    console.log("Enriched users:", enrichedUsers); // Debug
+    setUsers(enrichedUsers);
+    setTotalUsers(enrichedUsers.length);
+    
+  } catch (error) {
+    console.error("Error in fetchUsers:", error);
+    toast({
+      variant: "destructive",
+      title: t("common.error"),
+      description: language === "fr" ? "Erreur lors du chargement des utilisateurs" : "Error loading users"
+    });
+  }
+};
+
 
   const fetchAnalytics = async () => {
     try {
