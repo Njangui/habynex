@@ -1,27 +1,215 @@
-import { MapPin } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { MapPin, Crosshair, Search, AlertCircle, Loader2 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
-interface PropertyMapProps {
+// Correction des icônes Leaflet
+try {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  });
+} catch (e) {
+  console.error("[PropertyMap] Erreur initialisation Leaflet:", e);
+}
+
+interface PropertyMapSelectorProps {
   latitude?: number;
   longitude?: number;
   address?: string;
   city: string;
   neighborhood?: string;
+  onLocationSelect?: (lat: number, lng: number, address?: string) => void;
+  readOnly?: boolean;
 }
 
-const PropertyMap = ({ latitude, longitude, address, city, neighborhood }: PropertyMapProps) => {
-  // Use OpenStreetMap embed as a fallback (no API key required)
-  const hasCoordinates = latitude != null && longitude != null;
+// Composant pour gérer les clics sur la carte
+const LocationMarker = ({
+  position,
+  onPositionChange,
+  onError,
+}: {
+  position: [number, number] | null;
+  onPositionChange: (lat: number, lng: number) => void;
+  onError: (msg: string) => void;
+}) => {
+  try {
+    const map = useMapEvents({
+      click(e) {
+        console.log("[PropertyMap] Clic carte:", e.latlng);
+        onPositionChange(e.latlng.lat, e.latlng.lng);
+      },
+    });
+
+    return position ? <Marker position={position} /> : null;
+  } catch (e: any) {
+    console.error("[PropertyMap] Erreur LocationMarker:", e);
+    onError(`LocationMarker: ${e.message}`);
+    return null;
+  }
+};
+
+const PropertyMap = ({
+  latitude,
+  longitude,
+  address,
+  city,
+  neighborhood,
+  onLocationSelect,
+  readOnly = false,
+}: PropertyMapSelectorProps) => {
+  // États avec logging
+  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(() => {
+    const initial = latitude && longitude ? [latitude, longitude] as [number, number] : null;
+    console.log("[PropertyMap] Initialisation position:", initial);
+    return initial;
+  });
   
-  // Amélioration de l'URL de la carte pour un meilleur rendu
-  const mapUrl = hasCoordinates
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.008}%2C${latitude - 0.008}%2C${longitude + 0.008}%2C${latitude + 0.008}&layer=mapnik&marker=${latitude}%2C${longitude}&zoom=16`
-    : `https://www.openstreetmap.org/export/embed.html?bbox=8.5%2C3.5%2C12.5%2C5.5&layer=mapnik&zoom=8`;
+  const [isSearching, setIsSearching] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [debugInfo, setDebugInfo] = useState<any>({});
+
+  const defaultPosition: [number, number] = [3.848, 11.502]; // Yaoundé
+
+  const addError = useCallback((msg: string, details?: any) => {
+    console.error(`[PropertyMap] ${msg}`, details);
+    setErrors(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+    if (details) {
+      setDebugInfo(prev => ({ ...prev, [msg]: details }));
+    }
+  }, []);
+
+  const clearErrors = () => {
+    setErrors([]);
+    setDebugInfo({});
+  };
+
+  // Géocodage inverse avec gestion d'erreur détaillée
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    console.log("[PropertyMap] Début géocodage inverse:", { lat, lng });
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+      console.log("[PropertyMap] URL Nominatim:", url);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept-Language': 'fr',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+
+      console.log("[PropertyMap] Réponse Nominatim status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("[PropertyMap] Données Nominatim:", data);
+
+      return data.display_name || null;
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        addError("Géocodage: Timeout (10s)", e);
+      } else {
+        addError(`Géocodage: ${e.message}`, e);
+      }
+      return null;
+    }
+  }, [addError]);
+
+  const handlePositionChange = useCallback(
+    async (lat: number, lng: number) => {
+      console.log("[PropertyMap] Changement position:", { lat, lng });
+      clearErrors();
+      
+      try {
+        // Validation des coordonnées
+        if (lat < -90 || lat > 90) {
+          throw new Error(`Latitude invalide: ${lat}`);
+        }
+        if (lng < -180 || lng > 180) {
+          throw new Error(`Longitude invalide: ${lng}`);
+        }
+
+        setSelectedPosition([lat, lng]);
+        
+        // Géocodage inverse
+        const addr = await reverseGeocode(lat, lng);
+        
+        console.log("[PropertyMap] Appel onLocationSelect:", { lat, lng, addr });
+        onLocationSelect?.(lat, lng, addr || undefined);
+        
+      } catch (e: any) {
+        addError(`handlePositionChange: ${e.message}`, e);
+        // On envoie quand même les coordonnées même sans adresse
+        onLocationSelect?.(lat, lng);
+      }
+    },
+    [onLocationSelect, reverseGeocode, addError]
+  );
+
+  const handleGeolocation = useCallback(() => {
+    console.log("[PropertyMap] Demande géolocalisation...");
+    setIsSearching(true);
+    clearErrors();
+
+    if (!navigator.geolocation) {
+      addError("Géolocalisation: API non supportée par ce navigateur");
+      setIsSearching(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log("[PropertyMap] Position obtenue:", {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        
+        handlePositionChange(position.coords.latitude, position.coords.longitude);
+        setIsSearching(false);
+      },
+      (error) => {
+        const errorMessages: Record<number, string> = {
+          1: "Permission refusée par l'utilisateur",
+          2: "Position indisponible",
+          3: "Timeout",
+        };
+        const msg = errorMessages[error.code] || `Erreur code ${error.code}`;
+        addError(`Géolocalisation: ${msg}`, { code: error.code, message: error.message });
+        setIsSearching(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  }, [handlePositionChange, addError]);
 
   const fullLocation = [neighborhood, city].filter(Boolean).join(", ");
 
+  // Log du rendu
+  console.log("[PropertyMap] Rendu:", {
+    selectedPosition,
+    hasCoords: !!selectedPosition,
+    errorsCount: errors.length,
+  });
+
   return (
     <div className="w-full rounded-2xl overflow-hidden border border-border bg-card">
-      {/* Map Header */}
+      {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <MapPin className="w-5 h-5 text-primary shrink-0" />
@@ -32,42 +220,113 @@ const PropertyMap = ({ latitude, longitude, address, city, neighborhood }: Prope
             </p>
           </div>
         </div>
-        {address && (
-          <p className="mt-2 text-sm text-muted-foreground break-words">{address}</p>
+        
+        {/* Boutons d'action */}
+        {!readOnly && (
+          <div className="flex gap-2 mt-3 flex-wrap">
+            <button
+              onClick={handleGeolocation}
+              disabled={isSearching}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
+              {isSearching ? "Recherche..." : "Ma position"}
+            </button>
+            
+            <div className="flex items-center gap-2 px-3 py-2 text-sm bg-muted rounded-lg">
+              <Search className="w-4 h-4" />
+              Cliquez sur la carte
+            </div>
+          </div>
+        )}
+
+        {/* Affichage des erreurs détaillé */}
+        {errors.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {errors.map((err, idx) => (
+              <div key={idx} className="flex items-start gap-2 p-2 bg-destructive/10 text-destructive rounded-lg text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="break-all">{err}</span>
+              </div>
+            ))}
+            <button 
+              onClick={clearErrors}
+              className="text-xs text-muted-foreground underline"
+            >
+              Effacer les erreurs
+            </button>
+          </div>
+        )}
+
+        {selectedPosition && (
+          <p className="mt-2 text-xs text-muted-foreground font-mono">
+            {selectedPosition[0].toFixed(6)}, {selectedPosition[1].toFixed(6)}
+          </p>
         )}
       </div>
 
-      {/* Map Container - Correction de la hauteur */}
-      <div className="w-full relative bg-gray-100 dark:bg-gray-800">
-        {hasCoordinates ? (
-          <div className="w-full aspect-video">
-            <iframe
-              src={mapUrl}
-              className="w-full h-full border-0"
-              title={`Carte de localisation - ${fullLocation}`}
-              loading="lazy"
-              style={{ display: 'block' }}
-            />
-          </div>
-        ) : (
-          <div className="w-full aspect-video flex items-center justify-center">
-            <div className="text-center p-8">
-              <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium">
-                Localisation : {fullLocation || "Non spécifiée"}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Coordonnées exactes non disponibles
-              </p>
-              {city && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  Ville : {city}
-                </p>
-              )}
+      {/* Carte interactive avec Error Boundary */}
+      <div className="w-full h-[400px] relative">
+        {(() => {
+          try {
+            return (
+              <MapContainer
+                key={selectedPosition ? `${selectedPosition[0]}-${selectedPosition[1]}` : 'default'}
+                center={selectedPosition || defaultPosition}
+                zoom={selectedPosition ? 16 : 12}
+                className="w-full h-full"
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  eventHandlers={{
+                    tileerror: (e) => {
+                      console.error("[PropertyMap] Erreur chargement tuile:", e);
+                      addError("Tuile: échec chargement", e);
+                    },
+                  }}
+                />
+                <LocationMarker
+                  position={selectedPosition}
+                  onPositionChange={handlePositionChange}
+                  onError={addError}
+                />
+              </MapContainer>
+            );
+          } catch (e: any) {
+            addError(`Rendu carte: ${e.message}`, e);
+            return (
+              <div className="w-full h-full flex items-center justify-center bg-destructive/10">
+                <div className="text-center p-4">
+                  <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-2" />
+                  <p className="text-destructive font-medium">Erreur carte</p>
+                  <p className="text-sm text-destructive/80">{e.message}</p>
+                </div>
+              </div>
+            );
+          }
+        })()}
+
+        {/* Overlay d'instruction */}
+        {!selectedPosition && !readOnly && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-background/90 px-4 py-2 rounded-lg shadow-lg">
+              <p className="text-sm font-medium">Cliquez pour positionner</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Debug panel (développement uniquement) */}
+      {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
+        <div className="p-4 border-t border-border bg-muted/30">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Debug:</p>
+          <pre className="text-xs text-muted-foreground overflow-auto max-h-32">
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
