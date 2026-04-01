@@ -1,255 +1,286 @@
-import { useState, useEffect, useCallback } from "react";
-import { MapPin, Search, Loader2, Navigation } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { useState, useCallback } from "react";
+import { MapPin, Crosshair, Search, AlertCircle, Loader2 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix icônes Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 interface PropertyLocationPickerProps {
-  latitude: number | null;
-  longitude: number | null;
-  address: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
   city: string;
-  neighborhood: string;
-  onLocationChange: (data: {
-    latitude: number | null;
-    longitude: number | null;
-    address: string;
-    city: string;
-    neighborhood: string;
-  }) => void;
+  neighborhood?: string;
+  onLocationSelect: (lat: number, lng: number, address: string, neighborhood?: string, city?: string) => void;
+  readOnly?: boolean;
 }
 
-const CAMEROON_CITIES = [
-  "Yaoundé",
-  "Douala",
-  "Garoua",
-  "Bamenda",
-  "Maroua",
-  "Bafoussam",
-  "Ngaoundéré",
-  "Bertoua",
-  "Kribi",
-  "Limbé",
-];
+const LocationMarker = ({
+  position,
+  onPositionChange,
+}: {
+  position: [number, number] | null;
+  onPositionChange: (lat: number, lng: number) => void;
+}) => {
+  useMapEvents({
+    click(e) {
+      onPositionChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return position ? <Marker position={position} /> : null;
+};
 
-const PropertyLocationPicker = ({
+export default function PropertyLocationPicker({
   latitude,
   longitude,
   address,
   city,
   neighborhood,
-  onLocationChange,
-}: PropertyLocationPickerProps) => {
+  onLocationSelect = () => {},
+  readOnly = false,
+}: PropertyLocationPickerProps) {
+  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(
+    latitude && longitude ? [latitude, longitude] : null
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [showResults, setShowResults] = useState(false);
 
-  const searchAddress = useCallback(async () => {
-    if (!searchQuery.trim()) return;
+  const defaultPosition: [number, number] = [3.848, 11.502];
 
+  const addError = (msg: string) => {
+    setErrors(prev => [...prev.slice(-2), msg]);
+  };
+
+  const fetchGeocode = async (query: string, type: string) => {
+    const url = `${SUPABASE_URL}/functions/v1/geocode?q=${encodeURIComponent(query)}&type=${type}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    return response;
+  };
+
+  const searchLocation = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    
     setIsSearching(true);
+    setErrors([]);
+    
     try {
-      const query = `${searchQuery}, Cameroon`;
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
-      );
-      const data = await response.json();
-
-      if (data.length > 0) {
-        const result = data[0];
-        const displayParts = result.display_name.split(", ");
-        const detectedCity = CAMEROON_CITIES.find((c) =>
-          result.display_name.toLowerCase().includes(c.toLowerCase())
-        ) || city;
-
-        onLocationChange({
-          latitude: parseFloat(result.lat),
-          longitude: parseFloat(result.lon),
-          address: displayParts.slice(0, 2).join(", "),
-          city: detectedCity,
-          neighborhood: displayParts[0] || neighborhood,
-        });
-        toast.success("Adresse trouvée !");
-      } else {
-        toast.error("Adresse non trouvée. Essayez une recherche plus précise.");
+      const response = await fetchGeocode(query, 'search');
+      
+      if (response.status === 401) {
+        throw new Error('Clé Supabase invalide');
       }
-    } catch (error) {
-      console.error("Search error:", error);
-      toast.error("Erreur lors de la recherche d'adresse.");
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erreur ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        addError("Aucun résultat trouvé");
+        setSearchResults([]);
+      } else {
+        setSearchResults(data);
+        setShowResults(true);
+      }
+    } catch (error: any) {
+      addError(`Erreur: ${error.message}`);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, city, neighborhood, onLocationChange]);
+  }, []);
 
-  const getCurrentLocation = useCallback(() => {
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      const response = await fetchGeocode(`${lat},${lng}`, 'reverse');
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const handlePositionChange = useCallback(async (lat: number, lng: number) => {
+    setSelectedPosition([lat, lng]);
+    setShowResults(false);
+    
+    const data = await reverseGeocode(lat, lng);
+    
+    const displayName = data?.display_name || `Position: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    const addr = data?.address || {};
+    
+  if (typeof onLocationSelect === "function") {
+  onLocationSelect(
+    lat,
+    lng,
+    displayName,
+    addr.suburb || addr.neighbourhood || neighborhood,
+    addr.city || addr.town || addr.village || city
+  );
+}
+  }, [onLocationSelect, reverseGeocode, neighborhood, city]);
+
+  const handleGeolocation = useCallback(() => {
+    setIsSearching(true);
+    
     if (!navigator.geolocation) {
-      toast.error("La géolocalisation n'est pas supportée par votre navigateur.");
+      addError("Géolocalisation non supportée");
+      setIsSearching(false);
       return;
     }
 
-    setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude: lat, longitude: lng } = position.coords;
-
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
-          const data = await response.json();
-
-          const detectedCity = CAMEROON_CITIES.find((c) =>
-            data.display_name.toLowerCase().includes(c.toLowerCase())
-          ) || "";
-
-          onLocationChange({
-            latitude: lat,
-            longitude: lng,
-            address: data.address?.road || data.display_name.split(",")[0] || "",
-            city: detectedCity,
-            neighborhood: data.address?.suburb || data.address?.neighbourhood || "",
-          });
-          toast.success("Position actuelle récupérée !");
-        } catch (error) {
-          console.error("Reverse geocoding error:", error);
-          onLocationChange({
-            latitude: lat,
-            longitude: lng,
-            address,
-            city,
-            neighborhood,
-          });
-        }
-        setIsLocating(false);
+      (position) => {
+        handlePositionChange(position.coords.latitude, position.coords.longitude);
+        setIsSearching(false);
       },
       (error) => {
-        console.error("Geolocation error:", error);
-        toast.error("Impossible d'obtenir votre position.");
-        setIsLocating(false);
+        const messages: Record<number, string> = {
+          1: "Permission refusée - activez la localisation",
+          2: "Position indisponible",
+          3: "Timeout",
+        };
+        addError(messages[error.code] || `Erreur ${error.code}`);
+        setIsSearching(false);
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  }, [address, city, neighborhood, onLocationChange]);
+  }, [handlePositionChange]);
 
-  const mapUrl = latitude && longitude
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`
-    : null;
+  const selectResult = (result: any) => {
+    const lat = parseFloat(result.lat);
+    const lon = parseFloat(result.lon);
+    handlePositionChange(lat, lon);
+    setSearchQuery(result.display_name.split(',')[0]);
+    setShowResults(false);
+  };
+
+  const fullLocation = [neighborhood, city].filter(Boolean).join(", ");
 
   return (
-    <div className="space-y-6">
-      {/* Search */}
-      <div className="flex gap-2">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && searchAddress()}
-            placeholder="Rechercher une adresse..."
-            className="pl-10"
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={searchAddress}
-          disabled={isSearching}
-        >
-          {isSearching ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            "Rechercher"
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={getCurrentLocation}
-          disabled={isLocating}
-          title="Utiliser ma position"
-        >
-          {isLocating ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Navigation className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
-
-      {/* Map */}
-      <div className="rounded-xl overflow-hidden border border-border h-[300px] bg-muted">
-        {mapUrl ? (
-          <iframe
-            src={mapUrl}
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            loading="lazy"
-            title="Carte de localisation"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-            <MapPin className="w-10 h-10 mb-2" />
-            <p>Recherchez une adresse ou utilisez votre position</p>
+    <div className="w-full rounded-2xl overflow-hidden border border-gray-200 bg-white">
+      <div className="p-4 border-b border-gray-200 space-y-3">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900">Localisation</h3>
+            <p className="text-sm text-gray-500 truncate">
+              {fullLocation || "Recherchez ou cliquez sur la carte"}
+            </p>
           </div>
+        </div>
+
+        {!readOnly && (
+          <div className="relative">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && searchLocation(searchQuery)}
+                placeholder="Rechercher (ex: Ngousso, Yaoundé...)"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={() => searchLocation(searchQuery)}
+                disabled={isSearching || !searchQuery.trim()}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={handleGeolocation}
+                disabled={isSearching}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                <Crosshair className="w-4 h-4" />
+              </button>
+            </div>
+
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                {searchResults.map((result, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => selectResult(result)}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b last:border-b-0 text-sm"
+                  >
+                    <p className="font-medium text-gray-900 truncate">{result.display_name}</p>
+                    <p className="text-xs text-gray-500">{result.type} • {result.class}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {errors.length > 0 && (
+          <div className="space-y-1">
+            {errors.map((err, idx) => (
+              <div key={idx} className="flex items-center gap-2 p-2 bg-red-50 text-red-700 rounded-lg text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{err}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selectedPosition && (
+          <p className="text-xs text-gray-500 font-mono">
+            {selectedPosition[0].toFixed(6)}, {selectedPosition[1].toFixed(6)}
+          </p>
         )}
       </div>
 
-      {/* Location Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Ville *
-          </label>
-          <select
-            value={city}
-            onChange={(e) =>
-              onLocationChange({ latitude, longitude, address, city: e.target.value, neighborhood })
-            }
-            className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
-          >
-            <option value="">Sélectionnez une ville</option>
-            {CAMEROON_CITIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Quartier
-          </label>
-          <Input
-            value={neighborhood}
-            onChange={(e) =>
-              onLocationChange({ latitude, longitude, address, city, neighborhood: e.target.value })
-            }
-            placeholder="Ex: Bastos, Bonapriso..."
+      <div className="w-full h-[400px] relative bg-gray-100">
+        <MapContainer
+          center={selectedPosition || defaultPosition}
+          zoom={selectedPosition ? 16 : 12}
+          className="w-full h-full"
+          scrollWheelZoom={!readOnly}
+          dragging={!readOnly}
+        >
+          <TileLayer
+            attribution='&copy; OpenStreetMap'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            subdomains="abc"
           />
-        </div>
-      </div>
+          <LocationMarker
+            position={selectedPosition}
+            onPositionChange={handlePositionChange}
+          />
+        </MapContainer>
 
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">
-          Adresse complète
-        </label>
-        <Input
-          value={address}
-          onChange={(e) =>
-            onLocationChange({ latitude, longitude, address: e.target.value, city, neighborhood })
-          }
-          placeholder="Numéro et nom de rue..."
-        />
+        {!selectedPosition && !readOnly && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-white/90 px-4 py-2 rounded-lg shadow-lg">
+              <p className="text-sm font-medium text-gray-700">Cliquez pour positionner</p>
+            </div>
+          </div>
+        )}
       </div>
-
-      {latitude && longitude && (
-        <p className="text-sm text-muted-foreground">
-          📍 Coordonnées : {latitude.toFixed(6)}, {longitude.toFixed(6)}
-        </p>
-      )}
     </div>
   );
-};
-
-export default PropertyLocationPicker;
+}
