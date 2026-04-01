@@ -216,7 +216,7 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
         subtitle: "Indiquez la fourchette de prix qui vous convient",
         subtitleEn: "Indicate your preferred price range",
         type: "range",
-        field: "budget",
+        field: "budget", // Note: this is just for grouping, actual fields are budget_min and budget_max
         showFor: ["seeker"],
       },
       {
@@ -369,6 +369,10 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
     if (currentQuestion.type === "multiple" || currentQuestion.type === "amenities") {
       return answers[currentQuestion.field]?.length > 0;
     }
+    if (currentQuestion.type === "range") {
+      // Pour le range, on vérifie que les deux valeurs sont présentes et valides
+      return answers.budget_min > 0 && answers.budget_max > 0 && answers.budget_max > answers.budget_min;
+    }
     return true;
   };
 
@@ -395,11 +399,9 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
         : [];
 
       // Prepare data for recommendations algorithm
-      const profileData = {
+      const profileData: Record<string, any> = {
         user_type: answers.account_type,
         city: answers.city || null,
-        budget_min: answers.budget_min,
-        budget_max: answers.budget_max,
         preferred_property_types: answers.preferred_property_types,
         preferred_neighborhoods: neighborhoods,
         preferred_listing_types: answers.preferred_listing_types,
@@ -408,6 +410,16 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
         furnished_preference: answers.furnished_preference,
         updated_at: new Date().toISOString(),
       };
+
+      // N'ajouter les champs budget que pour les seeker et s'ils existent
+      if (answers.account_type === "seeker") {
+        if (answers.budget_min !== undefined && answers.budget_min !== null) {
+          profileData.budget_min = answers.budget_min;
+        }
+        if (answers.budget_max !== undefined && answers.budget_max !== null) {
+          profileData.budget_max = answers.budget_max;
+        }
+      }
 
       const { error: profileError } = await supabase
         .from("profiles")
@@ -530,9 +542,9 @@ export const OnboardingQuestions = ({ userId, onComplete }: OnboardingQuestionsP
               >
                 {currentQuestion.type === "amenities" ? (
                   <Sparkles className="w-7 h-7 text-primary" />
-                ) : currentQuestion.field === "city" ? (
+                ) : currentQuestion.field === "city" || currentQuestion.field === "preferred_neighborhoods" ? (
                   <MapPinned className="w-7 h-7 text-primary" />
-                ) : currentQuestion.field === "budget" ? (
+                ) : currentQuestion.type === "range" ? (
                   <Wallet className="w-7 h-7 text-primary" />
                 ) : (
                   <Sparkles className="w-7 h-7 text-primary" />
