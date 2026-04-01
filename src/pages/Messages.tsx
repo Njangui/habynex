@@ -44,16 +44,6 @@ interface PropertyWithOwner {
   location?: string;
 }
 
-// Détection du thème local
-const getInitialTheme = () => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("theme");
-    if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "light";
-};
-
 const Messages = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -74,30 +64,15 @@ const Messages = () => {
   const [properties, setProperties] = useState<PropertyWithOwner[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [theme, setTheme] = useState(getInitialTheme());
 
-  const isDark = theme === "dark";
-
-  // Appliquer le thème
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
-
-  const toggleTheme = () => {
-    const newTheme = isDark ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
-  // Classes dynamiques
+  // Classes utilisant le système de design existant
   const themeClasses = {
-    bg: isDark ? "bg-slate-950" : "bg-slate-50",
-    sidebar: isDark ? "bg-slate-900" : "bg-white",
-    header: isDark ? "bg-slate-800" : "bg-white",
-    border: isDark ? "border-slate-700" : "border-slate-200",
-    text: isDark ? "text-slate-100" : "text-slate-900",
-    textMuted: isDark ? "text-slate-400" : "text-slate-500",
+    bg: "bg-background",
+    sidebar: "bg-card",
+    header: "bg-card",
+    border: "border-border",
+    text: "text-foreground",
+    textMuted: "text-muted-foreground",
   };
 
   // Filtrer les propriétés
@@ -191,7 +166,7 @@ const Messages = () => {
   if (authLoading) {
     return (
       <div className={cn("min-h-screen flex items-center justify-center", themeClasses.bg)}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -266,7 +241,7 @@ const Messages = () => {
                           themeClasses.sidebar,
                           themeClasses.text
                         )}>
-                          <DialogHeader className="pb-4 border-b border-orange-100 dark:border-orange-900/30">
+                          <DialogHeader className="pb-4 border-b border-primary/20">
                             <DialogTitle className={cn("flex items-center gap-2 text-xl", themeClasses.text)}>
                               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center">
                                 <Users className="w-4 h-4 text-white" />
@@ -277,13 +252,13 @@ const Messages = () => {
                           
                           <div className="py-4 space-y-4">
                             <div className="relative">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-400" />
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                               <Input
                                 placeholder={language === "fr" ? "Rechercher une annonce..." : "Search listings..."}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className={cn(
-                                  "pl-10 border-orange-200 dark:border-orange-800 focus-visible:ring-orange-500",
+                                  "pl-10 border-primary/20 focus-visible:ring-primary",
                                   themeClasses.bg,
                                   themeClasses.text
                                 )}
@@ -299,7 +274,7 @@ const Messages = () => {
                             
                             {loadingProperties ? (
                               <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
                               </div>
                             ) : filteredProperties.length === 0 ? (
                               <motion.div 
@@ -308,7 +283,7 @@ const Messages = () => {
                                 className="text-center py-12"
                               >
                                 <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center">
-                                  <Building2 className="w-10 h-10 text-orange-500" />
+                                  <Building2 className="w-10 h-10 text-primary" />
                                 </div>
                                 <p className={cn("text-lg font-medium mb-2", themeClasses.text)}>
                                   {searchQuery 
@@ -345,9 +320,8 @@ const Messages = () => {
                                       className={cn(
                                         "w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 group",
                                         "bg-gradient-to-r from-transparent to-transparent",
-                                        "hover:from-orange-50 hover:to-yellow-50",
-                                        "dark:hover:from-orange-900/20 dark:hover:to-yellow-900/20",
-                                        "border border-transparent hover:border-orange-200 dark:hover:border-orange-800",
+                                        "hover:from-primary/5 hover:to-secondary/5",
+                                        "border border-transparent hover:border-primary/20",
                                         "shadow-sm hover:shadow-md"
                                       )}
                                     >
@@ -360,7 +334,7 @@ const Messages = () => {
                                           />
                                         ) : (
                                           <div className="w-full h-full flex items-center justify-center">
-                                            <Building2 className="w-8 h-8 text-orange-400" />
+                                            <Building2 className="w-8 h-8 text-primary" />
                                           </div>
                                         )}
                                       </div>
@@ -369,16 +343,16 @@ const Messages = () => {
                                           {property.title}
                                         </p>
                                         <div className="flex items-center gap-2 text-sm">
-                                          <span className="text-green-600 dark:text-green-400 font-medium">
+                                          <span className="text-success font-medium">
                                             {property.price?.toLocaleString()} FCFA
                                           </span>
-                                          <span className="text-slate-300">•</span>
+                                          <span className="text-border">•</span>
                                           <span className={themeClasses.textMuted}>
                                             {property.owner_profile?.full_name || (language === "fr" ? "Propriétaire" : "Owner")}
                                           </span>
                                         </div>
                                         {property.location && (
-                                          <p className="text-xs text-orange-500 mt-1 truncate">
+                                          <p className="text-xs text-primary mt-1 truncate">
                                             {property.location}
                                           </p>
                                         )}
@@ -403,9 +377,6 @@ const Messages = () => {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className={cn("w-48", themeClasses.sidebar, themeClasses.border)}>
-                          <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
-                            {isDark ? "☀️ Mode clair" : "🌙 Mode sombre"}
-                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
                             ⚙️ {language === "fr" ? "Paramètres" : "Settings"}
                           </DropdownMenuItem>
@@ -417,11 +388,11 @@ const Messages = () => {
                   {/* Search bar */}
                   <div className={cn("px-4 py-3 border-b", themeClasses.border, themeClasses.bg)}>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-400" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                       <Input
                         placeholder={language === "fr" ? "Rechercher une conversation..." : "Search conversations..."}
                         className={cn(
-                          "pl-10 bg-transparent border-orange-200 dark:border-orange-800 focus-visible:ring-orange-500",
+                          "pl-10 bg-transparent border-primary/20 focus-visible:ring-primary",
                           themeClasses.text
                         )}
                       />
@@ -432,12 +403,12 @@ const Messages = () => {
                   <div className="flex-1 overflow-hidden">
                     {loading ? (
                       <div className="flex items-center justify-center h-full">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                       </div>
                     ) : conversations.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center mb-4">
-                          <MessageCircle className="w-8 h-8 text-orange-400" />
+                          <MessageCircle className="w-8 h-8 text-primary" />
                         </div>
                         <p className={cn("text-sm mb-4", themeClasses.textMuted)}>
                           {language === "fr" 
@@ -477,7 +448,6 @@ const Messages = () => {
                       messages={messages}
                       onSendMessage={sendMessage}
                       onBack={() => setActiveConversation(null)}
-                      theme={theme}
                     />
                   ) : (
                     <div className={cn(
@@ -510,7 +480,7 @@ const Messages = () => {
                           <div className="relative z-10 w-full h-full flex items-center justify-center">
                             <div className="w-48 h-48 rounded-3xl bg-gradient-to-br from-orange-400 via-yellow-400 to-green-400 p-1 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
                               <div className={cn("w-full h-full rounded-3xl flex items-center justify-center", themeClasses.sidebar)}>
-                                <MessageCircle className="w-24 h-24 text-orange-500" />
+                                <MessageCircle className="w-24 h-24 text-primary" />
                               </div>
                             </div>
                           </div>
@@ -518,7 +488,7 @@ const Messages = () => {
                           <motion.div
                             animate={{ y: [0, -20, 0], rotate: [0, 360] }}
                             transition={{ duration: 3, repeat: Infinity }}
-                            className="absolute top-0 right-0 w-12 h-12 rounded-full bg-green-400 shadow-lg flex items-center justify-center"
+                            className="absolute top-0 right-0 w-12 h-12 rounded-full bg-success shadow-lg flex items-center justify-center"
                           >
                             <Send className="w-6 h-6 text-white" />
                           </motion.div>
@@ -526,7 +496,7 @@ const Messages = () => {
                           <motion.div
                             animate={{ y: [0, 15, 0] }}
                             transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-                            className="absolute bottom-4 left-0 w-10 h-10 rounded-full bg-yellow-400 shadow-lg flex items-center justify-center"
+                            className="absolute bottom-4 left-0 w-10 h-10 rounded-full bg-gold shadow-lg flex items-center justify-center"
                           >
                             <Users className="w-5 h-5 text-white" />
                           </motion.div>
@@ -555,11 +525,11 @@ const Messages = () => {
                             variant="outline"
                             onClick={() => navigate("/search")}
                             className={cn(
-                              "border-2 border-orange-200 dark:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/20 px-8 py-6 text-lg rounded-xl",
+                              "border-2 border-primary/20 hover:bg-primary/5 px-8 py-6 text-lg rounded-xl",
                               themeClasses.text
                             )}
                           >
-                            <Home className="w-5 h-5 mr-2 text-orange-500" />
+                            <Home className="w-5 h-5 mr-2 text-primary" />
                             {language === "fr" ? "Explorer les annonces" : "Browse listings"}
                           </Button>
                         </div>
