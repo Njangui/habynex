@@ -39,25 +39,21 @@ interface PropertyCardProps {
       full_name: string | null;
       avatar_url: string | null;
       is_verified?: boolean;
+      role?: string;
     };
     category?: string;
     rating?: number;
     review_count?: number;
+    type?: "rent" | "sale" | "short_stay" | "shared";
+    kitchens?: number;
+    living_rooms?: number;
+    dining_rooms?: number;
+    floor?: number;
   };
   variant?: "default" | "compact" | "featured";
   onFavorite?: (id: string) => void;
   isFavorite?: boolean;
 }
-
-// Détection du thème système ou localStorage
-const getInitialTheme = () => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("theme");
-    if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "light";
-};
 
 export const PropertyCard = ({ 
   property, 
@@ -68,7 +64,6 @@ export const PropertyCard = ({
   const { language } = useLanguage();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [theme, setTheme] = useState(getInitialTheme());
 
   // Vérification de sécurité si property est undefined
   if (!property) {
@@ -82,22 +77,13 @@ export const PropertyCard = ({
     return null;
   }
 
-  const isDark = theme === "dark";
-
-  // Appliquer le thème au montage
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
-
-  // Classes dynamiques basées sur le thème
+  // Classes dynamiques utilisant le système de design existant
   const themeClasses = {
-    card: isDark 
-      ? "bg-slate-900 border-slate-700 hover:border-orange-500/50" 
-      : "bg-white border-slate-200 hover:border-orange-300",
-    text: isDark ? "text-slate-100" : "text-slate-900",
-    textMuted: isDark ? "text-slate-400" : "text-slate-500",
-    badge: isDark ? "bg-slate-800 text-slate-300" : "bg-slate-100 text-slate-600",
-    price: isDark ? "text-orange-400" : "text-orange-600",
+    card: "bg-card border-border hover:border-primary/50",
+    text: "text-foreground",
+    textMuted: "text-muted-foreground",
+    badge: "bg-secondary text-secondary-foreground",
+    price: "text-primary",
   };
 
   // Sécurisation des images avec valeur par défaut
@@ -110,11 +96,11 @@ export const PropertyCard = ({
   ].filter(Boolean).join(", ");
 
   const formatPrice = (price: number) => {
-  const safePrice = typeof price === "number" && !isNaN(price) ? price : 0;
-  const formatted = new Intl.NumberFormat(language === "fr" ? "fr-FR" : "en-US", {
-    maximumFractionDigits: 0
-  }).format(safePrice);
-  return `${formatted} FCFA`;
+    const safePrice = typeof price === "number" && !isNaN(price) ? price : 0;
+    const formatted = new Intl.NumberFormat(language === "fr" ? "fr-FR" : "en-US", {
+      maximumFractionDigits: 0
+    }).format(safePrice);
+    return `${formatted} FCFA`;
   };
 
   const formatDate = (dateString: string) => {
@@ -174,13 +160,13 @@ export const PropertyCard = ({
         whileHover={{ y: -4 }}
         className={cn(
           "group relative rounded-xl overflow-hidden border transition-all duration-300",
-          "hover:shadow-xl hover:shadow-orange-500/10",
+          "hover:shadow-lg",
           themeClasses.card
         )}
       >
         <Link to={`/property/${property.id}`} className="flex gap-4 p-3">
           {/* Image */}
-          <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+          <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
             {images.length > 0 && images[0] ? (
               <img
                 src={images[0]}
@@ -191,12 +177,12 @@ export const PropertyCard = ({
                 }}
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center">
-                <MapPin className="w-8 h-8 text-orange-400" />
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <MapPin className="w-8 h-8 text-primary" />
               </div>
             )}
             <div className="absolute top-1 left-1">
-              <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5">
+              <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
                 {formatPrice(price)}
               </Badge>
             </div>
@@ -241,14 +227,14 @@ export const PropertyCard = ({
         onHoverEnd={() => setIsHovered(false)}
         className={cn(
           "group relative rounded-2xl overflow-hidden border-2 transition-all duration-500",
-          "hover:shadow-2xl hover:shadow-orange-500/20",
+          "hover:shadow-2xl",
           themeClasses.card,
-          "border-transparent hover:border-orange-400/50"
+          "border-transparent hover:border-primary/50"
         )}
       >
         <Link to={`/property/${property.id}`} className="block">
           {/* Image Gallery */}
-          <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
+          <div className="relative aspect-[4/3] overflow-hidden bg-muted">
             {images.length > 0 ? (
               <>
                 <motion.img
@@ -302,8 +288,8 @@ export const PropertyCard = ({
                 )}
               </>
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-orange-100 via-yellow-100 to-green-100 dark:from-orange-900/30 dark:via-yellow-900/20 dark:to-green-900/30 flex items-center justify-center">
-                <MapPin className="w-16 h-16 text-orange-400" />
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <MapPin className="w-16 h-16 text-primary" />
               </div>
             )}
 
@@ -320,51 +306,49 @@ export const PropertyCard = ({
                 </Badge>
               )}
               {property.category && (
-                <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-0 shadow-lg">
+                <Badge className="bg-primary text-primary-foreground border-0 shadow-lg">
                   {property.category}
                 </Badge>
               )}
-              {/* Habynex badges */}
-            {property.owner_profile?.role === "agent" && (
-            <Badge className="bg-blue-500 text-white border-0 shadow-lg">
-              Habynex Agent
-            </Badge>
-            )}
-            {property.owner_profile?.role === "agency" && (
-            <Badge className="bg-indigo-500 text-white border-0 shadow-lg">
-              Habynex Agency
-            </Badge>
-            )}
-            {property.owner_profile?.role === "owner" && (
-            <Badge className="bg-gray-500 text-white border-0 shadow-lg">
-              Propriétaire
-            </Badge>
-            )}
-            {/* Type du bien (Rent / Sale / Short Stay / Colocation) */}
-{property.type && (
-  <>
-    {property.type === "rent" && (
-      <Badge className="bg-green-500 text-white border-0 shadow-lg">
-        {language === "fr" ? "À louer" : "For Rent"}
-      </Badge>
-    )}
-    {property.type === "sale" && (
-      <Badge className="bg-blue-500 text-white border-0 shadow-lg">
-        {language === "fr" ? "À vendre" : "For Sale"}
-      </Badge>
-    )}
-    {property.type === "short_stay" && (
-      <Badge className="bg-orange-500 text-white border-0 shadow-lg">
-        {language === "fr" ? "Court séjour" : "Short Stay"}
-      </Badge>
-    )}
-    {property.type === "shared" && (
-      <Badge className="bg-purple-500 text-white border-0 shadow-lg">
-        {language === "fr" ? "Colocation" : "Shared"}
-      </Badge>
-    )}
-     </>
-    )}
+              {property.owner_profile?.role === "agent" && (
+                <Badge className="bg-blue-500 text-white border-0 shadow-lg">
+                  Habynex Agent
+                </Badge>
+              )}
+              {property.owner_profile?.role === "agency" && (
+                <Badge className="bg-indigo-500 text-white border-0 shadow-lg">
+                  Habynex Agency
+                </Badge>
+              )}
+              {property.owner_profile?.role === "owner" && (
+                <Badge className="bg-gray-500 text-white border-0 shadow-lg">
+                  Propriétaire
+                </Badge>
+              )}
+              {property.type && (
+                <>
+                  {property.type === "rent" && (
+                    <Badge className="bg-green-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "À louer" : "For Rent"}
+                    </Badge>
+                  )}
+                  {property.type === "sale" && (
+                    <Badge className="bg-blue-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "À vendre" : "For Sale"}
+                    </Badge>
+                  )}
+                  {property.type === "short_stay" && (
+                    <Badge className="bg-orange-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Court séjour" : "Short Stay"}
+                    </Badge>
+                  )}
+                  {property.type === "shared" && (
+                    <Badge className="bg-purple-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Colocation" : "Shared"}
+                    </Badge>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Favorite & Share */}
@@ -387,7 +371,7 @@ export const PropertyCard = ({
 
             {/* Price Tag */}
             <div className="absolute bottom-4 left-4">
-              <div className="bg-white dark:bg-slate-900 rounded-xl px-4 py-2 shadow-xl">
+              <div className="bg-card rounded-xl px-4 py-2 shadow-xl">
                 <p className={cn("text-2xl font-bold", themeClasses.price)}>
                   {formatPrice(price)}
                 </p>
@@ -406,7 +390,7 @@ export const PropertyCard = ({
                   {title}
                 </h3>
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                  <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
                   <p className={cn("text-sm truncate", themeClasses.textMuted)}>
                     {fullLocation || (language === "fr" ? "Localisation inconnue" : "Unknown location")}
                   </p>
@@ -428,11 +412,11 @@ export const PropertyCard = ({
             </div>
 
             {/* Features */}
-            <div className="flex items-center gap-4 py-4 border-y border-dashed border-slate-200 dark:border-slate-700 mb-4">
+            <div className="flex items-center gap-4 py-4 border-y border-dashed border-border mb-4">
               {typeof property.bedrooms === "number" && property.bedrooms > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                    <Bed className="w-5 h-5 text-orange-500" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Bed className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <p className={cn("text-sm font-semibold", themeClasses.text)}>
@@ -446,8 +430,8 @@ export const PropertyCard = ({
               )}
               {typeof property.bathrooms === "number" && property.bathrooms > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                    <Bath className="w-5 h-5 text-green-500" />
+                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <Bath className="w-5 h-5 text-accent" />
                   </div>
                   <div>
                     <p className={cn("text-sm font-semibold", themeClasses.text)}>
@@ -461,8 +445,8 @@ export const PropertyCard = ({
               )}
               {typeof property.area === "number" && property.area > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                    <Maximize className="w-5 h-5 text-yellow-600" />
+                  <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                    <Maximize className="w-5 h-5 text-gold" />
                   </div>
                   <div>
                     <p className={cn("text-sm font-semibold", themeClasses.text)}>
@@ -480,8 +464,8 @@ export const PropertyCard = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 p-[2px]">
-                    <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-gold p-[2px]">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-muted flex items-center justify-center">
                       {property.owner_profile?.avatar_url ? (
                         <img
                           src={property.owner_profile.avatar_url}
@@ -492,14 +476,14 @@ export const PropertyCard = ({
                           }}
                         />
                       ) : (
-                        <span className="text-lg font-bold text-slate-400">
+                        <span className="text-lg font-bold text-muted-foreground">
                           {property.owner_profile?.full_name?.charAt(0) || "U"}
                         </span>
                       )}
                     </div>
                   </div>
                   {property.owner_profile?.is_verified && (
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-white dark:border-slate-900">
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-success flex items-center justify-center border-2 border-card">
                       <BadgeCheck className="w-3 h-3 text-white" />
                     </div>
                   )}
@@ -509,7 +493,7 @@ export const PropertyCard = ({
                     {property.owner_profile?.full_name || (language === "fr" ? "Propriétaire" : "Owner")}
                   </p>
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-orange-400 flex-shrink-0" />
+                    <Calendar className="w-3 h-3 text-primary flex-shrink-0" />
                     <p className={cn("text-xs", themeClasses.textMuted)}>
                       {formatDate(property.created_at)}
                     </p>
@@ -522,19 +506,19 @@ export const PropertyCard = ({
                   size="sm"
                   variant="outline"
                   className={cn(
-                    "rounded-full border-orange-200 dark:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/20",
+                    "rounded-full border-primary/20 hover:bg-primary/10",
                     themeClasses.text
                   )}
                   onClick={(e) => {
                     e.preventDefault();
                   }}
                 >
-                  <Phone className="w-4 h-4 mr-1 text-orange-500" />
+                  <Phone className="w-4 h-4 mr-1 text-primary" />
                   <span className="hidden sm:inline">{language === "fr" ? "Appeler" : "Call"}</span>
                 </Button>
                 <Button
                   size="sm"
-                  className="rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all"
                   onClick={(e) => {
                     e.preventDefault();
                   }}
@@ -558,13 +542,13 @@ export const PropertyCard = ({
       whileHover={{ y: -4 }}
       className={cn(
         "group relative rounded-xl overflow-hidden border transition-all duration-300",
-        "hover:shadow-lg hover:shadow-orange-500/10",
+        "hover:shadow-lg",
         themeClasses.card
       )}
     >
       <Link to={`/property/${property.id}`} className="block">
         {/* Image */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-slate-800">
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {images.length > 0 && images[0] ? (
             <img
               src={images[0]}
@@ -575,8 +559,8 @@ export const PropertyCard = ({
               }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30 flex items-center justify-center">
-              <MapPin className="w-12 h-12 text-orange-400" />
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <MapPin className="w-12 h-12 text-primary" />
             </div>
           )}
           
@@ -604,7 +588,7 @@ export const PropertyCard = ({
               "absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110",
               isFavorite 
                 ? "bg-red-500 text-white" 
-                : "bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:bg-white"
+                : "bg-background/90 text-foreground hover:bg-background"
             )}
           >
             <Heart className={cn("w-4 h-4", isFavorite && "fill-current")} />
@@ -612,7 +596,7 @@ export const PropertyCard = ({
 
           {/* Price */}
           <div className="absolute bottom-3 left-3">
-            <Badge className="bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 font-bold text-lg border-0 shadow-lg">
+            <Badge className="bg-card text-primary font-bold text-lg border-0 shadow-lg">
               {formatPrice(price)}
             </Badge>
           </div>
@@ -625,7 +609,7 @@ export const PropertyCard = ({
           </h3>
           
           <div className="flex items-center gap-1 mb-3">
-            <MapPin className="w-4 h-4 text-orange-500 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
             <p className={cn("text-sm truncate", themeClasses.textMuted)}>
               {fullLocation || (language === "fr" ? "Localisation inconnue" : "Unknown location")}
             </p>
@@ -651,76 +635,72 @@ export const PropertyCard = ({
                 {property.area}m²
               </span>
             )}
-
             {typeof property.kitchens === "number" && property.kitchens > 0 && (
-  <div className="flex items-center gap-2">
-    <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-      🍳
-    </div>
-    <div>
-      <p className={cn("text-sm font-semibold", themeClasses.text)}>
-        {property.kitchens}
-      </p>
-      <p className={cn("text-xs", themeClasses.textMuted)}>
-        {language === "fr" ? "Cuisine" : "Kitchen"}
-      </p>
-    </div>
-  </div>
-)}
-
-{typeof property.living_rooms === "number" && property.living_rooms > 0 && (
-  <div className="flex items-center gap-2">
-    <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-      🛋️
-    </div>
-    <div>
-      <p className={cn("text-sm font-semibold", themeClasses.text)}>
-        {property.living_rooms}
-      </p>
-      <p className={cn("text-xs", themeClasses.textMuted)}>
-        {language === "fr" ? "Salon" : "Living Room"}
-      </p>
-    </div>
-  </div>
-)}
-
-{typeof property.dining_rooms === "number" && property.dining_rooms > 0 && (
-  <div className="flex items-center gap-2">
-    <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-      🍽️
-    </div>
-    <div>
-      <p className={cn("text-sm font-semibold", themeClasses.text)}>
-        {property.dining_rooms}
-      </p>
-      <p className={cn("text-xs", themeClasses.textMuted)}>
-        {language === "fr" ? "Salle à manger" : "Dining Room"}
-      </p>
-    </div>
-  </div>
-)}
-
-{typeof property.floor === "number" && property.floor > 0 && (
-  <div className="flex items-center gap-2">
-    <div className="w-10 h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-      🏢
-    </div>
-    <div>
-      <p className={cn("text-sm font-semibold", themeClasses.text)}>
-        {property.floor}
-      </p>
-      <p className={cn("text-xs", themeClasses.textMuted)}>
-        {language === "fr" ? "Étage" : "Floor"}
-      </p>
-    </div>
-  </div>
-)}
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  🍳
+                </div>
+                <div>
+                  <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                    {property.kitchens}
+                  </p>
+                  <p className={cn("text-xs", themeClasses.textMuted)}>
+                    {language === "fr" ? "Cuisine" : "Kitchen"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {typeof property.living_rooms === "number" && property.living_rooms > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                  🛋️
+                </div>
+                <div>
+                  <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                    {property.living_rooms}
+                  </p>
+                  <p className={cn("text-xs", themeClasses.textMuted)}>
+                    {language === "fr" ? "Salon" : "Living Room"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {typeof property.dining_rooms === "number" && property.dining_rooms > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                  🍽️
+                </div>
+                <div>
+                  <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                    {property.dining_rooms}
+                  </p>
+                  <p className={cn("text-xs", themeClasses.textMuted)}>
+                    {language === "fr" ? "Salle à manger" : "Dining Room"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {typeof property.floor === "number" && property.floor > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                  🏢
+                </div>
+                <div>
+                  <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                    {property.floor}
+                  </p>
+                  <p className={cn("text-xs", themeClasses.textMuted)}>
+                    {language === "fr" ? "Étage" : "Floor"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white text-sm font-semibold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-gold flex items-center justify-center text-primary-foreground text-sm font-semibold">
                 {property.owner_profile?.full_name?.charAt(0) || "U"}
               </div>
               <span className={cn("text-xs", themeClasses.textMuted)}>
