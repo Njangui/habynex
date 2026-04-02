@@ -72,7 +72,7 @@ const PropertyMap = ({
   const [errors, setErrors] = useState<string[]>([]);
   const [debugInfo, setDebugInfo] = useState<any>({});
   
-  // États pour les champs de saisie
+  // États pour les champs de saisie - initialisés avec les props
   const [inputCity, setInputCity] = useState(city || "");
   const [inputNeighborhood, setInputNeighborhood] = useState(neighborhood || "");
   const [inputLat, setInputLat] = useState(latitude?.toString() || "");
@@ -259,6 +259,10 @@ const PropertyMap = ({
     selectedPosition,
     hasCoords: !!selectedPosition,
     errorsCount: errors.length,
+    inputCity,
+    inputNeighborhood,
+    inputLat,
+    inputLng,
   });
 
   return (
@@ -274,112 +278,124 @@ const PropertyMap = ({
             </p>
           </div>
         </div>
-        
-        {/* Champs de saisie */}
-        {!readOnly && (
-          <div className="mt-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+      </div>
+
+      {/* Section des champs de saisie - TOUJOURS VISIBLE si pas en readOnly */}
+      {!readOnly && (
+        <div className="p-4 bg-muted/30 border-b border-border">
+          <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            Recherchez ou cliquez sur la carte
+          </p>
+          
+          <div className="space-y-3">
+            {/* Ligne 1: Ville et Quartier */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Ville</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Ville *
+                </label>
                 <input
                   type="text"
                   value={inputCity}
                   onChange={handleManualCityChange}
-                  placeholder="Entrez la ville"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Ex: Yaoundé"
+                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Quartier</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Quartier
+                </label>
                 <input
                   type="text"
                   value={inputNeighborhood}
                   onChange={handleManualNeighborhoodChange}
-                  placeholder="Entrez le quartier"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Ex: Ngousso"
+                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             </div>
             
+            {/* Ligne 2: Coordonnées */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Latitude</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Latitude
+                </label>
                 <input
                   type="text"
                   value={inputLat}
                   onChange={handleManualLatChange}
-                  placeholder="Ex: 3.848000"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                  placeholder="3.848000"
+                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Longitude</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Longitude
+                </label>
                 <input
                   type="text"
                   value={inputLng}
                   onChange={handleManualLngChange}
-                  placeholder="Ex: 11.502000"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                  placeholder="11.502000"
+                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             </div>
             
+            {/* Bouton appliquer */}
             <button
               onClick={applyManualCoordinates}
               disabled={!inputLat || !inputLng}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <MapPin className="w-4 h-4" />
-              Appliquer les coordonnées
+              Positionner sur la carte
             </button>
           </div>
-        )}
-        
-        {/* Boutons d'action */}
-        {!readOnly && (
-          <div className="flex gap-2 mt-3 flex-wrap">
+          
+          {/* Boutons d'action rapide */}
+          <div className="flex gap-2 mt-4 pt-4 border-t border-border">
             <button
               onClick={handleGeolocation}
               disabled={isSearching}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 disabled:opacity-50 transition-colors"
             >
               {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
               {isSearching ? "Recherche..." : "Ma position"}
             </button>
             
-            <div className="flex items-center gap-2 px-3 py-2 text-sm bg-muted rounded-lg">
-              <Search className="w-4 h-4" />
+            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-background rounded-lg border border-border">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Cliquez sur la carte
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Affichage des erreurs détaillé */}
-        {errors.length > 0 && (
-          <div className="mt-3 space-y-2">
+      {/* Affichage des erreurs */}
+      {errors.length > 0 && (
+        <div className="px-4 py-3 bg-destructive/10 border-b border-border">
+          <div className="space-y-2">
             {errors.map((err, idx) => (
-              <div key={idx} className="flex items-start gap-2 p-2 bg-destructive/10 text-destructive rounded-lg text-sm">
+              <div key={idx} className="flex items-start gap-2 text-sm text-destructive">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="break-all">{err}</span>
               </div>
             ))}
-            <button 
-              onClick={clearErrors}
-              className="text-xs text-muted-foreground underline"
-            >
-              Effacer les erreurs
-            </button>
           </div>
-        )}
+          <button 
+            onClick={clearErrors}
+            className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Effacer les erreurs
+          </button>
+        </div>
+      )}
 
-        {selectedPosition && (
-          <p className="mt-2 text-xs text-muted-foreground font-mono">
-            {selectedPosition[0].toFixed(6)}, {selectedPosition[1].toFixed(6)}
-          </p>
-        )}
-      </div>
-
-      {/* Carte interactive avec Error Boundary */}
+      {/* Carte interactive */}
       <div className="w-full h-[400px] relative">
         {(() => {
           try {
@@ -388,7 +404,7 @@ const PropertyMap = ({
                 key={selectedPosition ? `${selectedPosition[0]}-${selectedPosition[1]}` : 'default'}
                 center={selectedPosition || defaultPosition}
                 zoom={selectedPosition ? 16 : 12}
-                className="w-full h-full"
+                className="w-full h-full z-0"
                 scrollWheelZoom={true}
               >
                 <TileLayer
@@ -424,15 +440,27 @@ const PropertyMap = ({
 
         {/* Overlay d'instruction */}
         {!selectedPosition && !readOnly && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-background/90 px-4 py-2 rounded-lg shadow-lg">
-              <p className="text-sm font-medium">Cliquez pour positionner</p>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
+            <div className="bg-background/95 px-4 py-3 rounded-xl shadow-xl border border-border">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                Cliquez pour positionner
+              </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Debug panel (développement uniquement) */}
+      {/* Footer avec coordonnées */}
+      {selectedPosition && (
+        <div className="px-4 py-3 bg-muted/50 border-t border-border">
+          <p className="text-xs text-muted-foreground font-mono text-center">
+            Position sélectionnée : {selectedPosition[0].toFixed(6)}, {selectedPosition[1].toFixed(6)}
+          </p>
+        </div>
+      )}
+
+      {/* Debug panel */}
       {process.env.NODE_ENV === 'development' && Object.keys(debugInfo).length > 0 && (
         <div className="p-4 border-t border-border bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground mb-2">Debug:</p>
