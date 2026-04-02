@@ -7,10 +7,12 @@ import { useRecommendations } from "@/hooks/useRecommendations";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext"; // Ajoute l'import
 
 const FeaturedProperties = () => {
   const ITEMS_PER_PAGE = 6;
-  const { recommendations, loading, error } = useRecommendations(ITEMS_PER_PAGE);
+  const { user } = useAuth(); // Récupère l'utilisateur connecté
+  const { recommendations, loading, error } = useRecommendations(user?.id, ITEMS_PER_PAGE); // Passe l'userId
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { language } = useLanguage();
@@ -27,9 +29,12 @@ const FeaturedProperties = () => {
   const displayData = recommendations;
 
   console.log("=== FeaturedProperties ===");
+  console.log("User:", user?.id);
   console.log("Loading:", loading);
   console.log("Error:", error);
   console.log("DB count:", recommendations.length);
+  console.log("isGenericFallback:", recommendations.some(r => r.isGenericFallback));
+  console.log("isSimilarFallback:", recommendations.some(r => r.isSimilarFallback));
 
   // FILTRAGE
   const filtered = activeFilter === "all" 
@@ -44,9 +49,9 @@ const FeaturedProperties = () => {
 
   useEffect(() => setCurrentPage(1), [activeFilter]);
 
-  // LOGIQUE DES MESSAGES
-  const shouldShowGenericMessage = recommendations.some(r => r.isGenericFallback);
-  const shouldShowSimilarMessage = recommendations.some(r => r.isSimilarFallback);
+  // LOGIQUE DES MESSAGES - Corrigée pour être plus robuste
+  const shouldShowGenericMessage = recommendations.length > 0 && recommendations.some(r => r.isGenericFallback);
+  const shouldShowSimilarMessage = recommendations.length > 0 && recommendations.some(r => r.isSimilarFallback);
 
   // RENDU
   return (
@@ -98,25 +103,50 @@ const FeaturedProperties = () => {
           ))}
         </div>
 
-        {/* MESSAGES CLairs */}
+        {/* MESSAGES CLAIRS - Affichés seulement si on a des résultats */}
         {shouldShowSimilarMessage && (
-          <p className="text-center text-yellow-700">
-            {language === "fr"
-              ? "⚠️ Nous n’avons pas trouvé de propriété exactement correspondant à vos critères. Voici des suggestions proches."
-              : "⚠️ No exact match found. Here are similar recommendations."}
-          </p>
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-center text-yellow-800 text-sm">
+              {language === "fr"
+                ? "⚠️ Nous n'avons pas trouvé de propriété exactement correspondant à vos critères. Voici des suggestions proches."
+                : "⚠️ No exact match found. Here are similar recommendations."}
+            </p>
+          </div>
         )}
 
         {shouldShowGenericMessage && (
-          <p className="text-center text-green-700">
-            {language === "fr"
-              ? "👋 Bienvenue ! Voici les propriétés les plus récentes et populaires."
-              : "👋 Welcome! Here are the most recent and popular properties."}
-          </p>
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-center text-green-800 text-sm">
+              {language === "fr"
+                ? "👋 Bienvenue ! Voici les propriétés les plus récentes et populaires."
+                : "👋 Welcome! Here are the most recent and popular properties."}
+            </p>
+          </div>
+        )}
+
+        {/* ÉTAT DE CHARGEMENT */}
+        {loading && (
+          <div className="text-center py-16">
+            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Chargement...</p>
+          </div>
+        )}
+
+        {/* ERREUR */}
+        {error && !loading && (
+          <div className="text-center py-16">
+            <p className="text-red-500 mb-2">Erreur: {error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-primary underline"
+            >
+              Réessayer
+            </button>
+          </div>
         )}
 
         {/* GRID */}
-        {paginated.length > 0 ? (
+        {!loading && !error && paginated.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginated.map((property, index) => (
               <motion.div
@@ -130,7 +160,7 @@ const FeaturedProperties = () => {
               </motion.div>
             ))}
           </div>
-        ) : (
+        ) : !loading && !error && (
           <div className="text-center py-16">
             <Home className="w-16 h-16 mx-auto mb-4 text-primary" />
             <p className="text-foreground">Aucune propriété trouvée</p>
@@ -138,7 +168,7 @@ const FeaturedProperties = () => {
         )}
 
         {/* PAGINATION */}
-        {totalPages > 1 && (
+        {totalPages > 1 && !loading && (
           <div className="flex justify-center mt-10 gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
