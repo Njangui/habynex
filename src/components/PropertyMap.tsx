@@ -22,7 +22,7 @@ interface PropertyMapSelectorProps {
   address?: string;
   city: string;
   neighborhood?: string;
-  onLocationSelect?: (lat: number, lng: number, address?: string) => void;
+  onLocationSelect?: (lat: number, lng: number, address?: string, city?: string, neighborhood?: string) => void;
   readOnly?: boolean;
 }
 
@@ -71,6 +71,12 @@ const PropertyMap = ({
   const [isSearching, setIsSearching] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [debugInfo, setDebugInfo] = useState<any>({});
+  
+  // États pour les champs de saisie
+  const [inputCity, setInputCity] = useState(city || "");
+  const [inputNeighborhood, setInputNeighborhood] = useState(neighborhood || "");
+  const [inputLat, setInputLat] = useState(latitude?.toString() || "");
+  const [inputLng, setInputLng] = useState(longitude?.toString() || "");
 
   const defaultPosition: [number, number] = [3.848, 11.502]; // Yaoundé
 
@@ -116,7 +122,7 @@ const PropertyMap = ({
       const data = await response.json();
       console.log("[PropertyMap] Données Nominatim:", data);
 
-      return data.display_name || null;
+      return data;
     } catch (e: any) {
       if (e.name === 'AbortError') {
         addError("Géocodage: Timeout (10s)", e);
@@ -126,6 +132,18 @@ const PropertyMap = ({
       return null;
     }
   }, [addError]);
+
+  // Fonction pour extraire ville et quartier des données Nominatim
+  const extractLocationData = (data: any) => {
+    if (!data || !data.address) return { city: "", neighborhood: "", fullAddress: "" };
+    
+    const address = data.address;
+    const city = address.city || address.town || address.village || address.municipality || address.county || "";
+    const neighborhood = address.suburb || address.neighbourhood || address.district || address.borough || address.quarter || "";
+    const fullAddress = data.display_name || "";
+    
+    return { city, neighborhood, fullAddress };
+  };
 
   const handlePositionChange = useCallback(
     async (lat: number, lng: number) => {
@@ -142,20 +160,27 @@ const PropertyMap = ({
         }
 
         setSelectedPosition([lat, lng]);
+        setInputLat(lat.toFixed(6));
+        setInputLng(lng.toFixed(6));
         
         // Géocodage inverse
-        const addr = await reverseGeocode(lat, lng);
+        const data = await reverseGeocode(lat, lng);
+        const { city, neighborhood, fullAddress } = extractLocationData(data);
         
-        console.log("[PropertyMap] Appel onLocationSelect:", { lat, lng, addr });
-        onLocationSelect?.(lat, lng, addr || undefined);
+        // Mise à jour des champs de saisie
+        if (city) setInputCity(city);
+        if (neighborhood) setInputNeighborhood(neighborhood);
+        
+        console.log("[PropertyMap] Appel onLocationSelect:", { lat, lng, fullAddress, city, neighborhood });
+        onLocationSelect?.(lat, lng, fullAddress, city, neighborhood);
         
       } catch (e: any) {
         addError(`handlePositionChange: ${e.message}`, e);
         // On envoie quand même les coordonnées même sans adresse
-        onLocationSelect?.(lat, lng);
+        onLocationSelect?.(lat, lng, undefined, inputCity, inputNeighborhood);
       }
     },
-    [onLocationSelect, reverseGeocode, addError]
+    [onLocationSelect, reverseGeocode, addError, inputCity, inputNeighborhood]
   );
 
   const handleGeolocation = useCallback(() => {
@@ -198,7 +223,36 @@ const PropertyMap = ({
     );
   }, [handlePositionChange, addError]);
 
-  const fullLocation = [neighborhood, city].filter(Boolean).join(", ");
+  // Gestion des changements manuels des champs
+  const handleManualLatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputLat(e.target.value);
+  };
+
+  const handleManualLngChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputLng(e.target.value);
+  };
+
+  const handleManualCityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputCity(e.target.value);
+  };
+
+  const handleManualNeighborhoodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputNeighborhood(e.target.value);
+  };
+
+  // Appliquer les coordonnées manuelles
+  const applyManualCoordinates = () => {
+    const lat = parseFloat(inputLat);
+    const lng = parseFloat(inputLng);
+    
+    if (!isNaN(lat) && !isNaN(lng)) {
+      handlePositionChange(lat, lng);
+    } else {
+      addError("Coordonnées invalides");
+    }
+  };
+
+  const fullLocation = [inputNeighborhood, inputCity].filter(Boolean).join(", ");
 
   // Log du rendu
   console.log("[PropertyMap] Rendu:", {
@@ -220,6 +274,66 @@ const PropertyMap = ({
             </p>
           </div>
         </div>
+        
+        {/* Champs de saisie */}
+        {!readOnly && (
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Ville</label>
+                <input
+                  type="text"
+                  value={inputCity}
+                  onChange={handleManualCityChange}
+                  placeholder="Entrez la ville"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Quartier</label>
+                <input
+                  type="text"
+                  value={inputNeighborhood}
+                  onChange={handleManualNeighborhoodChange}
+                  placeholder="Entrez le quartier"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Latitude</label>
+                <input
+                  type="text"
+                  value={inputLat}
+                  onChange={handleManualLatChange}
+                  placeholder="Ex: 3.848000"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Longitude</label>
+                <input
+                  type="text"
+                  value={inputLng}
+                  onChange={handleManualLngChange}
+                  placeholder="Ex: 11.502000"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+                />
+              </div>
+            </div>
+            
+            <button
+              onClick={applyManualCoordinates}
+              disabled={!inputLat || !inputLng}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 disabled:opacity-50"
+            >
+              <MapPin className="w-4 h-4" />
+              Appliquer les coordonnées
+            </button>
+          </div>
+        )}
         
         {/* Boutons d'action */}
         {!readOnly && (
