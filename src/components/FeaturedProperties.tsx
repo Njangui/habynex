@@ -7,12 +7,12 @@ import { useRecommendations } from "@/hooks/useRecommendations";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext"; // Ajoute l'import
+import { useAuth } from "@/contexts/AuthContext";
 
 const FeaturedProperties = () => {
   const ITEMS_PER_PAGE = 6;
-  const { user } = useAuth(); // Récupère l'utilisateur connecté
-  const { recommendations, loading, error } = useRecommendations(user?.id, ITEMS_PER_PAGE); // Passe l'userId
+  const { user } = useAuth();
+  const { recommendations, loading, error } = useRecommendations(user?.id, ITEMS_PER_PAGE);
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { language } = useLanguage();
@@ -32,9 +32,8 @@ const FeaturedProperties = () => {
   console.log("User:", user?.id);
   console.log("Loading:", loading);
   console.log("Error:", error);
-  console.log("DB count:", recommendations.length);
-  console.log("isGenericFallback:", recommendations.some(r => r.isGenericFallback));
-  console.log("isSimilarFallback:", recommendations.some(r => r.isSimilarFallback));
+  console.log("Recommendations count:", recommendations.length);
+  console.log("First item:", recommendations[0]);
 
   // FILTRAGE
   const filtered = activeFilter === "all" 
@@ -49,7 +48,7 @@ const FeaturedProperties = () => {
 
   useEffect(() => setCurrentPage(1), [activeFilter]);
 
-  // LOGIQUE DES MESSAGES - Corrigée pour être plus robuste
+  // LOGIQUE DES MESSAGES
   const shouldShowGenericMessage = recommendations.length > 0 && recommendations.some(r => r.isGenericFallback);
   const shouldShowSimilarMessage = recommendations.length > 0 && recommendations.some(r => r.isSimilarFallback);
 
@@ -103,7 +102,7 @@ const FeaturedProperties = () => {
           ))}
         </div>
 
-        {/* MESSAGES CLAIRS - Affichés seulement si on a des résultats */}
+        {/* MESSAGES CLAIRS */}
         {shouldShowSimilarMessage && (
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-center text-yellow-800 text-sm">
@@ -164,6 +163,11 @@ const FeaturedProperties = () => {
           <div className="text-center py-16">
             <Home className="w-16 h-16 mx-auto mb-4 text-primary" />
             <p className="text-foreground">Aucune propriété trouvée</p>
+            {user?.id && (
+              <p className="text-muted-foreground text-sm mt-2">
+                Essayez de modifier vos critères dans votre profil
+              </p>
+            )}
           </div>
         )}
 
