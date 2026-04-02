@@ -29,6 +29,7 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           user_id: userId,
           limit: limit,
           city: userProfile?.city || undefined,
+          neighborhood: userProfile?.neighborhood || undefined,
           budget_min: userProfile?.budget_min || undefined,
           budget_max: userProfile?.budget_max || undefined,
           property_type: userProfile?.preferred_property_type || undefined,
