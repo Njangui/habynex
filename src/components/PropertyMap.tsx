@@ -227,7 +227,6 @@ const PropertyMap = ({
   const handleManualLatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputLat(e.target.value);
   };
-  console.log("[PropertyMap] Valeur de readOnly:", readOnly);
 
   const handleManualLngChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputLng(e.target.value);
@@ -268,113 +267,111 @@ const PropertyMap = ({
 
   return (
     <div className="w-full rounded-2xl overflow-hidden border border-border bg-card">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
+      {/* Header en gris */}
+      <div className="p-4 border-b border-border bg-gray-100 dark:bg-gray-800">
         <div className="flex items-center gap-2">
           <MapPin className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground">Localisation</h3>
-            <p className="text-sm text-muted-foreground truncate">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Localisation</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
               {fullLocation || "Localisation non spécifiée"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Section des champs de saisie - TOUJOURS VISIBLE si pas en readOnly */}
-      {!readOnly && (
-        <div className="p-4 bg-muted/30 border-b border-border">
-          <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            Recherchez ou cliquez sur la carte
-          </p>
-          
-          <div className="space-y-3">
-            {/* Ligne 1: Ville et Quartier */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Ville *
-                </label>
-                <input
-                  type="text"
-                  value={inputCity}
-                  onChange={handleManualCityChange}
-                  placeholder="Ex: Yaoundé"
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Quartier
-                </label>
-                <input
-                  type="text"
-                  value={inputNeighborhood}
-                  onChange={handleManualNeighborhoodChange}
-                  placeholder="Ex: Ngousso"
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
+      {/* Section des champs de saisie - TOUJOURS VISIBLE */}
+      <div className="p-4 bg-muted/30 border-b border-border">
+        <p className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+          <Search className="w-4 h-4" />
+          Recherchez ou cliquez sur la carte
+        </p>
+        
+        <div className="space-y-3">
+          {/* Ligne 1: Ville et Quartier */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Ville *
+              </label>
+              <input
+                type="text"
+                value={inputCity}
+                onChange={handleManualCityChange}
+                placeholder="Ex: Yaoundé"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-green-600 dark:text-green-400 font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-muted-foreground"
+              />
             </div>
-            
-            {/* Ligne 2: Coordonnées */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Latitude
-                </label>
-                <input
-                  type="text"
-                  value={inputLat}
-                  onChange={handleManualLatChange}
-                  placeholder="3.848000"
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Longitude
-                </label>
-                <input
-                  type="text"
-                  value={inputLng}
-                  onChange={handleManualLngChange}
-                  placeholder="11.502000"
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Quartier
+              </label>
+              <input
+                type="text"
+                value={inputNeighborhood}
+                onChange={handleManualNeighborhoodChange}
+                placeholder="Ex: Ngousso"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-green-600 dark:text-green-400 font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-muted-foreground"
+              />
             </div>
-            
-            {/* Bouton appliquer */}
-            <button
-              onClick={applyManualCoordinates}
-              disabled={!inputLat || !inputLng}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <MapPin className="w-4 h-4" />
-              Positionner sur la carte
-            </button>
           </div>
           
-          {/* Boutons d'action rapide */}
-          <div className="flex gap-2 mt-4 pt-4 border-t border-border">
-            <button
-              onClick={handleGeolocation}
-              disabled={isSearching}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 disabled:opacity-50 transition-colors"
-            >
-              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
-              {isSearching ? "Recherche..." : "Ma position"}
-            </button>
-            
-            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-background rounded-lg border border-border">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Cliquez sur la carte
+          {/* Ligne 2: Coordonnées */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Latitude
+              </label>
+              <input
+                type="text"
+                value={inputLat}
+                onChange={handleManualLatChange}
+                placeholder="3.848000"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-green-600 dark:text-green-400 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-muted-foreground"
+              />
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Longitude
+              </label>
+              <input
+                type="text"
+                value={inputLng}
+                onChange={handleManualLngChange}
+                placeholder="11.502000"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background text-green-600 dark:text-green-400 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+          
+          {/* Bouton appliquer */}
+          <button
+            onClick={applyManualCoordinates}
+            disabled={!inputLat || !inputLng}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <MapPin className="w-4 h-4" />
+            Positionner sur la carte
+          </button>
+        </div>
+        
+        {/* Boutons d'action rapide */}
+        <div className="flex gap-2 mt-4 pt-4 border-t border-border">
+          <button
+            onClick={handleGeolocation}
+            disabled={isSearching}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 disabled:opacity-50 transition-colors"
+          >
+            {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
+            {isSearching ? "Recherche..." : "Ma position"}
+          </button>
+          
+          <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-background rounded-lg border border-border">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Cliquez sur la carte
           </div>
         </div>
-      )}
+      </div>
 
       {/* Affichage des erreurs */}
       {errors.length > 0 && (
@@ -440,7 +437,7 @@ const PropertyMap = ({
         })()}
 
         {/* Overlay d'instruction */}
-        {!selectedPosition && !readOnly && (
+        {!selectedPosition && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
             <div className="bg-background/95 px-4 py-3 rounded-xl shadow-xl border border-border">
               <p className="text-sm font-medium text-foreground flex items-center gap-2">
