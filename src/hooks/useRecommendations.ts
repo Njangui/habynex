@@ -18,7 +18,6 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           .eq("user_id", userId)
           .single();
         
-        // Un profil existe seulement s'il a au moins une préférence définie
         if (profile && (profile.city || profile.preferred_property_type || profile.budget_min)) {
           userProfile = profile;
           hasProfile = true;
@@ -29,78 +28,79 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
       let isGenericFallback = false;
       let isSimilarFallback = false;
 
-      // CAS 1 : Pas d'utilisateur connecté OU profil vide → fallback générique
-      if (!userId || !hasProfile) {
-        const genericResponse = await fetch(`${API_URL}/recommendations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            limit: limit,
-          }),
-        });
+      // Construction du body selon le cas
+      let requestBody: any = { limit };
 
-        if (!genericResponse.ok) {
-          const errorData = await genericResponse.json();
-          console.error("Generic API error:", errorData);
-          throw new Error(errorData.error || 'Failed to fetch generic recommendations');
-        }
-
-        result = await genericResponse.json();
-        isGenericFallback = true;
+      if (userId && hasProfile) {
+        // Utilisateur avec profil
+        requestBody = {
+          user_id: userId,
+          limit,
+          city: userProfile?.city,
+          neighborhood: userProfile?.neighborhood,
+          budget_min: userProfile?.budget_min,
+          budget_max: userProfile?.budget_max,
+          property_type: userProfile?.preferred_property_type,
+        };
       }
-      // CAS 2 : Utilisateur avec profil → recherche personnalisée
-      else {
-        // Première tentative : critères exacts
+
+      try {
         const response = await fetch(`${API_URL}/recommendations`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            limit: limit,
-            city: userProfile?.city || undefined,
-            neighborhood: userProfile?.neighborhood || undefined,
-            budget_min: userProfile?.budget_min || undefined,
-            budget_max: userProfile?.budget_max || undefined,
-            property_type: userProfile?.preferred_property_type || undefined,
-          }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error("API error:", errorData);
-          throw new Error(errorData.error || 'Failed to fetch recommendations');
+          const errorText = await response.text();
+          console.error("API error response:", errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         result = await response.json();
 
-        // CAS 3 : Profil existe mais aucune annonce exacte → fallback similaire
-        if (!result.recommendations || result.recommendations.length === 0) {
+        // Si profil mais aucun résultat → fallback similaire
+        if (userId && hasProfile && (!result.recommendations || result.recommendations.length === 0)) {
+          const fallbackBody = {
+            user_id: userId,
+            limit,
+            city: userProfile?.city,
+            budget_min: userProfile?.budget_min ? userProfile.budget_min * 0.8 : undefined,
+            budget_max: userProfile?.budget_max ? userProfile.budget_max * 1.2 : undefined,
+            property_type: userProfile?.preferred_property_type,
+          };
+
           const fallbackResponse = await fetch(`${API_URL}/recommendations`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user_id: userId,
-              limit: limit,
-              city: userProfile?.city || undefined,
-              budget_min: userProfile?.budget_min ? userProfile.budget_min * 0.8 : undefined,
-              budget_max: userProfile?.budget_max ? userProfile.budget_max * 1.2 : undefined,
-              property_type: userProfile?.preferred_property_type || undefined,
-            }),
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(fallbackBody),
           });
 
           if (!fallbackResponse.ok) {
-            const errorData = await fallbackResponse.json();
-            console.error("Fallback API error:", errorData);
-            throw new Error(errorData.error || 'Failed to fetch fallback recommendations');
+            const errorText = await fallbackResponse.text();
+            console.error("Fallback API error:", errorText);
+            throw new Error(`HTTP ${fallbackResponse.status}: ${errorText}`);
           }
 
           result = await fallbackResponse.json();
           isSimilarFallback = true;
+        } else if (!userId || !hasProfile) {
+          isGenericFallback = true;
         }
+
+      } catch (fetchError) {
+        console.error("Fetch error:", fetchError);
+        // Si l'API échoue, retourner un tableau vide plutôt que de casser
+        return [];
       }
 
-      // Formater les données pour ton UI
-      return (result.recommendations || []).map((prop: any) => ({
+      return (result?.recommendations || []).map((prop: any) => ({
         ...prop,
         _score: prop._score,
         _reasons: prop._reasons,
@@ -109,7 +109,8 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
         isSimilarFallback
       }));
     },
-    retry: 1,
+    retry: 2,
+    retryDelay: 1000,
     staleTime: 1000 * 60 * 5,
     enabled: true,
   });
@@ -127,7 +128,10 @@ export const useTrackInteraction = () => {
     try {
       await fetch(`${API_URL}/feedback`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           user_id: userId,
           property_id: propertyId,
