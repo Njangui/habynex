@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
-
 const FeaturedProperties = () => {
   const ITEMS_PER_PAGE = 6;
   const { recommendations, loading, error } = useRecommendations(ITEMS_PER_PAGE);
@@ -23,9 +22,12 @@ const FeaturedProperties = () => {
     colocation: language === "fr" ? "Colocation" : "Colocation",
     short_term: language === "fr" ? "Court séjour" : "Short term",
   };
-  
+
+  // DÉCISION: utiliser fallback si erreur OU pas de données OU chargement terminé sans résultat
+  const shouldUseFallback = false; // plus de propriétés hardcodées
+
   // DONNÉES À AFFICHER
-  const displayData = shouldUseFallback ? fallbackProperties : recommendations;
+  const displayData = recommendations;
 
   console.log("=== FeaturedProperties ===");
   console.log("Loading:", loading);
@@ -52,7 +54,7 @@ const FeaturedProperties = () => {
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         
-        {/* HEADER */}
+        {/* HEADER */} 
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <div className="flex items-center gap-2 mb-2">
@@ -96,15 +98,6 @@ const FeaturedProperties = () => {
             </button>
           ))}
         </div>
-
-        {/* MESSAGE FALLBACK */}
-        {shouldUseFallback && (
-          <div className="mb-6 p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800">
-            <p className="text-yellow-700 dark:text-yellow-400 text-sm text-center">
-              ⚠️ {language === "fr" ? "Mode démo : affichage des annonces de test" : "Demo mode: showing test listings"}
-            </p>
-          </div>
-        )}
 
         {/* GRID */}
         {paginated.length > 0 ? (
