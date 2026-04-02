@@ -16,12 +16,18 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 interface PropertyLocationPickerProps {
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   address?: string;
   city: string;
   neighborhood?: string;
-  onLocationSelect: (lat: number, lng: number, address: string, neighborhood?: string, city?: string) => void;
+  onLocationChange?: (data: {
+    city: string;
+    neighborhood: string;
+    address: string;
+    latitude: number | null;
+    longitude: number | null;
+  }) => void;
   readOnly?: boolean;
 }
 
@@ -46,7 +52,7 @@ export default function PropertyLocationPicker({
   address,
   city,
   neighborhood,
-  onLocationSelect = () => {},
+  onLocationChange,
   readOnly = false,
 }: PropertyLocationPickerProps) {
   const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(
@@ -128,6 +134,25 @@ export default function PropertyLocationPicker({
     }
   }, []);
 
+  // Fonction pour mettre à jour le parent avec le format attendu par CreateListing
+  const notifyParent = useCallback((
+    newCity: string,
+    newNeighborhood: string,
+    newAddress: string,
+    newLat: number | null,
+    newLng: number | null
+  ) => {
+    if (onLocationChange) {
+      onLocationChange({
+        city: newCity,
+        neighborhood: newNeighborhood,
+        address: newAddress,
+        latitude: newLat,
+        longitude: newLng,
+      });
+    }
+  }, [onLocationChange]);
+
   const handlePositionChange = useCallback(async (lat: number, lng: number) => {
     setSelectedPosition([lat, lng]);
     setManualLat(lat.toFixed(6));
@@ -145,10 +170,15 @@ export default function PropertyLocationPicker({
     if (foundCity) setManualCity(foundCity);
     if (foundNeighborhood) setManualNeighborhood(foundNeighborhood);
     
-    if (typeof onLocationSelect === "function") {
-      onLocationSelect(lat, lng, displayName, foundNeighborhood, foundCity);
-    }
-  }, [onLocationSelect, reverseGeocode, manualCity, manualNeighborhood]);
+    // Notifier le parent (CreateListing) avec le bon format
+    notifyParent(
+      foundCity,
+      foundNeighborhood,
+      displayName,
+      lat,
+      lng
+    );
+  }, [reverseGeocode, manualCity, manualNeighborhood, notifyParent]);
 
   const handleGeolocation = useCallback(() => {
     setIsSearching(true);
@@ -195,6 +225,29 @@ export default function PropertyLocationPicker({
     }
   };
 
+  // Mettre à jour le parent quand les champs manuels changent
+  const handleManualCityChange = (value: string) => {
+    setManualCity(value);
+    notifyParent(
+      value,
+      manualNeighborhood,
+      address || "",
+      latitude || null,
+      longitude || null
+    );
+  };
+
+  const handleManualNeighborhoodChange = (value: string) => {
+    setManualNeighborhood(value);
+    notifyParent(
+      manualCity,
+      value,
+      address || "",
+      latitude || null,
+      longitude || null
+    );
+  };
+
   const fullLocation = [manualNeighborhood, manualCity].filter(Boolean).join(", ");
 
   return (
@@ -212,7 +265,7 @@ export default function PropertyLocationPicker({
         </div>
       </div>
 
-      {/* SECTION CHAMPS DE SAISIE - TOUJOURS VISIBLE (supprimé !readOnly) */}
+      {/* SECTION CHAMPS DE SAISIE - TOUJOURS VISIBLE */}
       <div className="p-4 bg-gray-50 border-b border-gray-200">
         <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
           <Search className="w-4 h-4 text-green-600" />
@@ -262,7 +315,7 @@ export default function PropertyLocationPicker({
           )}
         </div>
         
-        {/* NOUVEAUX CHAMPS MANUELS - Fond gris + texte vert */}
+        {/* CHAMPS MANUELS - Fond gris + texte vert */}
         <div className="space-y-3 pt-2 border-t border-gray-200">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -270,7 +323,7 @@ export default function PropertyLocationPicker({
               <input
                 type="text"
                 value={manualCity}
-                onChange={(e) => setManualCity(e.target.value)}
+                onChange={(e) => handleManualCityChange(e.target.value)}
                 placeholder="Ex: Yaoundé"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
@@ -280,7 +333,7 @@ export default function PropertyLocationPicker({
               <input
                 type="text"
                 value={manualNeighborhood}
-                onChange={(e) => setManualNeighborhood(e.target.value)}
+                onChange={(e) => handleManualNeighborhoodChange(e.target.value)}
                 placeholder="Ex: Ngousso"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
               />
