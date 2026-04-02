@@ -7,135 +7,54 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["recommendations", userId, limit],
     queryFn: async () => {
+      // Récupérer le profil si userId existe
       let userProfile = null;
-      let hasProfile = false;
-
-      // Vérifier si l'utilisateur a un profil complet
       if (userId) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("city, neighborhood, budget_min, budget_max, preferred_property_type")
           .eq("user_id", userId)
           .single();
-        
-        if (profileError) {
-          console.log("Pas de profil trouvé pour l'utilisateur:", userId);
-        }
-        
-        // Un profil existe seulement s'il a au moins une préférence définie
-        if (profile && (profile.city || profile.preferred_property_type || profile.budget_min)) {
-          userProfile = profile;
-          hasProfile = true;
-          console.log("Profil trouvé:", profile);
-        } else {
-          console.log("Profil vide ou inexistant");
-        }
+        userProfile = profile;
       }
 
-      let result = null;
-      let isGenericFallback = false;
-      let isSimilarFallback = false;
+      // Appeler l'API avec les paramètres
+      const requestBody: any = { limit };
+      
+      if (userId) requestBody.user_id = userId;
+      if (userProfile?.city) requestBody.city = userProfile.city;
+      if (userProfile?.neighborhood) requestBody.neighborhood = userProfile.neighborhood;
+      if (userProfile?.budget_min) requestBody.budget_min = userProfile.budget_min;
+      if (userProfile?.budget_max) requestBody.budget_max = userProfile.budget_max;
+      if (userProfile?.preferred_property_type) requestBody.property_type = userProfile.preferred_property_type;
 
-      // Construction du body selon le cas
-      let requestBody: any = { limit };
+      const response = await fetch(`${API_URL}/recommendations`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-      if (userId && hasProfile) {
-        // Utilisateur avec profil
-        requestBody = {
-          user_id: userId,
-          limit,
-          city: userProfile?.city,
-          neighborhood: userProfile?.neighborhood,
-          budget_min: userProfile?.budget_min,
-          budget_max: userProfile?.budget_max,
-          property_type: userProfile?.preferred_property_type,
-        };
-        console.log("Requête personnalisée:", requestBody);
-      } else {
-        console.log("Requête générique (pas de profil)");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      try {
-        console.log("Appel API:", `${API_URL}/recommendations`);
-        const response = await fetch(`${API_URL}/recommendations`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        console.log("Status réponse:", response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response:", errorText);
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-
-        result = await response.json();
-        console.log("Résultat API:", result);
-
-        // Si profil mais aucun résultat → fallback similaire
-        if (userId && hasProfile && (!result.recommendations || result.recommendations.length === 0)) {
-          console.log("Aucun résultat exact, tentative fallback similaire...");
-          
-          const fallbackBody = {
-            user_id: userId,
-            limit,
-            city: userProfile?.city,
-            budget_min: userProfile?.budget_min ? userProfile.budget_min * 0.8 : undefined,
-            budget_max: userProfile?.budget_max ? userProfile.budget_max * 1.2 : undefined,
-            property_type: userProfile?.preferred_property_type,
-          };
-
-          const fallbackResponse = await fetch(`${API_URL}/recommendations`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(fallbackBody),
-          });
-
-          console.log("Status fallback:", fallbackResponse.status);
-
-          if (!fallbackResponse.ok) {
-            const errorText = await fallbackResponse.text();
-            console.error("Fallback API error:", errorText);
-            throw new Error(`HTTP ${fallbackResponse.status}: ${errorText}`);
-          }
-
-          result = await fallbackResponse.json();
-          console.log("Résultat fallback:", result);
-          isSimilarFallback = true;
-        } else if (!userId || !hasProfile) {
-          isGenericFallback = true;
-        }
-
-      } catch (fetchError) {
-        console.error("Fetch error complet:", fetchError);
-        // Retourner tableau vide avec flags pour pas casser l'UI
-        return [];
-      }
-
-      const recommendations = result?.recommendations || [];
-      console.log("Nombre de recommandations:", recommendations.length);
-      console.log("isGenericFallback:", isGenericFallback);
-      console.log("isSimilarFallback:", isSimilarFallback);
-
-      return recommendations.map((prop: any) => ({
+      const result = await response.json();
+      
+      // Mapper les résultats avec les flags du backend
+      return (result.recommendations || []).map((prop: any) => ({
         ...prop,
         _score: prop._score,
         _reasons: prop._reasons,
-        owner_profile: null,
-        isGenericFallback,
-        isSimilarFallback
+        isGenericFallback: prop._is_generic_fallback || result.fallback_type === 'generic',
+        isSimilarFallback: prop._is_similar_fallback || result.fallback_type === 'similar',
+        fallbackMessage: result.message
       }));
     },
     retry: 2,
-    retryDelay: 1000,
     staleTime: 1000 * 60 * 5,
     enabled: true,
   });
