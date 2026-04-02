@@ -18,6 +18,8 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
       }
 
       let result = null;
+      let isGenericFallback = false;
+      let isSimilarFallback = false;
 
       // Si utilisateur avec profil, on tente la recherche exacte
       if (userProfile) {
@@ -52,13 +54,11 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
               user_id: userId,
               limit: limit,
               city: userProfile?.city || undefined,
-              // Quartier différent ou proche
-              neighborhood: undefined,
-              // Budget ±20%
+              neighborhood: undefined, // Quartier différent ou proche
               budget_min: userProfile?.budget_min ? userProfile.budget_min * 0.8 : undefined,
               budget_max: userProfile?.budget_max ? userProfile.budget_max * 1.2 : undefined,
               property_type: userProfile?.preferred_property_type || undefined,
-              is_similar_fallback: true // flag pour message clair côté composant
+              is_similar_fallback: true
             }),
           });
 
@@ -69,7 +69,7 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           }
 
           result = await fallbackResponse.json();
-          result.isSimilarFallback = true; // Indiquer qu'on a utilisé le fallback proche
+          isSimilarFallback = true;
         }
       } else {
         // Nouvel utilisateur ou sans profil → récupérer les plus récentes et les plus vues
@@ -78,7 +78,7 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             limit: limit,
-            is_generic_fallback: true // flag pour message clair côté composant
+            is_generic_fallback: true
           }),
         });
 
@@ -89,7 +89,7 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
         }
 
         result = await genericResponse.json();
-        result.isGenericFallback = true;
+        isGenericFallback = true;
       }
 
       // Formater les données pour ton UI
@@ -97,7 +97,9 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
         ...prop,
         _score: prop._score,
         _reasons: prop._reasons,
-        owner_profile: null // À remplacer par une requête séparée si besoin
+        owner_profile: null,
+        isGenericFallback,
+        isSimilarFallback
       }));
     },
     retry: 1,
