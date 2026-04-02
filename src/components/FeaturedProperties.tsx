@@ -23,9 +23,6 @@ const FeaturedProperties = () => {
     short_term: language === "fr" ? "Court séjour" : "Short term",
   };
 
-  // DÉCISION: utiliser fallback si erreur OU pas de données OU chargement terminé sans résultat
-  const shouldUseFallback = false; // plus de propriétés hardcodées
-
   // DONNÉES À AFFICHER
   const displayData = recommendations;
 
@@ -33,8 +30,6 @@ const FeaturedProperties = () => {
   console.log("Loading:", loading);
   console.log("Error:", error);
   console.log("DB count:", recommendations.length);
-  console.log("Use fallback:", shouldUseFallback);
-  console.log("Display count:", displayData.length);
 
   // FILTRAGE
   const filtered = activeFilter === "all" 
@@ -48,6 +43,10 @@ const FeaturedProperties = () => {
   );
 
   useEffect(() => setCurrentPage(1), [activeFilter]);
+
+  // LOGIQUE DES MESSAGES
+  const shouldShowGenericMessage = recommendations.some(r => r.isGenericFallback);
+  const shouldShowSimilarMessage = recommendations.some(r => r.isSimilarFallback);
 
   // RENDU
   return (
@@ -82,7 +81,7 @@ const FeaturedProperties = () => {
         </div>
 
         {/* FILTRES */}
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-4">
           {Object.entries(labels).map(([key, label]) => (
             <button
               key={key}
@@ -98,6 +97,23 @@ const FeaturedProperties = () => {
             </button>
           ))}
         </div>
+
+        {/* MESSAGES CLairs */}
+        {shouldShowSimilarMessage && (
+          <p className="text-center text-yellow-700">
+            {language === "fr"
+              ? "⚠️ Nous n’avons pas trouvé de propriété exactement correspondant à vos critères. Voici des suggestions proches."
+              : "⚠️ No exact match found. Here are similar recommendations."}
+          </p>
+        )}
+
+        {shouldShowGenericMessage && (
+          <p className="text-center text-green-700">
+            {language === "fr"
+              ? "👋 Bienvenue ! Voici les propriétés les plus récentes et populaires."
+              : "👋 Welcome! Here are the most recent and popular properties."}
+          </p>
+        )}
 
         {/* GRID */}
         {paginated.length > 0 ? (
