@@ -227,6 +227,7 @@ const PropertyMap = ({
   const handleManualLatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputLat(e.target.value);
   };
+  console.log("[PropertyMap] Valeur de readOnly:", readOnly);
 
   const handleManualLngChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputLng(e.target.value);
