@@ -1,215 +1,70 @@
-import { useState, useCallback } from "react";
-import { MapPin, Crosshair, Search, AlertCircle, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import { MapPin } from "lucide-react";
 
-// Correction des icônes Leaflet
-try {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  });
-} catch (e) {
-  console.error("[PropertyMap] Erreur initialisation Leaflet:", e);
-}
-
-interface PropertyMapSelectorProps {
-  latitude?: number;
-  longitude?: number;
-  city?: string;
+interface PropertyMapProps {
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string;
+  city: string;
   neighborhood?: string;
-  onLocationSelect?: (lat: number, lng: number, address?: string, city?: string, neighborhood?: string) => void;
 }
 
-const LocationMarker = ({ position, onPositionChange }: { position: [number, number] | null; onPositionChange: (lat: number, lng: number) => void }) => {
-  useMapEvents({
-    click(e) {
-      onPositionChange(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return position ? <Marker position={position} /> : null;
-};
+const PropertyMap = ({ latitude, longitude, address, city, neighborhood }: PropertyMapProps) => {
+  const hasCoordinates = latitude && longitude;
+  
+  // Construire l'URL de la carte avec les coordonnées si disponibles
+  const mapUrl = hasCoordinates
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01}%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`
+    : `https://www.openstreetmap.org/export/embed.html?bbox=11.45%2C3.80%2C11.65%2C3.90&layer=mapnik`;
 
-const PropertyMap = ({ latitude, longitude, city = "", neighborhood = "", onLocationSelect }: PropertyMapSelectorProps) => {
-  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(
-    latitude && longitude ? [latitude, longitude] : null
-  );
-  const [isSearching, setIsSearching] = useState(false);
-  const [inputCity, setInputCity] = useState(city);
-  const [inputNeighborhood, setInputNeighborhood] = useState(neighborhood);
-  const [inputLat, setInputLat] = useState(latitude?.toString() || "");
-  const [inputLng, setInputLng] = useState(longitude?.toString() || "");
-  const [error, setError] = useState("");
-
-  const defaultPosition: [number, number] = [3.848, 11.502];
-
-  const handlePositionChange = useCallback(async (lat: number, lng: number) => {
-    setSelectedPosition([lat, lng]);
-    setInputLat(lat.toFixed(6));
-    setInputLng(lng.toFixed(6));
-    
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fr`);
-      const data = await response.json();
-      const address = data.address;
-      const foundCity = address?.city || address?.town || address?.village || "";
-      const foundNeighborhood = address?.suburb || address?.neighbourhood || address?.district || "";
-      
-      if (foundCity) setInputCity(foundCity);
-      if (foundNeighborhood) setInputNeighborhood(foundNeighborhood);
-      
-      onLocationSelect?.(lat, lng, data.display_name, foundCity, foundNeighborhood);
-    } catch (err) {
-      console.error("Erreur géocodage:", err);
-      onLocationSelect?.(lat, lng, undefined, inputCity, inputNeighborhood);
-    }
-  }, [onLocationSelect, inputCity, inputNeighborhood]);
-
-  const handleGeolocation = () => {
-    setIsSearching(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        handlePositionChange(position.coords.latitude, position.coords.longitude);
-        setIsSearching(false);
-      },
-      (err) => {
-        setError("Impossible d'obtenir votre position");
-        setIsSearching(false);
-      }
-    );
-  };
-
-  const applyManualCoordinates = () => {
-    const lat = parseFloat(inputLat);
-    const lng = parseFloat(inputLng);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      handlePositionChange(lat, lng);
-      setError("");
-    } else {
-      setError("Coordonnées invalides");
-    }
-  };
+  const fullLocation = [neighborhood, city].filter(Boolean).join(", ");
 
   return (
-    <div className="w-full rounded-2xl overflow-hidden border border-gray-200 bg-white">
-      
-      {/* HEADER - Gris */}
-      <div className="p-4 bg-gray-100 border-b border-gray-200">
+    <div className="h-full flex flex-col rounded-2xl overflow-hidden border border-border">
+      {/* Map Header */}
+      <div className="p-4 bg-card border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-green-600" />
+          <MapPin className="w-5 h-5 text-primary shrink-0" />
           <div>
-            <h3 className="font-semibold text-gray-900">Localisation</h3>
-            <p className="text-sm text-gray-500">
-              {inputNeighborhood && inputCity ? `${inputNeighborhood}, ${inputCity}` : "Localisation non spécifiée"}
+            <h3 className="font-semibold text-foreground">Localisation</h3>
+            <p className="text-sm text-muted-foreground">
+              {fullLocation || "Localisation non spécifiée"}
             </p>
           </div>
         </div>
+        {address && (
+          <p className="mt-2 text-sm text-muted-foreground">{address}</p>
+        )}
       </div>
 
-      {/* CHAMPS DE SAISIE - TOUJOURS VISIBLES */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200">
-        <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <Search className="w-4 h-4 text-green-600" />
-          Recherchez ou cliquez sur la carte
-        </p>
-        
-        <div className="space-y-3">
-          {/* Ville et Quartier */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Ville *</label>
-              <input
-                type="text"
-                value={inputCity}
-                onChange={(e) => setInputCity(e.target.value)}
-                placeholder="Ex: Yaoundé"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+      {/* Map Embed - Prend toute la hauteur restante */}
+      <div className="flex-1 min-h-0 bg-secondary relative">
+        {hasCoordinates ? (
+          <>
+            <iframe
+              src={mapUrl}
+              className="w-full h-full border-0"
+              title="Carte de localisation"
+              loading="lazy"
+            />
+            {/* Affichage des coordonnées en petit en bas à droite */}
+            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-md font-mono">
+              📍 {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
             </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Quartier</label>
-              <input
-                type="text"
-                value={inputNeighborhood}
-                onChange={(e) => setInputNeighborhood(e.target.value)}
-                placeholder="Ex: Ngousso"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center p-4">
+              <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground font-medium">
+                Localisation : {fullLocation || "Non spécifiée"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {!fullLocation && "Aucune localisation renseignée"}
+              </p>
             </div>
           </div>
-          
-          {/* Coordonnées */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Latitude</label>
-              <input
-                type="text"
-                value={inputLat}
-                onChange={(e) => setInputLat(e.target.value)}
-                placeholder="3.848000"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Longitude</label>
-              <input
-                type="text"
-                value={inputLng}
-                onChange={(e) => setInputLng(e.target.value)}
-                placeholder="11.502000"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-green-700 font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-          </div>
-          
-          {/* Boutons */}
-          <div className="flex gap-2">
-            <button
-              onClick={applyManualCoordinates}
-              disabled={!inputLat || !inputLng}
-              className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-            >
-              <MapPin className="w-4 h-4 inline mr-2" />
-              Positionner
-            </button>
-            <button
-              onClick={handleGeolocation}
-              disabled={isSearching}
-              className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-300"
-            >
-              {isSearching ? <Loader2 className="w-4 h-4 inline animate-spin mr-2" /> : <Crosshair className="w-4 h-4 inline mr-2" />}
-              Ma position
-            </button>
-          </div>
-          
-          {error && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-              <AlertCircle className="w-4 h-4" />
-              {error}
-            </div>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* CARTE */}
-      <div className="w-full h-[400px] relative">
-        <MapContainer center={selectedPosition || defaultPosition} zoom={selectedPosition ? 16 : 12} className="w-full h-full">
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <LocationMarker position={selectedPosition} onPositionChange={handlePositionChange} />
-        </MapContainer>
-      </div>
-
-      {/* FOOTER */}
-      {selectedPosition && (
-        <div className="p-3 bg-gray-50 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-500 font-mono">
-            {selectedPosition[0].toFixed(6)}, {selectedPosition[1].toFixed(6)}
-          </p>
-        </div>
-      )}
     </div>
   );
 };
