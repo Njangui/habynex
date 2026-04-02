@@ -48,13 +48,20 @@ interface ViewStats {
   engagementScore: number;
 }
 
-const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))", 
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))"
-];
+// Nouvelle palette de couleurs: vert, rouge, jaune, bleu
+const CHART_COLORS = {
+  green: "#22c55e",  // Vert
+  red: "#ef4444",    // Rouge
+  yellow: "#eab308", // Jaune
+  blue: "#3b82f6"    // Bleu
+};
+
+// Couleurs pour les graphiques spécifiques
+const AREA_CHART_COLOR = CHART_COLORS.green;
+const BAR_CHART_TOP_PROPERTIES = [CHART_COLORS.green, CHART_COLORS.blue, CHART_COLORS.yellow, CHART_COLORS.red, CHART_COLORS.green];
+const PIE_CHART_COLORS = [CHART_COLORS.green, CHART_COLORS.red, CHART_COLORS.yellow, CHART_COLORS.blue, "#14b8a6"];
+const DEVICE_COLORS = [CHART_COLORS.green, CHART_COLORS.yellow, CHART_COLORS.red];
+const HOURLY_BAR_COLOR = CHART_COLORS.blue;
 
 const sourceLabels: Record<string, string> = {
   direct: "Direct",
@@ -157,7 +164,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
       (totalViews / 100) * 30 // Total volume
     ));
 
-    // Sources with colors
+    // Sources avec nouvelles couleurs
     const sourceCounts: Record<string, number> = {};
     viewsData.forEach(v => {
       const source = v.source || "direct";
@@ -167,7 +174,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
       .map(([name, value], index) => ({ 
         name: sourceLabels[name] || name, 
         value,
-        color: COLORS[index % COLORS.length]
+        color: PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]
       }))
       .sort((a, b) => b.value - a.value);
 
@@ -429,7 +436,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                       cy="40"
                       r="36"
                       fill="none"
-                      stroke="hsl(var(--primary))"
+                      stroke={CHART_COLORS.green}
                       strokeWidth="8"
                       strokeLinecap="round"
                       strokeDasharray={`${stats.engagementScore * 2.26} 226`}
@@ -516,7 +523,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
 
       {/* Charts Row 1 - Évolution et Top propriétés */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Daily Views avec Area Chart */}
+        {/* Daily Views avec Area Chart - VERT */}
         <Card className="overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -539,8 +546,8 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                 <AreaChart data={stats.dailyViews}>
                   <defs>
                     <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      <stop offset="5%" stopColor={AREA_CHART_COLOR} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={AREA_CHART_COLOR} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <XAxis 
@@ -563,7 +570,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                         return (
                           <div className="bg-card border border-border rounded-lg p-3 shadow-elevated">
                             <p className="text-sm font-medium text-foreground mb-1">{data.fullDate}</p>
-                            <p className="text-2xl font-bold text-primary">{data.views} {language === "fr" ? "vues" : "views"}</p>
+                            <p className="text-2xl font-bold" style={{ color: AREA_CHART_COLOR }}>{data.views} {language === "fr" ? "vues" : "views"}</p>
                             {data.trend !== 0 && (
                               <p className={cn(
                                 "text-xs mt-1",
@@ -581,7 +588,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                   <Area 
                     type="monotone" 
                     dataKey="views" 
-                    stroke="hsl(var(--primary))" 
+                    stroke={AREA_CHART_COLOR} 
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorViews)"
@@ -597,7 +604,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
           </CardContent>
         </Card>
 
-        {/* Top Properties avec Bar Chart horizontal */}
+        {/* Top Properties avec Bar Chart horizontal - MULTICOLORE */}
         <Card className="overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -637,11 +644,12 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
+                        const barColor = BAR_CHART_TOP_PROPERTIES[payload[0].payload.index % BAR_CHART_TOP_PROPERTIES.length];
                         return (
                           <div className="bg-card border border-border rounded-lg p-3 shadow-elevated">
                             <p className="text-sm font-medium text-foreground mb-1">{data.name}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-xl font-bold text-primary">{data.views} vues</p>
+                              <p className="text-xl font-bold" style={{ color: barColor }}>{data.views} vues</p>
                               {data.trend !== 0 && (
                                 <Badge variant={data.trend > 0 ? "success" : "destructive"} className="text-xs">
                                   {data.trend > 0 ? "+" : ""}{data.trend}%
@@ -656,12 +664,11 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                   />
                   <Bar 
                     dataKey="views" 
-                    fill="hsl(var(--primary))" 
                     radius={[0, 6, 6, 0]}
                     barSize={28}
                   >
                     {stats.propertyViews.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={BAR_CHART_TOP_PROPERTIES[index % BAR_CHART_TOP_PROPERTIES.length]} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -677,7 +684,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
 
       {/* Row 2 - Sources et Appareils */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Sources de trafic */}
+        {/* Sources de trafic - MULTICOLORE */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -704,7 +711,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                       dataKey="value"
                     >
                       {stats.topSources.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
+                        <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} strokeWidth={0} />
                       ))}
                     </Pie>
                     <Tooltip 
@@ -782,7 +789,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
           </CardContent>
         </Card>
 
-        {/* Répartition des appareils */}
+        {/* Répartition des appareils - VERT/JAUNE/ROUGE */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold">
@@ -799,6 +806,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                 const percent = stats.totalViews > 0 
                   ? Math.round((device.value / stats.totalViews) * 100) 
                   : 0;
+                const deviceColor = DEVICE_COLORS[index % DEVICE_COLORS.length];
                 
                 return (
                   <motion.div
@@ -810,12 +818,10 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center",
-                          index === 0 && "bg-primary/10 text-primary",
-                          index === 1 && "bg-success/10 text-success",
-                          index === 2 && "bg-secondary/10 text-secondary"
-                        )}>
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ backgroundColor: `${deviceColor}20`, color: deviceColor }}
+                        >
                           <Icon className="w-5 h-5" />
                         </div>
                         <div>
@@ -830,12 +836,8 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                         initial={{ width: 0 }}
                         animate={{ width: `${percent}%` }}
                         transition={{ duration: 0.8, delay: index * 0.1 }}
-                        className={cn(
-                          "h-full rounded-full",
-                          index === 0 && "bg-primary",
-                          index === 1 && "bg-success",
-                          index === 2 && "bg-secondary"
-                        )}
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: deviceColor }}
                       />
                     </div>
                   </motion.div>
@@ -852,7 +854,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
         </Card>
       </div>
 
-      {/* Row 3 - Distribution horaire */}
+      {/* Row 3 - Distribution horaire - BLEU */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-semibold">
@@ -885,7 +887,7 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
                     return (
                       <div className="bg-card border border-border rounded-lg p-2 shadow-elevated">
                         <p className="text-sm font-medium">{payload[0].payload.hour}</p>
-                        <p className="text-lg font-bold text-primary">{payload[0].value} vues</p>
+                        <p className="text-lg font-bold" style={{ color: HOURLY_BAR_COLOR }}>{payload[0].value} vues</p>
                       </div>
                     );
                   }
@@ -894,7 +896,8 @@ export function PropertyAnalytics({ properties, userId }: PropertyAnalyticsProps
               />
               <Bar 
                 dataKey="views" 
-                fill="hsl(var(--primary) / 0.6)" 
+                fill={HOURLY_BAR_COLOR}
+                fillOpacity={0.6}
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
