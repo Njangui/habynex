@@ -146,35 +146,12 @@ const fallbackProperties = [
   },
 ];
 
-// THEME
-const getInitialTheme = () => {
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("theme");
-    if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "light";
-};
-
 const FeaturedProperties = () => {
   const ITEMS_PER_PAGE = 6;
   const { recommendations, loading, error } = useRecommendations(ITEMS_PER_PAGE);
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [theme, setTheme] = useState(getInitialTheme());
   const { language } = useLanguage();
-
-  const isDark = theme === "dark";
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
-
-  const themeClasses = {
-    bg: isDark ? "bg-slate-950" : "bg-slate-50",
-    text: isDark ? "text-slate-100" : "text-slate-900",
-    textMuted: isDark ? "text-slate-400" : "text-slate-500",
-  };
 
   const labels = {
     all: language === "fr" ? "Tous" : "All",
@@ -212,7 +189,7 @@ const FeaturedProperties = () => {
 
   // RENDU
   return (
-    <section className={cn("py-20", themeClasses.bg)}>
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         
         {/* HEADER */}
@@ -222,20 +199,20 @@ const FeaturedProperties = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-orange-500">{labels.all}</span>
+              <span className="text-sm font-medium text-primary">{labels.all}</span>
             </div>
-            <h2 className={cn("text-3xl sm:text-4xl font-bold mb-2", themeClasses.text)}>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-2 text-foreground">
               {language === "fr" ? "Propriétés en vedette" : "Featured Properties"}
             </h2>
-            <p className={themeClasses.textMuted}>
+            <p className="text-muted-foreground">
               {language === "fr" ? "Découvrez les meilleures offres" : "Discover the best offers"}
             </p>
           </motion.div>
 
           <div className="flex gap-3">
             <Link to="/search">
-              <Button variant="outline" size="sm" className="gap-2 border-orange-200 dark:border-orange-800">
-                <SlidersHorizontal className="w-4 h-4 text-orange-500" />
+              <Button variant="outline" size="sm" className="gap-2 border-primary/20">
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
                 {language === "fr" ? "Filtres" : "Filters"}
               </Button>
             </Link>
@@ -252,7 +229,7 @@ const FeaturedProperties = () => {
                 "px-4 py-2 rounded-full text-sm font-medium transition-all",
                 activeFilter === key
                   ? "bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg"
-                  : cn("hover:bg-orange-100 dark:hover:bg-orange-900/20", themeClasses.text, "bg-slate-100 dark:bg-slate-800")
+                  : "hover:bg-primary/10 text-foreground bg-secondary"
               )}
             >
               {label}
@@ -286,8 +263,8 @@ const FeaturedProperties = () => {
           </div>
         ) : (
           <div className="text-center py-16">
-            <Home className="w-16 h-16 mx-auto mb-4 text-orange-400" />
-            <p className={themeClasses.text}>Aucune propriété trouvée</p>
+            <Home className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <p className="text-foreground">Aucune propriété trouvée</p>
           </div>
         )}
 
@@ -297,17 +274,17 @@ const FeaturedProperties = () => {
             <button
               onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-secondary disabled:opacity-50"
             >
               ←
             </button>
-            <span className={cn("px-4 py-2", themeClasses.text)}>
+            <span className="px-4 py-2 text-foreground">
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-secondary disabled:opacity-50"
             >
               →
             </button>
