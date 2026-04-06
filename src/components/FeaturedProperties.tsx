@@ -12,8 +12,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const FeaturedProperties = () => {
   const ITEMS_PER_PAGE = 6;
+  const API_LIMIT = 50; // Demander plus à l'API pour pouvoir paginer
+  
   const { user } = useAuth();
-  const { data: recommendations, isLoading: loading, error } = useRecommendations(user?.id, ITEMS_PER_PAGE);
+  const { data: recommendations, isLoading: loading, error } = useRecommendations(user?.id, API_LIMIT);
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { language } = useLanguage();
