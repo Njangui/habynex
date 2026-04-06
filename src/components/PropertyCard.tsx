@@ -45,6 +45,8 @@ interface PropertyCardProps {
     rating?: number;
     review_count?: number;
     type?: "rent" | "sale" | "short_stay" | "shared";
+    property_type?: string;
+    listing_type?: string;
     kitchens?: number;
     living_rooms?: number;
     dining_rooms?: number;
@@ -349,6 +351,42 @@ export const PropertyCard = ({
                   )}
                 </>
               )}
+              {property.property_type && (
+                <Badge className="bg-purple-500 text-white border-0 shadow-lg">
+                  {property.property_type === "apartment" && (language === "fr" ? "Appartement" : "Apartment")}
+                  {property.property_type === "house" && (language === "fr" ? "Maison" : "House")}
+                  {property.property_type === "villa" && (language === "fr" ? "Villa" : "Villa")}
+                  {property.property_type === "studio" && (language === "fr" ? "Studio" : "Studio")}
+                  {property.property_type === "duplex" && (language === "fr" ? "Duplex" : "Duplex")}
+                  {property.property_type === "commercial" && (language === "fr" ? "Commercial" : "Commercial")}
+                  {property.property_type === "land" && (language === "fr" ? "Terrain" : "Land")}
+                  {!["apartment", "house", "villa", "studio", "duplex", "commercial", "land"].includes(property.property_type) && property.property_type}
+                </Badge>
+              )}
+              {property.listing_type && (
+                <>
+                  {property.listing_type === "rent" && (
+                    <Badge className="bg-blue-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Location" : "Rent"}
+                    </Badge>
+                  )}
+                  {property.listing_type === "sale" && (
+                    <Badge className="bg-green-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Vente" : "Sale"}
+                    </Badge>
+                  )}
+                  {property.listing_type === "colocation" && (
+                    <Badge className="bg-pink-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Colocation" : "Shared"}
+                    </Badge>
+                  )}
+                  {property.listing_type === "short_term" && (
+                    <Badge className="bg-orange-500 text-white border-0 shadow-lg">
+                      {language === "fr" ? "Court séjour" : "Short Stay"}
+                    </Badge>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Favorite & Share */}
@@ -454,6 +492,66 @@ export const PropertyCard = ({
                     </p>
                     <p className={cn("text-xs", themeClasses.textMuted)}>
                       {language === "fr" ? "Surface" : "Area"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.living_rooms === "number" && property.living_rooms > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                    <span className="text-lg">🛋️</span>
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.living_rooms}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Salon" : "Living Room"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.kitchens === "number" && property.kitchens > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <span className="text-lg">🍳</span>
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.kitchens}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Cuisine" : "Kitchen"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.floor === "number" && property.floor > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <span className="text-lg">🏢</span>
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.floor}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Étage" : "Floor"}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {typeof property.dining_rooms === "number" && property.dining_rooms > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <span className="text-lg">🍽️</span>
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-semibold", themeClasses.text)}>
+                      {property.dining_rooms}
+                    </p>
+                    <p className={cn("text-xs", themeClasses.textMuted)}>
+                      {language === "fr" ? "Salle à manger" : "Dining Room"}
                     </p>
                   </div>
                 </div>
