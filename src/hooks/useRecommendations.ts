@@ -32,12 +32,11 @@ const getLocalCache = (key: string): CacheEntry | null => {
     if (cached) {
       const entry: CacheEntry = JSON.parse(cached);
       if (Date.now() - entry.timestamp < 5 * 60 * 1000) {
-        console.log("✅ [CACHE] Cache local HIT pour:", key);
         return entry;
       }
     }
   } catch (e) {
-    console.error("❌ [CACHE] Erreur lecture cache:", e);
+    console.error("Erreur lecture cache:", e);
   }
   return null;
 };
@@ -51,9 +50,8 @@ const setLocalCache = (key: string, data: any[], userId?: string, prefs?: any) =
       prefsHash: hashString(JSON.stringify(prefs || {}))
     };
     localStorage.setItem(`${CACHE_KEY}_${key}`, JSON.stringify(entry));
-    console.log("✅ [CACHE] Cache local SET pour:", key);
   } catch (e) {
-    console.error("❌ [CACHE] Erreur écriture cache:", e);
+    console.error("Erreur écriture cache:", e);
   }
 };
 
@@ -73,45 +71,49 @@ const clearLocalCache = (userId?: string) => {
       });
     }
   } catch (e) {
-    console.error("❌ [CACHE] Erreur nettoyage cache:", e);
+    console.error("Erreur nettoyage cache:", e);
   }
 };
 
 export const useRecommendations = (userId?: string, limit: number = 9) => {
   const queryClient = useQueryClient();
-  
-  console.log("🟢 [useRecommendations] HOOK APPELÉ - userId:", userId, "limit:", limit);
 
   return useQuery({
     queryKey: ["recommendations", userId, limit],
     queryFn: async () => {
-      console.log("🔵 [useRecommendations] ========== QUERYFN DÉMARRÉE ==========");
-      console.log("🔵 [useRecommendations] userId reçu:", userId);
+      console.log("=== useRecommendations ===");
+      console.log("userId:", userId);
 
       let userProfile = null;
       
       if (userId) {
-        console.log("🟡 [useRecommendations] Récupération profil pour userId:", userId);
         try {
+          // ✅ CORRECTION : Utiliser les bons noms de colonnes
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("city, neighborhood, budget_min, budget_max, preferred_property_type")
+            .select(`
+              city, 
+              preferred_neighborhoods, 
+              budget_min, 
+              budget_max, 
+              preferred_property_types,
+              preferred_listing_types
+            `)
             .eq("user_id", userId)
             .maybeSingle();
           
-          console.log("🟡 [useRecommendations] Résultat profil:", { profile, error: profileError });
+          console.log("Profile brut:", profile);
+          console.log("Erreur:", profileError);
           
           if (profileError) {
-            console.error("❌ [useRecommendations] Erreur Supabase profil:", profileError);
+            console.error("Erreur Supabase:", profileError);
           } else {
             userProfile = profile;
-            console.log("✅ [useRecommendations] Profil trouvé:", profile);
+            console.log("Profile trouvé:", profile);
           }
         } catch (e) {
-          console.error("❌ [useRecommendations] Exception Supabase:", e);
+          console.error("Exception Supabase:", e);
         }
-      } else {
-        console.log("🟡 [useRecommendations] Pas de userId, pas de profil récupéré");
       }
 
       const requestBody: any = { 
@@ -119,24 +121,36 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
         user_id: userId
       };
       
+      // ✅ CORRECTION : Utiliser les bons noms de champs
       if (userProfile?.city) requestBody.city = userProfile.city;
-      if (userProfile?.neighborhood) requestBody.neighborhood = userProfile.neighborhood;
+      
+      // preferred_neighborhoods est un tableau, on prend le premier
+      if (userProfile?.preferred_neighborhoods?.length > 0) {
+        requestBody.neighborhood = userProfile.preferred_neighborhoods[0];
+      }
+      
       if (userProfile?.budget_min != null) requestBody.budget_min = userProfile.budget_min;
       if (userProfile?.budget_max != null) requestBody.budget_max = userProfile.budget_max;
-      if (userProfile?.preferred_property_type) requestBody.property_type = userProfile.preferred_property_type;
+      
+      // preferred_property_types est un tableau, on prend le premier
+      if (userProfile?.preferred_property_types?.length > 0) {
+        requestBody.property_type = userProfile.preferred_property_types[0];
+      }
 
-      console.log("🟡 [useRecommendations] Request body final:", requestBody);
+      // Ajouter le type de listing si disponible
+      if (userProfile?.preferred_listing_types?.length > 0) {
+        requestBody.listing_type = userProfile.preferred_listing_types[0];
+      }
+
+      console.log("Request body:", requestBody);
 
       const cacheKey = getCacheKey(userId, requestBody);
       const localCache = getLocalCache(cacheKey);
       
       if (localCache && Array.isArray(localCache.data)) {
-        console.log("✅ [useRecommendations] Retour cache local");
+        console.log("Utilisation du cache local");
         return localCache.data;
       }
-
-      console.log("🟡 [useRecommendations] Aucun cache, appel API...");
-      console.log("🟡 [useRecommendations] URL:", `${API_URL}/recommendations`);
 
       try {
         const response = await fetch(`${API_URL}/recommendations`, {
@@ -148,19 +162,16 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           body: JSON.stringify(requestBody),
         });
 
-        console.log("🟢 [useRecommendations] Réponse reçue - Status:", response.status);
+        console.log("Response status:", response.status);
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("❌ [useRecommendations] Erreur HTTP:", response.status, errorText);
+          console.error("Error response:", errorText);
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         const result = await response.json();
-        console.log("🟢 [useRecommendations] Données JSON reçues:", result);
-        console.log("🟢 [useRecommendations] Nombre recommandations:", result.recommendations?.length);
-        console.log("🟢 [useRecommendations] is_fallback:", result.is_fallback);
-        console.log("🟢 [useRecommendations] fallback_type:", result.fallback_type);
+        console.log("API result:", result);
 
         const recommendations = (result.recommendations || []).map((prop: any) => ({
           ...prop,
@@ -171,16 +182,12 @@ export const useRecommendations = (userId?: string, limit: number = 9) => {
           fallbackMessage: result.message
         }));
 
-        console.log("✅ [useRecommendations] Recommandations mappées:", recommendations.length);
-
         setLocalCache(cacheKey, recommendations, userId, requestBody);
 
-        console.log("🔵 [useRecommendations] ========== QUERYFN TERMINÉE ==========");
         return recommendations;
         
       } catch (error) {
-        console.error("❌ [useRecommendations] ERREUR dans fetch:", error);
-        console.log("🔵 [useRecommendations] ========== QUERYFN TERMINÉE AVEC ERREUR ==========");
+        console.error("Erreur fetch recommendations:", error);
         return [];
       }
     },
@@ -196,7 +203,6 @@ export const useInvalidateRecommendations = () => {
   const queryClient = useQueryClient();
   
   return (userId?: string) => {
-    console.log("🟡 [useInvalidateRecommendations] Invalidation cache pour:", userId);
     clearLocalCache(userId);
     queryClient.invalidateQueries({ queryKey: ["recommendations"] });
   };
@@ -206,10 +212,8 @@ export const useTrackInteraction = () => {
   const invalidateCache = useInvalidateRecommendations();
 
   const track = async (userId: string, propertyId: string, eventType: 'view' | 'favorite' | 'contact') => {
-    console.log("🟡 [useTrackInteraction] Tracking:", eventType, "user:", userId, "property:", propertyId);
-    
     try {
-      const response = await fetch(`${API_URL}/feedback`, {
+      await fetch(`${API_URL}/feedback`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -222,13 +226,11 @@ export const useTrackInteraction = () => {
         }),
       });
 
-      console.log("🟢 [useTrackInteraction] Réponse:", response.status);
-
       if (eventType === 'favorite' || eventType === 'contact') {
         invalidateCache(userId);
       }
     } catch (e) {
-      console.error("❌ [useTrackInteraction] Erreur:", e);
+      console.error("Tracking error:", e);
     }
   };
 
