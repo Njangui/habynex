@@ -1,5 +1,5 @@
 // src/components/SimilarProperties.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,27 +33,32 @@ interface RawProperty {
   view_count?: number;
 }
 
-// ================= MAPPING =================
-const mapPropertyToCard = (property: RawProperty) => ({
-  id: property.id,
-  title: property.title,
-  price: property.price,
-  priceUnit: property.price_unit,
-  location: `${property.neighborhood ? property.neighborhood + ", " : ""}${property.city}`,
-  image: property.images?.[0] || "/placeholder.jpg",
-  bedrooms: property.bedrooms ?? 0,
-  bathrooms: property.bathrooms ?? 0,
-  area: property.area ?? 0,
-  type: property.property_type,
-  listingType: property.listing_type || 'sale',
-  isVerified: property.is_verified || property.is_agent_verified,
-  livingRooms: property.living_rooms ?? 0,
-  kitchens: property.kitchens ?? 0,
-  diningRooms: property.dining_rooms ?? 0,
-  laundryRooms: property.laundry_rooms ?? 0,
-  totalFloors: property.total_floors,
-  isFurnished: property.is_furnished,
-});
+// ================= MAPPING avec protection =================
+const mapPropertyToCard = (property: RawProperty | null | undefined) => {
+  // ✅ PROTECTION : retourner null si property invalide
+  if (!property) return null;
+  
+  return {
+    id: property.id || '',
+    title: property.title || 'Sans titre',
+    price: property.price || 0,
+    priceUnit: property.price_unit || 'FCFA',
+    location: `${property.neighborhood ? property.neighborhood + ", " : ""}${property.city || ''}`,
+    image: property.images?.[0] || "/placeholder.jpg",
+    bedrooms: property.bedrooms ?? 0,
+    bathrooms: property.bathrooms ?? 0,
+    area: property.area ?? 0,
+    type: property.property_type || 'unknown',
+    listingType: property.listing_type || 'sale',
+    isVerified: property.is_verified || property.is_agent_verified || false,
+    livingRooms: property.living_rooms ?? 0,
+    kitchens: property.kitchens ?? 0,
+    diningRooms: property.dining_rooms ?? 0,
+    laundryRooms: property.laundry_rooms ?? 0,
+    totalFloors: property.total_floors,
+    isFurnished: property.is_furnished,
+  };
+};
 
 // ================= COMPONENT =================
 interface SimilarPropertiesProps {
@@ -69,14 +74,27 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(limit);
-  const [currentProperty, setCurrentProperty] = useState<RawProperty | null>(null);
 
-  // Récupérer la propriété actuelle d'abord
-  const fetchCurrentProperty = useCallback(async () => {
-    if (!currentPropertyId) return null;
-    
+  // ✅ PROTECTION : s'assurer que currentPropertyId est valide
+  useEffect(() => {
+    if (!currentPropertyId || typeof currentPropertyId !== 'string') {
+      setError(language === "fr" ? "ID propriété invalide" : "Invalid property ID");
+      setLoading(false);
+      return;
+    }
+    fetchSimilarProperties();
+  }, [currentPropertyId, limit, language]);
+
+  const fetchSimilarProperties = useCallback(async () => {
+    if (!currentPropertyId) return;
+
+    setLoading(true);
+    setError(null);
+    setProperties([]);
+
     try {
-      const { data, error } = await supabase
+      // Récupérer la propriété actuelle
+      const { data: current, error: currentError } = await supabase
         .from("properties")
         .select(`
           id, title, price, price_unit, city, neighborhood, property_type,
@@ -88,75 +106,14 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
         .eq("id", currentPropertyId)
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      console.error("Erreur récupération propriété actuelle:", err);
-      return null;
-    }
-  }, [currentPropertyId]);
-
-  // Algorithme de scoring pour similarité
-  const calculateSimilarityScore = (prop: RawProperty, current: RawProperty): number => {
-    let score = 0;
-    
-    // Même ville: +40 points
-    if (prop.city && current.city && 
-        prop.city.toLowerCase() === current.city.toLowerCase()) {
-      score += 40;
-    }
-    
-    // Même quartier: +30 points
-    if (prop.neighborhood && current.neighborhood &&
-        prop.neighborhood.toLowerCase() === current.neighborhood.toLowerCase()) {
-      score += 30;
-    }
-    
-    // Même type de propriété: +20 points
-    if (prop.property_type === current.property_type) {
-      score += 20;
-    }
-    
-    // Prix similaire (±20%): +10 points
-    const priceDiff = Math.abs(prop.price - current.price) / current.price;
-    if (priceDiff < 0.2) {
-      score += 10;
-    } else if (priceDiff < 0.5) {
-      score += 5;
-    }
-    
-    // Même nombre de chambres: +5 points
-    if (prop.bedrooms && current.bedrooms && 
-        Math.abs(prop.bedrooms - current.bedrooms) <= 1) {
-      score += 5;
-    }
-    
-    return score;
-  };
-
-  const fetchSimilarProperties = useCallback(async () => {
-    if (!currentPropertyId) {
-      setError("ID propriété manquant");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Étape 1: Récupérer la propriété actuelle
-      const current = await fetchCurrentProperty();
-      if (!current) {
-        throw new Error("Propriété actuelle non trouvée");
+      if (currentError || !current) {
+        throw new Error(language === "fr" ? "Propriété non trouvée" : "Property not found");
       }
-      
-      setCurrentProperty(current);
+
       console.log("Propriété actuelle:", current);
 
-      // Étape 2: Essayer d'abord l'API de recommandations
+      // Essayer l'API de recommandations
       let similarProperties: RawProperty[] = [];
-      let usedApi = false;
       
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://habynex-recommendations-systeme-v1.onrender.com';
@@ -172,29 +129,25 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
             property_type: current.property_type,
             budget_min: current.price * 0.8,
             budget_max: current.price * 1.2,
-            limit: limit * 2
+            limit: limit * 3
           }),
         });
 
         if (response.ok) {
           const result = await response.json();
-          if (result.recommendations && result.recommendations.length > 0) {
-            // Filtrer la propriété actuelle
+          // ✅ PROTECTION : vérifier que result.recommendations est un tableau
+          if (result?.recommendations && Array.isArray(result.recommendations)) {
             similarProperties = result.recommendations
-              .filter((p: any) => p.id !== currentPropertyId)
+              .filter((p: any) => p && p.id && p.id !== currentPropertyId)
               .slice(0, limit * 2);
-            usedApi = true;
-            console.log("Utilisation des recommandations API:", similarProperties.length);
           }
         }
       } catch (apiError) {
-        console.warn("API recommandations indisponible, fallback DB:", apiError);
+        console.warn("API recommandations indisponible:", apiError);
       }
 
-      // Étape 3: Si API échoue ou vide, fallback DB
-      if (!usedApi || similarProperties.length === 0) {
-        console.log("Fallback base de données pour propriétés similaires");
-        
+      // Fallback DB si API vide
+      if (similarProperties.length === 0) {
         const { data: dbProperties, error: dbError } = await supabase
           .from("properties")
           .select(`
@@ -212,66 +165,80 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
 
         if (dbError) throw dbError;
 
-        if (dbProperties && dbProperties.length > 0) {
-          // Calculer le score de similarité pour chaque propriété
-          const scored = dbProperties.map(prop => ({
-            ...prop,
-            similarityScore: calculateSimilarityScore(prop, current)
-          }));
-
-          // Trier par score décroissant
-          scored.sort((a, b) => b.similarityScore - a.similarityScore);
-
-          // Prendre les meilleures
-          similarProperties = scored
-            .filter(p => p.similarityScore > 30) // Minimum 30 points de similarité
+        if (dbProperties && Array.isArray(dbProperties)) {
+          // Scoring de similarité
+          const scored = dbProperties
+            .filter(p => p && p.id) // ✅ PROTECTION
+            .map(prop => ({
+              ...prop,
+              similarityScore: calculateSimilarityScore(prop, current)
+            }))
+            .sort((a, b) => b.similarityScore - a.similarityScore)
+            .filter(p => p.similarityScore > 30)
             .slice(0, limit * 2);
-          
-          console.log("Propriétés similaires trouvées (DB):", similarProperties.length);
+
+          similarProperties = scored;
         }
       }
 
-      if (similarProperties.length === 0) {
-        // Dernier recours: propriétés récentes de la même ville
-        const { data: recentProperties } = await supabase
-          .from("properties")
-          .select(`
-            id, title, price, price_unit, city, neighborhood,
-            bedrooms, bathrooms, area, images, property_type, listing_type,
-            is_verified, is_agent_verified,
-            living_rooms, kitchens, dining_rooms, laundry_rooms,
-            total_floors, is_furnished, created_at, view_count
-          `)
-          .neq("id", currentPropertyId)
-          .eq("is_available", true)
-          .eq("is_published", true)
-          .eq("city", current.city)
-          .order("created_at", { ascending: false })
-          .limit(limit);
+      // ✅ PROTECTION : filtrer les nulls/undefined
+      const validProperties = similarProperties.filter(p => p && typeof p === 'object' && p.id);
+      setProperties(validProperties);
 
-        if (recentProperties) {
-          similarProperties = recentProperties;
-          console.log("Fallback propriétés récentes:", similarProperties.length);
-        }
-      }
-
-      setProperties(similarProperties);
-      
-      if (similarProperties.length === 0) {
+      if (validProperties.length === 0) {
         setError(language === "fr" ? "Aucune propriété similaire trouvée" : "No similar properties found");
       }
 
     } catch (err: any) {
       console.error("SIMILAR ERROR:", err);
-      setError(language === "fr" ? "Impossible de charger les recommandations" : "Failed to load recommendations");
+      setError(err.message || (language === "fr" ? "Erreur de chargement" : "Loading error"));
+      setProperties([]);
     } finally {
       setLoading(false);
     }
-  }, [currentPropertyId, limit, language, fetchCurrentProperty]);
+  }, [currentPropertyId, limit, language]);
 
-  useEffect(() => {
-    fetchSimilarProperties();
-  }, [fetchSimilarProperties]);
+  // Algorithme de scoring
+  const calculateSimilarityScore = (prop: RawProperty, current: RawProperty): number => {
+    if (!prop || !current) return 0;
+    
+    let score = 0;
+    
+    if (prop.city && current.city && 
+        prop.city.toLowerCase() === current.city.toLowerCase()) {
+      score += 40;
+    }
+    
+    if (prop.neighborhood && current.neighborhood &&
+        prop.neighborhood.toLowerCase() === current.neighborhood.toLowerCase()) {
+      score += 30;
+    }
+    
+    if (prop.property_type === current.property_type) {
+      score += 20;
+    }
+    
+    const priceDiff = Math.abs(prop.price - current.price) / (current.price || 1);
+    if (priceDiff < 0.2) score += 10;
+    else if (priceDiff < 0.5) score += 5;
+    
+    if (prop.bedrooms && current.bedrooms && 
+        Math.abs(prop.bedrooms - current.bedrooms) <= 1) {
+      score += 5;
+    }
+    
+    return score;
+  };
+
+  // ✅ PROTECTION : useMemo pour les données affichées
+  const displayed = useMemo(() => {
+    return properties
+      .slice(0, visibleCount)
+      .map(mapPropertyToCard)
+      .filter(Boolean); // Enlever les null
+  }, [properties, visibleCount]);
+
+  const hasMore = properties.length > visibleCount;
 
   // ================= RENDER =================
   if (loading) {
@@ -294,7 +261,7 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
           variant="outline" 
           size="sm" 
           className="mt-4"
-          onClick={fetchSimilarProperties}
+          onClick={() => fetchSimilarProperties()}
         >
           {language === "fr" ? "Réessayer" : "Retry"}
         </Button>
@@ -302,7 +269,7 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
     );
   }
 
-  if (properties.length === 0) {
+  if (displayed.length === 0) {
     return (
       <div className="py-6 text-center text-muted-foreground">
         <Home className="w-12 h-12 mx-auto mb-2" />
@@ -310,9 +277,6 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
       </div>
     );
   }
-
-  const displayed = properties.slice(0, visibleCount).map(mapPropertyToCard);
-  const hasMore = properties.length > visibleCount;
 
   return (
     <div className="py-10">
@@ -329,7 +293,7 @@ export const SimilarProperties = ({ currentPropertyId, limit = 6 }: SimilarPrope
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {displayed.map((property) => (
-          <PropertyCard key={property.id} {...property} />
+          property && <PropertyCard key={property.id} {...property} />
         ))}
       </div>
 
