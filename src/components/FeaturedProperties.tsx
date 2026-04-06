@@ -1,10 +1,11 @@
+// src/components/FeaturedProperties.tsx
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import PropertyCard from "./PropertyCard";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, SlidersHorizontal, Sparkles, Home } from "lucide-react";
 import { useRecommendations } from "@/hooks/useRecommendations";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,32 +26,47 @@ const FeaturedProperties = () => {
     short_term: language === "fr" ? "Court séjour" : "Short term",
   };
 
-  // DONNÉES À AFFICHER
-  const displayData = recommendations;
+  // ✅ PROTECTION : s'assurer que recommendations est toujours un tableau
+  const safeRecommendations = useMemo(() => {
+    if (!recommendations) return [];
+    if (!Array.isArray(recommendations)) {
+      console.error("recommendations n'est pas un tableau:", recommendations);
+      return [];
+    }
+    return recommendations;
+  }, [recommendations]);
 
   console.log("=== FeaturedProperties ===");
   console.log("User:", user?.id);
   console.log("Loading:", loading);
   console.log("Error:", error);
-  console.log("Recommendations count:", recommendations.length);
-  console.log("First item:", recommendations[0]);
+  console.log("Safe recommendations count:", safeRecommendations.length);
 
-  // FILTRAGE
-  const filtered = activeFilter === "all" 
-    ? displayData 
-    : displayData.filter((p: any) => p.listing_type === activeFilter);
+  // ✅ FILTRAGE avec protection
+  const filtered = useMemo(() => {
+    if (activeFilter === "all") return safeRecommendations;
+    return safeRecommendations.filter((p: any) => p && p.listing_type === activeFilter);
+  }, [safeRecommendations, activeFilter]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  
+  const paginated = useMemo(() => {
+    return filtered.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    );
+  }, [filtered, currentPage]);
 
   useEffect(() => setCurrentPage(1), [activeFilter]);
 
-  // LOGIQUE DES MESSAGES
-  const shouldShowGenericMessage = recommendations.length > 0 && recommendations.some(r => r.isGenericFallback);
-  const shouldShowSimilarMessage = recommendations.length > 0 && recommendations.some(r => r.isSimilarFallback);
+  // LOGIQUE DES MESSAGES avec protection
+  const shouldShowGenericMessage = useMemo(() => {
+    return safeRecommendations.length > 0 && safeRecommendations.some(r => r?.isGenericFallback);
+  }, [safeRecommendations]);
+
+  const shouldShowSimilarMessage = useMemo(() => {
+    return safeRecommendations.length > 0 && safeRecommendations.some(r => r?.isSimilarFallback);
+  }, [safeRecommendations]);
 
   // RENDU
   return (
@@ -144,18 +160,19 @@ const FeaturedProperties = () => {
           </div>
         )}
 
-        {/* GRID */}
+        {/* GRID avec protection */}
         {!loading && !error && paginated.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginated.map((property, index) => (
               <motion.div
-                key={property.id}
+                key={property?.id || `prop-${index}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
               >
-                <PropertyCard property={property} variant="featured" />
+                {/* ✅ Protection : ne pas rendre si property est invalide */}
+                {property && <PropertyCard property={property} variant="featured" />}
               </motion.div>
             ))}
           </div>
@@ -171,8 +188,8 @@ const FeaturedProperties = () => {
           </div>
         )}
 
-        {/* PAGINATION */}
-        {totalPages > 1 && !loading && (
+        {/* PAGINATION avec protection */}
+        {totalPages > 1 && !loading && paginated.length > 0 && (
           <div className="flex justify-center mt-10 gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
