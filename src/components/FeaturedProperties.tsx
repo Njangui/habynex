@@ -48,7 +48,7 @@ const FeaturedProperties = () => {
     return safeRecommendations.filter((p: any) => p && p.listing_type === activeFilter);
   }, [safeRecommendations, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   
   const paginated = useMemo(() => {
     return filtered.slice(
@@ -188,8 +188,8 @@ const FeaturedProperties = () => {
           </div>
         )}
 
-        {/* PAGINATION avec protection */}
-        {totalPages > 1 && !loading && paginated.length > 0 && (
+        {/* PAGINATION */}
+        {totalPages > 1 && !loading && !error && (
           <div className="flex justify-center mt-10 gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
