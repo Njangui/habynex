@@ -19,7 +19,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import NumberStepper from "@/components/NumberStepper";
 import { 
   User, 
-  Mail, 
   Phone, 
   MapPin, 
   Camera, 
@@ -29,31 +28,42 @@ import {
   Save,
   ArrowLeft,
   Upload,
-  Shield,
-  ChevronRight,
   Wallet,
-  Heart,
-  Settings,
-  MessageSquare,
-  Building2,
-  Trees,
-  Sofa,
-  Utensils,
-  DoorOpen,
-  WashingMachine,
-  Sparkles,
-  Wifi,
-  Car,
-  Waves,
-  Zap,
-  Droplet,
-  Wind,
-  BedDouble,
   Search,
-  Filter,
   Calendar,
   MapPinned,
-  Bell
+  Bell,
+  Info,
+  Lightbulb,
+  Star,
+  Check,
+  Building,
+  Bed,
+  Bath,
+  Car,
+  Wifi,
+  Zap,
+  Droplet,
+  Shield,
+  Wind,
+  Sofa,
+  Trees,
+  Waves,
+  Dumbbell,
+  Store,
+  Warehouse,
+  Factory,
+  Scissors,
+  Coffee,
+  UtensilsCrossed,
+  Wine,
+  BedDouble,
+  Stethoscope,
+  Users,
+  Presentation,
+  Wrench,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import { compressImage } from "@/utils/compressImage";
 
@@ -80,12 +90,15 @@ interface Profile {
   // Champs additionnels pour affiner les recommandations
   bedrooms: number | null;
   bathrooms: number | null;
-  is_furnished: boolean | null;
   needs_parking: boolean | null;
   needs_internet: boolean | null;
   needs_generator: boolean | null;
   needs_water_tank: boolean | null;
   needs_security: boolean | null;
+  needs_furnished: boolean | null;
+  needs_air_conditioning: boolean | null;
+  needs_pool: boolean | null;
+  needs_gym: boolean | null;
 }
 
 const defaultAvatars = [
@@ -131,49 +144,77 @@ const ProfilePage = () => {
   // Critères additionnels
   const [bedrooms, setBedrooms] = useState<number | null>(null);
   const [bathrooms, setBathrooms] = useState<number | null>(null);
-  const [isFurnished, setIsFurnished] = useState(false);
   const [needsParking, setNeedsParking] = useState(false);
   const [needsInternet, setNeedsInternet] = useState(false);
   const [needsGenerator, setNeedsGenerator] = useState(false);
   const [needsWaterTank, setNeedsWaterTank] = useState(false);
   const [needsSecurity, setNeedsSecurity] = useState(false);
+  const [needsFurnished, setNeedsFurnished] = useState(false);
+  const [needsAirConditioning, setNeedsAirConditioning] = useState(false);
+  const [needsPool, setNeedsPool] = useState(false);
+  const [needsGym, setNeedsGym] = useState(false);
 
-  // Options traduites (inspirées de create_listing)
+  // Options traduites (élargies)
   const PROPERTY_TYPES = [
-    { value: "studio", label: t("property.studio"), icon: "🏢", category: "residential" },
-    { value: "room", label: t("property.room"), icon: "🛏️", category: "residential" },
-    { value: "apartment", label: t("property.apartment"), icon: "🏠", category: "residential" },
-    { value: "duplex", label: language === "fr" ? "Duplex" : "Duplex", icon: "🏘️", category: "residential" },
-    { value: "house", label: t("property.house"), icon: "🏡", category: "residential" },
-    { value: "villa", label: t("property.villa"), icon: "🏰", category: "residential" },
-    { value: "penthouse", label: "Penthouse", icon: "🏙️", category: "residential" },
-    { value: "furnished_apartment", label: "Appartement meublé", icon: "🛋️", category: "residential" },
-    { value: "shared_room", label: "Chambre partagée", icon: "👥", category: "residential" },
+    // Résidentiel
+    { value: "studio", label: language === "fr" ? "Studio" : "Studio", icon: "🏢", category: "residential", desc: language === "fr" ? "Idéal pour étudiant ou célibataire" : "Ideal for student or single" },
+    { value: "room", label: language === "fr" ? "Chambre" : "Room", icon: "🛏️", category: "residential", desc: language === "fr" ? "Chambre individuelle" : "Individual room" },
+    { value: "apartment", label: language === "fr" ? "Appartement" : "Apartment", icon: "🏠", category: "residential", desc: language === "fr" ? "Logement familial classique" : "Classic family home" },
+    { value: "duplex", label: language === "fr" ? "Duplex" : "Duplex", icon: "🏘️", category: "residential", desc: language === "fr" ? "Deux niveaux d'espace" : "Two levels of space" },
+    { value: "house", label: language === "fr" ? "Maison" : "House", icon: "🏡", category: "residential", desc: language === "fr" ? "Maison individuelle" : "Detached house" },
+    { value: "villa", label: language === "fr" ? "Villa" : "Villa", icon: "🏰", category: "residential", desc: language === "fr" ? "Habitation de standing" : "Premium residence" },
+    { value: "penthouse", label: "Penthouse", icon: "🏙️", category: "residential", desc: language === "fr" ? "Appartement luxe dernier étage" : "Luxury top floor apartment" },
+    { value: "furnished_apartment", label: language === "fr" ? "Appartement meublé" : "Furnished apartment", icon: "🛋️", category: "residential", desc: language === "fr" ? "Prêt à emménager" : "Ready to move in" },
+    { value: "shared_room", label: language === "fr" ? "Chambre partagée" : "Shared room", icon: "👥", category: "residential", desc: language === "fr" ? "Colocation économique" : "Budget shared housing" },
+    { value: "loft", label: "Loft", icon: "🏭", category: "residential", desc: language === "fr" ? "Espace ouvert moderne" : "Modern open space" },
+    { value: "guesthouse", label: language === "fr" ? "Maison d'hôtes" : "Guesthouse", icon: "🏨", category: "residential", desc: language === "fr" ? "Pour séjour temporaire" : "For temporary stay" },
+    // Terrain
+    { value: "land", label: language === "fr" ? "Terrain" : "Land", icon: "🌳", category: "land", desc: language === "fr" ? "Espace à bâtir" : "Space to build" },
+    { value: "agricultural_land", label: language === "fr" ? "Terrain agricole" : "Agricultural land", icon: "🌾", category: "land", desc: language === "fr" ? "Pour culture ou élevage" : "For farming or breeding" },
+    // Commercial
+    { value: "shop", label: language === "fr" ? "Boutique" : "Shop", icon: "🛍️", category: "commercial", desc: language === "fr" ? "Commerce de détail" : "Retail store" },
+    { value: "store", label: language === "fr" ? "Magasin" : "Store", icon: "🏪", category: "commercial", desc: language === "fr" ? "Grande surface commerciale" : "Large commercial space" },
+    { value: "commercial_space", label: language === "fr" ? "Espace commercial" : "Commercial space", icon: "🏢", category: "commercial", desc: language === "fr" ? "Local professionnel" : "Professional premises" },
+    { value: "warehouse", label: language === "fr" ? "Entrepôt" : "Warehouse", icon: "🏭", category: "commercial", desc: language === "fr" ? "Stockage et logistique" : "Storage and logistics" },
+    { value: "office", label: language === "fr" ? "Bureau" : "Office", icon: "💼", category: "commercial", desc: language === "fr" ? "Espace de travail" : "Workspace" },
+    { value: "building", label: language === "fr" ? "Immeuble" : "Building", icon: "🏗️", category: "commercial", desc: language === "fr" ? "Bâtiment complet" : "Complete building" },
+    { value: "beauty_salon", label: language === "fr" ? "Institut de beauté" : "Beauty salon", icon: "✨", category: "commercial", desc: language === "fr" ? "Salon esthétique" : "Beauty institute" },
+    { value: "hair_salon", label: language === "fr" ? "Salon de coiffure" : "Hair salon", icon: "💇", category: "commercial", desc: language === "fr" ? "Coiffure et soins" : "Hairdressing" },
+    { value: "restaurant", label: language === "fr" ? "Restaurant" : "Restaurant", icon: "🍽️", category: "commercial", desc: language === "fr" ? "Restauration" : "Food service" },
+    { value: "cafe", label: language === "fr" ? "Café" : "Café", icon: "☕", category: "commercial", desc: language === "fr" ? "Cafétéria ou salon de thé" : "Coffee shop or tearoom" },
+    { value: "bar", label: language === "fr" ? "Bar" : "Bar", icon: "🍸", category: "commercial", desc: language === "fr" ? "Bar ou pub" : "Bar or pub" },
+    { value: "hotel", label: language === "fr" ? "Hôtel" : "Hotel", icon: "🏨", category: "commercial", desc: language === "fr" ? "Hébergement hôtelier" : "Hotel accommodation" },
+    { value: "pharmacy", label: language === "fr" ? "Pharmacie" : "Pharmacy", icon: "💊", category: "commercial", desc: language === "fr" ? "Officine pharmaceutique" : "Pharmacy" },
+    { value: "clinic", label: language === "fr" ? "Clinique" : "Clinic", icon: "🏥", category: "commercial", desc: language === "fr" ? "Centre de santé" : "Health center" },
+    { value: "gym", label: language === "fr" ? "Salle de sport" : "Gym", icon: "💪", category: "commercial", desc: language === "fr" ? "Fitness et musculation" : "Fitness and bodybuilding" },
+    { value: "coworking", label: language === "fr" ? "Espace coworking" : "Coworking space", icon: "👥", category: "commercial", desc: language === "fr" ? "Travail partagé" : "Shared workspace" },
+    { value: "showroom", label: language === "fr" ? "Showroom" : "Showroom", icon: "🎨", category: "commercial", desc: language === "fr" ? "Espace d'exposition" : "Exhibition space" },
+    { value: "workshop", label: language === "fr" ? "Atelier" : "Workshop", icon: "🔧", category: "commercial", desc: language === "fr" ? "Atelier artisanal" : "Craft workshop" },
+    { value: "factory", label: language === "fr" ? "Usine" : "Factory", icon: "🏭", category: "commercial", desc: language === "fr" ? "Site industriel" : "Industrial site" },
+    { value: "gas_station", label: language === "fr" ? "Station-service" : "Gas station", icon: "⛽", category: "commercial", desc: language === "fr" ? "Station essence" : "Petrol station" },
   ];
 
   const LISTING_TYPES = [
-    { value: "rent", label: t("listing.rent"), description: language === "fr" ? "Location mensuelle" : "Monthly rent", icon: Home },
-    { value: "sale", label: t("listing.sale"), description: language === "fr" ? "Vente immobilière" : "Real estate sale", icon: Building2 },
-    { value: "colocation", label: t("listing.colocation"), description: language === "fr" ? "Partage de logement" : "Shared housing", icon: User },
-    { value: "short_term", label: t("listing.shortTerm"), description: language === "fr" ? "Location journalière" : "Daily rental", icon: Calendar },
+    { value: "rent", label: language === "fr" ? "Location" : "Rent", description: language === "fr" ? "Paiement mensuel régulier" : "Regular monthly payment", icon: Home, color: "from-emerald-500 to-teal-500" },
+    { value: "sale", label: language === "fr" ? "Achat" : "Buy", description: language === "fr" ? "Propriété à acquérir" : "Property to acquire", icon: CheckCircle, color: "from-lime-500 to-green-500" },
+    { value: "colocation", label: language === "fr" ? "Colocation" : "Roommate", description: language === "fr" ? "Partager avec d'autres" : "Share with others", icon: Users, color: "from-yellow-400 to-amber-500" },
+    { value: "short_term", label: language === "fr" ? "Courte durée" : "Short term", description: language === "fr" ? "Séjour temporaire" : "Temporary stay", icon: Calendar, color: "from-orange-400 to-amber-500" },
   ];
 
   const MOVE_TIMELINES = [
-    { value: "immediate", label: t("profile.immediate"), color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    { value: "within_month", label: t("profile.withinMonth"), color: "bg-green-100 text-green-700 border-green-200" },
-    { value: "within_3months", label: t("profile.within3Months"), color: "bg-lime-100 text-lime-700 border-lime-200" },
-    { value: "flexible", label: t("profile.flexible"), color: "bg-teal-100 text-teal-700 border-teal-200" },
+    { value: "immediate", label: language === "fr" ? "Immédiatement" : "Immediately", color: "bg-lime-100 text-lime-800 border-lime-300", icon: "⚡" },
+    { value: "within_week", label: language === "fr" ? "Cette semaine" : "This week", color: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: "📅" },
+    { value: "within_month", label: language === "fr" ? "Ce mois-ci" : "This month", color: "bg-teal-100 text-teal-800 border-teal-300", icon: "📆" },
+    { value: "within_3months", label: language === "fr" ? "Dans 3 mois" : "Within 3 months", color: "bg-cyan-100 text-cyan-800 border-cyan-300", icon: "🗓️" },
+    { value: "flexible", label: language === "fr" ? "Flexible" : "Flexible", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: "🤝" },
   ];
 
-  const AMENITIES = [
-    { value: "wifi", label: t("amenity.wifi"), icon: Wifi },
-    { value: "parking", label: t("amenity.parking"), icon: Car },
-    { value: "pool", label: t("amenity.pool"), icon: Waves },
-    { value: "generator", label: t("amenity.generator"), icon: Zap },
-    { value: "water_tank", label: t("amenity.waterTank"), icon: Droplet },
-    { value: "security", label: t("amenity.security"), icon: Shield },
-    { value: "air_conditioning", label: t("amenity.airConditioning"), icon: Wind },
-    { value: "furnished", label: t("amenity.furnished"), icon: Sofa },
+  const COMPOSITION_OPTIONS = [
+    { value: "studio", label: language === "fr" ? "Studio (1 pièce)" : "Studio (1 room)", icon: "🏢", desc: language === "fr" ? "Epace unique" : "Single space" },
+    { value: "t2", label: "T2 (2 pièces)", icon: "🏠", desc: language === "fr" ? "1 chambre + salon" : "1 bedroom + living room" },
+    { value: "t3", label: "T3 (3 pièces)", icon: "🏡", desc: language === "fr" ? "2 chambres + salon" : "2 bedrooms + living room" },
+    { value: "t4", label: "T4 (4 pièces)", icon: "🏘️", desc: language === "fr" ? "3 chambres + salon" : "3 bedrooms + living room" },
+    { value: "t5", label: "T5+ (5+ pièces)", icon: "🏰", desc: language === "fr" ? "Grande famille" : "Large family" },
   ];
 
   useEffect(() => {
@@ -218,15 +259,19 @@ const ProfilePage = () => {
         setPreferredListingType(data.preferred_listing_type || "rent");
         setMoveInTimeline(data.move_in_timeline || "");
         
-        // Critères additionnels
+        // Critères additionnels (avec gestion des noms alternatifs)
         setBedrooms(data.bedrooms);
         setBathrooms(data.bathrooms);
-        setIsFurnished(data.is_furnished || false);
         setNeedsParking(data.needs_parking || false);
         setNeedsInternet(data.needs_internet || false);
         setNeedsGenerator(data.needs_generator || false);
         setNeedsWaterTank(data.needs_water_tank || false);
         setNeedsSecurity(data.needs_security || false);
+        // Gestion des champs qui peuvent avoir des noms différents
+        setNeedsFurnished(data.needs_furnished || data.is_furnished || false);
+        setNeedsAirConditioning(data.needs_air_conditioning || false);
+        setNeedsPool(data.needs_pool || false);
+        setNeedsGym(data.needs_gym || false);
       }
     } catch (error: any) {
       toast({
@@ -339,12 +384,15 @@ const ProfilePage = () => {
         // Critères additionnels
         bedrooms,
         bathrooms,
-        is_furnished: isFurnished,
         needs_parking: needsParking,
         needs_internet: needsInternet,
         needs_generator: needsGenerator,
         needs_water_tank: needsWaterTank,
         needs_security: needsSecurity,
+        needs_furnished: needsFurnished,
+        needs_air_conditioning: needsAirConditioning,
+        needs_pool: needsPool,
+        needs_gym: needsGym,
         updated_at: new Date().toISOString(),
       };
 
@@ -357,7 +405,7 @@ const ProfilePage = () => {
 
       toast({
         title: t("profile.updated"),
-        description: language === "fr" ? "Vos préférences de recherche ont été enregistrées" : "Your search preferences have been saved",
+        description: language === "fr" ? "Vos préférences de recherche ont été enregistrées avec succès !" : "Your search preferences have been saved successfully!",
       });
     } catch (error: any) {
       toast({
@@ -372,7 +420,7 @@ const ProfilePage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-emerald-50/30 to-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
       </div>
     );
@@ -381,7 +429,7 @@ const ProfilePage = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 to-background">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50/30 via-lime-50/20 to-background">
       <Navbar />
       
       <main className="pt-24 pb-16">
@@ -403,8 +451,8 @@ const ProfilePage = () => {
             className="bg-white rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden"
           >
             {/* Header avec gradient vert */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 p-8 text-white relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-20"></div>
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-lime-500 p-8 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-30"></div>
               
               <div className="flex items-center gap-6 relative z-10">
                 <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
@@ -420,7 +468,7 @@ const ProfilePage = () => {
                       <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                         <Camera className="w-8 h-8 text-white" />
                       </div>
-                      <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-white text-emerald-600 flex items-center justify-center shadow-lg">
+                      <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-lime-400 text-emerald-800 flex items-center justify-center shadow-lg">
                         <Camera className="w-5 h-5" />
                       </div>
                     </div>
@@ -491,12 +539,24 @@ const ProfilePage = () => {
               </div>
             </div>
 
+            {/* Message d'introduction */}
+            <div className="bg-gradient-to-r from-lime-50 via-emerald-50 to-teal-50 p-4 border-b border-emerald-100">
+              <div className="flex items-start gap-3">
+                <Lightbulb className="w-5 h-5 text-lime-600 mt-0.5" />
+                <p className="text-sm text-emerald-800">
+                  {language === "fr" 
+                    ? "💡 Plus vous renseignez de critères, plus nos recommandations seront précises et pertinentes pour trouver votre logement idéal !"
+                    : "💡 The more criteria you provide, the more accurate and relevant our recommendations will be to find your ideal home!"}
+                </p>
+              </div>
+            </div>
+
             {/* Tabs */}
             <Tabs defaultValue="personal" className="p-8">
               <TabsList className="grid w-full grid-cols-2 mb-8 bg-emerald-50/50 p-1.5 rounded-xl">
                 <TabsTrigger value="personal" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm">
                   <User className="w-4 h-4" />
-                  {t("profile.personalInfo")}
+                  {language === "fr" ? "Informations personnelles" : "Personal information"}
                 </TabsTrigger>
                 <TabsTrigger value="preferences" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm">
                   <Search className="w-4 h-4" />
@@ -538,33 +598,40 @@ const ProfilePage = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="whatsapp" className="text-emerald-800 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-green-500" />
+                        <MessageSquare className="w-4 h-4 text-lime-500" />
                         WhatsApp
+                        <span className="text-xs text-emerald-500 font-normal">({language === "fr" ? "recommandé" : "recommended"})</span>
                       </Label>
                       <div className="relative">
-                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" />
+                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-lime-400" />
                         <Input
                           id="whatsapp"
                           value={whatsappNumber}
                           onChange={(e) => setWhatsappNumber(e.target.value)}
                           placeholder="+237 6 00 00 00 00"
-                          className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
+                          className="pl-10 border-emerald-100 focus:border-lime-400 focus:ring-lime-200"
                         />
                       </div>
+                      <p className="text-xs text-emerald-600">
+                        {language === "fr" ? "Pour être contacté rapidement par les propriétaires" : "To be contacted quickly by owners"}
+                      </p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="city" className="text-emerald-800">{t("profile.city")}</Label>
+                      <Label htmlFor="city" className="text-emerald-800">{language === "fr" ? "Ville de recherche" : "Search city"}</Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
                         <Input
                           id="city"
                           value={city}
                           onChange={(e) => setCity(e.target.value)}
-                          placeholder="Yaoundé, Douala..."
+                          placeholder="Yaoundé, Douala, Bafoussam..."
                           className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
                         />
                       </div>
+                      <p className="text-xs text-emerald-600">
+                        {language === "fr" ? "Indiquez la ville où vous souhaitez emménager" : "Indicate the city where you want to move"}
+                      </p>
                     </div>
                   </div>
 
@@ -574,85 +641,166 @@ const ProfilePage = () => {
                       id="bio"
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
-                      placeholder={t("profile.aboutMePlaceholder")}
+                      placeholder={language === "fr" ? "Présentez-vous brièvement aux propriétaires..." : "Introduce yourself briefly to owners..."}
                       rows={4}
                       className="border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200 resize-none"
                     />
                   </div>
                 </TabsContent>
 
-                {/* Search Preferences Tab - Optimisé pour l'algorithme */}
+                {/* Search Preferences Tab */}
                 <TabsContent value="preferences" className="space-y-8">
                   
                   {/* Section Budget */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100">
+                  <div className="bg-gradient-to-br from-lime-50 via-emerald-50 to-teal-50 rounded-2xl p-6 border border-lime-200">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
-                        <Wallet className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 text-white flex items-center justify-center shadow-lg">
+                        <Wallet className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Budget mensuel" : "Monthly budget"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quel est votre budget ?" : "What is your budget?"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Définissez une fourchette de prix réaliste" : "Set a realistic price range"}</p>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-emerald-700 text-sm">{language === "fr" ? "Minimum (FCFA)" : "Minimum (FCFA)"}</Label>
+                        <Label className="text-emerald-700 text-sm font-medium">{language === "fr" ? "Budget minimum (FCFA)" : "Minimum budget (FCFA)"}</Label>
                         <Input
                           type="number"
                           value={budgetMin}
                           onChange={(e) => setBudgetMin(e.target.value)}
                           placeholder="50000"
-                          className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200"
+                          className="border-lime-200 focus:border-lime-500 focus:ring-lime-200"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-emerald-700 text-sm">{language === "fr" ? "Maximum (FCFA)" : "Maximum (FCFA)"}</Label>
+                        <Label className="text-emerald-700 text-sm font-medium">{language === "fr" ? "Budget maximum (FCFA)" : "Maximum budget (FCFA)"}</Label>
                         <Input
                           type="number"
                           value={budgetMax}
                           onChange={(e) => setBudgetMax(e.target.value)}
                           placeholder="300000"
-                          className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200"
+                          className="border-lime-200 focus:border-lime-500 focus:ring-lime-200"
                         />
                       </div>
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <p className="text-xs text-yellow-800 flex items-start gap-2">
+                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        {language === "fr" 
+                          ? "💡 Conseil : Un budget trop restrictif limite vos options. Pensez aux frais supplémentaires (caution, commissions) !"
+                          : "💡 Tip: A too restrictive budget limits your options. Consider additional fees (deposit, commissions)!"}
+                      </p>
                     </div>
                   </div>
 
                   {/* Section Type de bien */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-white flex items-center justify-center">
-                        <Home className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg">
+                        <Home className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Types de bien recherchés" : "Property types wanted"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quel type de bien recherchez-vous ?" : "What type of property are you looking for?"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Vous pouvez sélectionner plusieurs options" : "You can select multiple options"}</p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {PROPERTY_TYPES.map((type) => (
-                        <button
-                          key={type.value}
-                          type="button"
-                          onClick={() => togglePropertyType(type.value)}
-                          className={`p-4 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${
-                            preferredPropertyTypes.includes(type.value)
-                              ? "border-emerald-500 bg-emerald-50 shadow-md"
-                              : "border-gray-200 hover:border-emerald-200 bg-white"
-                          }`}
-                        >
-                          <span className="text-2xl block mb-1">{type.icon}</span>
-                          <span className={`text-sm font-medium ${preferredPropertyTypes.includes(type.value) ? "text-emerald-800" : "text-gray-700"}`}>{type.label}</span>
-                          {preferredPropertyTypes.includes(type.value) && (
-                            <CheckCircle className="w-4 h-4 text-emerald-500 mx-auto mt-1" />
-                          )}
-                        </button>
-                      ))}
+                    
+                    {/* Résidentiel */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide">{language === "fr" ? "🏠 Résidentiel" : "🏠 Residential"}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "residential").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-emerald-500 bg-emerald-50 shadow-md"
+                                : "border-gray-200 hover:border-emerald-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                            {preferredPropertyTypes.includes(type.value) && (
+                              <Check className="w-4 h-4 text-emerald-500 ml-auto mt-1" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Terrain */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide">{language === "fr" ? "🌳 Terrains" : "🌳 Land"}</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "land").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-emerald-500 bg-emerald-50 shadow-md"
+                                : "border-gray-200 hover:border-emerald-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Commercial */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide">{language === "fr" ? "🏢 Commercial & Professionnel" : "🏢 Commercial & Professional"}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "commercial").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-emerald-500 bg-emerald-50 shadow-md"
+                                : "border-gray-200 hover:border-emerald-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                   {/* Section Type d'annonce */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center">
-                        <Filter className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-lime-500 to-yellow-400 text-white flex items-center justify-center shadow-lg">
+                        <Star className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Type d'annonce" : "Listing type"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quel est votre projet ?" : "What is your project?"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Sélectionnez le type d'annonce qui vous intéresse" : "Select the type of listing that interests you"}</p>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       {LISTING_TYPES.map((type) => (
@@ -660,33 +808,74 @@ const ProfilePage = () => {
                           key={type.value}
                           type="button"
                           onClick={() => setPreferredListingType(type.value)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                          className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] relative overflow-hidden ${
                             preferredListingType === type.value
-                              ? "border-emerald-500 bg-emerald-50 shadow-md"
-                              : "border-gray-200 hover:border-emerald-200 bg-white"
+                              ? "border-lime-500 shadow-lg"
+                              : "border-gray-200 hover:border-lime-200 bg-white"
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <type.icon className={`w-5 h-5 ${preferredListingType === type.value ? "text-emerald-600" : "text-gray-500"}`} />
-                            <span className={`font-semibold ${preferredListingType === type.value ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
+                          <div className={`absolute inset-0 bg-gradient-to-br ${type.color} opacity-0 transition-opacity ${preferredListingType === type.value ? 'opacity-10' : ''}`}></div>
+                          <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${type.color} text-white flex items-center justify-center`}>
+                                <type.icon className="w-5 h-5" />
+                              </div>
+                              <span className={`font-bold ${preferredListingType === type.value ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
+                            </div>
+                            <span className="text-xs text-gray-600">{type.description}</span>
                           </div>
-                          <span className="text-xs text-gray-500">{type.description}</span>
+                          {preferredListingType === type.value && (
+                            <CheckCircle className="w-6 h-6 text-lime-500 absolute top-3 right-3" />
+                          )}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Section Composition */}
-                  <div className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl p-6 border border-teal-100">
+                  {/* Section Composition - NOUVEAU */}
+                  <div className="bg-gradient-to-br from-yellow-50 via-lime-50 to-emerald-50 rounded-2xl p-6 border border-yellow-200">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center">
-                        <BedDouble className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-lime-500 text-white flex items-center justify-center shadow-lg">
+                        <Building className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Composition souhaitée" : "Desired composition"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quelle composition souhaitez-vous ?" : "What composition do you want?"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Sélectionnez le nombre de pièces idéal" : "Select your ideal number of rooms"}</p>
+                      </div>
                     </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+                      {COMPOSITION_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            const rooms = option.value === "studio" ? 0 : option.value === "t2" ? 1 : option.value === "t3" ? 2 : option.value === "t4" ? 3 : 4;
+                            setBedrooms(rooms);
+                          }}
+                          className={`p-3 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${
+                            (bedrooms === 0 && option.value === "studio") ||
+                            (bedrooms === 1 && option.value === "t2") ||
+                            (bedrooms === 2 && option.value === "t3") ||
+                            (bedrooms === 3 && option.value === "t4") ||
+                            (bedrooms && bedrooms >= 4 && option.value === "t5")
+                              ? "border-yellow-400 bg-yellow-50 shadow-md"
+                              : "border-gray-200 hover:border-yellow-200 bg-white"
+                          }`}
+                        >
+                          <span className="text-2xl block mb-1">{option.icon}</span>
+                          <span className="text-sm font-semibold block text-gray-800">{option.label}</span>
+                          <span className="text-xs text-gray-500">{option.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-3">
-                        <Label className="text-emerald-700">{language === "fr" ? "Chambres" : "Bedrooms"}</Label>
+                        <Label className="text-emerald-700 font-medium flex items-center gap-2">
+                          <Bed className="w-4 h-4" />
+                          {language === "fr" ? "Nombre de chambres" : "Number of bedrooms"}
+                        </Label>
                         <NumberStepper
                           value={bedrooms || 0}
                           onChange={(val) => setBedrooms(val === 0 ? null : val)}
@@ -695,7 +884,10 @@ const ProfilePage = () => {
                         />
                       </div>
                       <div className="space-y-3">
-                        <Label className="text-emerald-700">{language === "fr" ? "Salles de bain" : "Bathrooms"}</Label>
+                        <Label className="text-emerald-700 font-medium flex items-center gap-2">
+                          <Bath className="w-4 h-4" />
+                          {language === "fr" ? "Salles de bain" : "Bathrooms"}
+                        </Label>
                         <NumberStepper
                           value={bathrooms || 0}
                           onChange={(val) => setBathrooms(val === 0 ? null : val)}
@@ -709,27 +901,41 @@ const ProfilePage = () => {
                   {/* Section Quartiers */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
-                        <MapPinned className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white flex items-center justify-center shadow-lg">
+                        <MapPinned className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Quartiers préférés" : "Preferred neighborhoods"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quartiers préférés" : "Preferred neighborhoods"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Indiquez les zones où vous souhaitez habiter" : "Indicate the areas where you want to live"}</p>
+                      </div>
                     </div>
                     <Textarea
                       value={preferredNeighborhoods}
                       onChange={(e) => setPreferredNeighborhoods(e.target.value)}
-                      placeholder={language === "fr" ? "Ex: Bastos, Odza, Mvan... (séparés par des virgules)" : "Ex: Bastos, Odza, Mvan... (comma separated)"}
+                      placeholder={language === "fr" ? "Ex: Bastos, Odza, Mvan, Tsinga... (séparés par des virgules)" : "Ex: Bastos, Odza, Mvan, Tsinga... (comma separated)"}
                       rows={3}
                       className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200 resize-none"
                     />
+                    <div className="flex items-start gap-2 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                      <Lightbulb className="w-4 h-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-teal-700">
+                        {language === "fr" 
+                          ? "💡 Astuce : Plus vous indiquez de quartiers, plus vous avez de chances de trouver votre bonheur !"
+                          : "💡 Tip: The more neighborhoods you indicate, the more chances you have to find what you're looking for!"}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Section Délai */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-lime-500 text-white flex items-center justify-center">
-                        <Calendar className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 text-white flex items-center justify-center shadow-lg">
+                        <Calendar className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Quand souhaitez-vous emménager ?" : "When do you want to move in?"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Quand souhaitez-vous emménager ?" : "When do you want to move in?"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Cela aide les propriétaires à prioriser" : "This helps owners prioritize"}</p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {MOVE_TIMELINES.map((timeline) => (
@@ -737,12 +943,13 @@ const ProfilePage = () => {
                           key={timeline.value}
                           type="button"
                           onClick={() => setMoveInTimeline(timeline.value)}
-                          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all hover:scale-105 ${
+                          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all hover:scale-105 flex items-center gap-2 ${
                             moveInTimeline === timeline.value
-                              ? timeline.color + " ring-2 ring-offset-2 ring-emerald-300"
+                              ? timeline.color + " ring-2 ring-offset-2 ring-yellow-300 shadow-lg"
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                           }`}
                         >
+                          <span>{timeline.icon}</span>
                           {timeline.label}
                         </button>
                       ))}
@@ -752,51 +959,98 @@ const ProfilePage = () => {
                   {/* Section Options */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
-                        <Sparkles className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-lime-500 text-white flex items-center justify-center shadow-lg">
+                        <Sparkles className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Options souhaitées" : "Desired options"}</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-emerald-900">{language === "fr" ? "Options et équipements souhaités" : "Desired options and amenities"}</h3>
+                        <p className="text-sm text-emerald-600">{language === "fr" ? "Sélectionnez ce qui est important pour vous" : "Select what is important to you"}</p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {[
-                        { key: "isFurnished", label: language === "fr" ? "Meublé" : "Furnished", value: isFurnished, setter: setIsFurnished, icon: Sofa },
-                        { key: "needsParking", label: "Parking", value: needsParking, setter: setNeedsParking, icon: Car },
-                        { key: "needsInternet", label: "WiFi", value: needsInternet, setter: setNeedsInternet, icon: Wifi },
-                        { key: "needsGenerator", label: language === "fr" ? "Générateur" : "Generator", value: needsGenerator, setter: setNeedsGenerator, icon: Zap },
-                        { key: "needsWaterTank", label: language === "fr" ? "Réservoir" : "Water tank", value: needsWaterTank, setter: setNeedsWaterTank, icon: Droplet },
-                        { key: "needsSecurity", label: language === "fr" ? "Sécurité" : "Security", value: needsSecurity, setter: setNeedsSecurity, icon: Shield },
+                        { key: "needsFurnished", label: language === "fr" ? "Meublé" : "Furnished", value: needsFurnished, setter: setNeedsFurnished, icon: Sofa, color: "from-amber-400 to-orange-400" },
+                        { key: "needsParking", label: "Parking", value: needsParking, setter: setNeedsParking, icon: Car, color: "from-blue-400 to-cyan-400" },
+                        { key: "needsInternet", label: "WiFi", value: needsInternet, setter: setNeedsInternet, icon: Wifi, color: "from-purple-400 to-pink-400" },
+                        { key: "needsGenerator", label: language === "fr" ? "Générateur" : "Generator", value: needsGenerator, setter: setNeedsGenerator, icon: Zap, color: "from-yellow-400 to-amber-400" },
+                        { key: "needsWaterTank", label: language === "fr" ? "Réservoir" : "Water tank", value: needsWaterTank, setter: setNeedsWaterTank, icon: Droplet, color: "from-cyan-400 to-blue-400" },
+                        { key: "needsSecurity", label: language === "fr" ? "Sécurité" : "Security", value: needsSecurity, setter: setNeedsSecurity, icon: Shield, color: "from-red-400 to-pink-400" },
+                        { key: "needsAirConditioning", label: language === "fr" ? "Climatisation" : "AC", value: needsAirConditioning, setter: setNeedsAirConditioning, icon: Wind, color: "from-teal-400 to-emerald-400" },
+                        { key: "needsPool", label: language === "fr" ? "Piscine" : "Pool", value: needsPool, setter: setNeedsPool, icon: Waves, color: "from-blue-400 to-cyan-400" },
+                        { key: "needsGym", label: language === "fr" ? "Salle de sport" : "Gym", value: needsGym, setter: setNeedsGym, icon: Dumbbell, color: "from-lime-400 to-green-400" },
                       ].map((option) => (
                         <div
                           key={option.key}
-                          className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-[1.02] ${
-                            option.value ? "border-emerald-400 bg-emerald-50" : "border-gray-200 bg-white"
-                          }`}
                           onClick={() => option.setter(!option.value)}
+                          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${
+                            option.value 
+                              ? "border-lime-400 bg-gradient-to-br from-lime-50 to-emerald-50 shadow-md" 
+                              : "border-gray-200 bg-white hover:border-lime-200"
+                          }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <option.icon className={`w-4 h-4 ${option.value ? "text-emerald-600" : "text-gray-400"}`} />
-                            <span className={`text-sm font-medium ${option.value ? "text-emerald-800" : "text-gray-700"}`}>{option.label}</span>
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.color} text-white flex items-center justify-center mb-2 shadow-sm`}>
+                            <option.icon className="w-6 h-6" />
                           </div>
-                          <Switch checked={option.value} onCheckedChange={option.setter} />
+                          <span className={`text-sm font-medium text-center ${option.value ? "text-emerald-800" : "text-gray-700"}`}>{option.label}</span>
+                          {option.value && (
+                            <Check className="w-4 h-4 text-lime-500 mt-1" />
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Info algorithme */}
-                  <div className="bg-gradient-to-r from-emerald-100 to-teal-100 rounded-xl p-4 border border-emerald-200">
-                    <div className="flex items-start gap-3">
-                      <Bell className="w-5 h-5 text-emerald-600 mt-0.5" />
+                  <div className="bg-gradient-to-r from-lime-100 via-emerald-100 to-teal-100 rounded-xl p-5 border-2 border-lime-300">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-lime-400 to-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-6 h-6" />
+                      </div>
                       <div>
-                        <p className="text-sm font-medium text-emerald-800">
-                          {language === "fr" ? "Comment fonctionnent nos recommandations" : "How our recommendations work"}
-                        </p>
-                        <p className="text-xs text-emerald-600 mt-1">
+                        <h4 className="font-bold text-emerald-900 mb-2">
+                          {language === "fr" ? "Comment fonctionnent nos recommandations intelligentes ?" : "How do our smart recommendations work?"}
+                        </h4>
+                        <p className="text-sm text-emerald-700 leading-relaxed">
                           {language === "fr" 
-                            ? "Plus vos critères sont précis, mieux notre algorithme pourra vous suggérer des biens correspondant à vos besoins. Vous pouvez modifier ces préférences à tout moment."
-                            : "The more precise your criteria, the better our algorithm can suggest properties matching your needs. You can modify these preferences anytime."}
+                            ? "Notre algorithme analyse vos critères (budget, localisation, type de bien, équipements...) et compare avec des milliers d'annonces pour vous proposer les meilleures correspondances. Plus vos critères sont précis, plus les suggestions seront pertinentes ! Vous pouvez modifier ces préférences à tout moment."
+                            : "Our algorithm analyzes your criteria (budget, location, property type, amenities...) and compares with thousands of listings to suggest the best matches. The more precise your criteria, the more relevant the suggestions! You can modify these preferences anytime."}
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Résumé des critères */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-lime-50 rounded-xl p-5 border border-emerald-200">
+                    <h4 className="font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      {language === "fr" ? "Résumé de vos critères" : "Summary of your criteria"}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {budgetMin && budgetMax && (
+                        <span className="px-3 py-1.5 rounded-full bg-lime-100 text-lime-800 text-sm font-medium">
+                          {parseInt(budgetMin).toLocaleString()} - {parseInt(budgetMax).toLocaleString()} FCFA
+                        </span>
+                      )}
+                      {city && (
+                        <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-sm font-medium">
+                          📍 {city}
+                        </span>
+                      )}
+                      {preferredPropertyTypes.length > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-teal-100 text-teal-800 text-sm font-medium">
+                          🏠 {preferredPropertyTypes.length} {language === "fr" ? "types" : "types"}
+                        </span>
+                      )}
+                      {bedrooms !== null && bedrooms > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-800 text-sm font-medium">
+                          🛏️ {bedrooms} {language === "fr" ? "chambres" : "bedrooms"}
+                        </span>
+                      )}
+                      {moveInTimeline && (
+                        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                          📅 {MOVE_TIMELINES.find(t => t.value === moveInTimeline)?.label}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
@@ -805,16 +1059,24 @@ const ProfilePage = () => {
                 <div className="mt-8 pt-6 border-t border-emerald-100">
                   <Button 
                     type="submit" 
-                    className="w-full gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-200" 
+                    className="w-full gap-2 bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-500 hover:from-lime-600 hover:via-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-lime-200 text-lg py-6" 
                     disabled={saving}
                   >
                     {saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Save className="w-4 h-4" />
+                      <>
+                        <Save className="w-5 h-5" />
+                        {language === "fr" ? "Enregistrer mes préférences" : "Save my preferences"}
+                        <ArrowRight className="w-5 h-5" />
+                      </>
                     )}
-                    {t("profile.saveChanges")}
                   </Button>
+                  <p className="text-center text-sm text-emerald-600 mt-3">
+                    {language === "fr" 
+                      ? "✨ Vos critères seront utilisés pour personnaliser vos recommandations"
+                      : "✨ Your criteria will be used to personalize your recommendations"}
+                  </p>
                 </div>
               </form>
             </Tabs>
