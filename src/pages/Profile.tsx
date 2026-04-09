@@ -98,6 +98,7 @@ interface Profile {
   needs_air_conditioning: boolean | null;
   needs_pool: boolean | null;
   needs_gym: boolean | null;
+  preferred_amenities: string[] | null;
 }
 
 const defaultAvatars = [
@@ -147,6 +148,7 @@ const ProfilePage = () => {
   const [needsAirConditioning, setNeedsAirConditioning] = useState(false);
   const [needsPool, setNeedsPool] = useState(false);
   const [needsGym, setNeedsGym] = useState(false);
+  const [preferredAmenities, setPreferredAmenities] = useState<string[]>([]);
 
   const PROPERTY_TYPES = [
     { value: "studio", label: language === "fr" ? "Studio" : "Studio", icon: "🏢", category: "residential", desc: language === "fr" ? "Idéal pour étudiant ou célibataire" : "Ideal for student or single" },
@@ -207,6 +209,18 @@ const ProfilePage = () => {
     { value: "t5", label: "T5+ (5+ pièces)", icon: "🏰", desc: language === "fr" ? "Grande famille" : "Large family" },
   ];
 
+  const AMENITIES_OPTIONS = [
+    { key: "furnished", label: language === "fr" ? "Meublé" : "Furnished", icon: Sofa, color: "from-amber-400 to-orange-400" },
+    { key: "parking", label: "Parking", icon: Car, color: "from-blue-400 to-cyan-400" },
+    { key: "internet", label: "WiFi", icon: Wifi, color: "from-purple-400 to-pink-400" },
+    { key: "generator", label: language === "fr" ? "Générateur" : "Generator", icon: Zap, color: "from-yellow-400 to-amber-400" },
+    { key: "water_tank", label: language === "fr" ? "Réservoir" : "Water tank", icon: Droplet, color: "from-cyan-400 to-blue-400" },
+    { key: "security", label: language === "fr" ? "Sécurité" : "Security", icon: Shield, color: "from-red-400 to-pink-400" },
+    { key: "air_conditioning", label: language === "fr" ? "Climatisation" : "AC", icon: Wind, color: "from-teal-400 to-emerald-400" },
+    { key: "pool", label: language === "fr" ? "Piscine" : "Pool", icon: Waves, color: "from-blue-400 to-cyan-400" },
+    { key: "gym", label: language === "fr" ? "Salle de sport" : "Gym", icon: Dumbbell, color: "from-lime-400 to-green-400" },
+  ];
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
@@ -253,9 +267,10 @@ const ProfilePage = () => {
         setNeedsWaterTank(data.needs_water_tank || false);
         setNeedsSecurity(data.needs_security || false);
         setNeedsFurnished(data.needs_furnished || data.is_furnished || false);
-        // Retiré : setNeedsAirConditioning(data.needs_air_conditioning || false);
+        setNeedsAirConditioning(data.needs_air_conditioning || false);
         setNeedsPool(data.needs_pool || false);
         setNeedsGym(data.needs_gym || false);
+        setPreferredAmenities(data.preferred_amenities || []);
       }
     } catch (error: any) {
       toast({
@@ -341,6 +356,14 @@ const ProfilePage = () => {
     }
   };
 
+  const toggleAmenity = (key: string) => {
+    if (preferredAmenities.includes(key)) {
+      setPreferredAmenities(preferredAmenities.filter(a => a !== key));
+    } else {
+      setPreferredAmenities([...preferredAmenities, key]);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -372,9 +395,10 @@ const ProfilePage = () => {
         needs_water_tank: needsWaterTank,
         needs_security: needsSecurity,
         needs_furnished: needsFurnished,
-        // Retiré : needs_air_conditioning: needsAirConditioning,
+        needs_air_conditioning: needsAirConditioning,
         needs_pool: needsPool,
         needs_gym: needsGym,
+        preferred_amenities: preferredAmenities,
         updated_at: new Date().toISOString(),
       };
 
@@ -933,31 +957,21 @@ const ProfilePage = () => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {[
-                        { key: "needsFurnished", label: language === "fr" ? "Meublé" : "Furnished", value: needsFurnished, setter: setNeedsFurnished, icon: Sofa, color: "from-amber-400 to-orange-400" },
-                        { key: "needsParking", label: "Parking", value: needsParking, setter: setNeedsParking, icon: Car, color: "from-blue-400 to-cyan-400" },
-                        { key: "needsInternet", label: "WiFi", value: needsInternet, setter: setNeedsInternet, icon: Wifi, color: "from-purple-400 to-pink-400" },
-                        { key: "needsGenerator", label: language === "fr" ? "Générateur" : "Generator", value: needsGenerator, setter: setNeedsGenerator, icon: Zap, color: "from-yellow-400 to-amber-400" },
-                        { key: "needsWaterTank", label: language === "fr" ? "Réservoir" : "Water tank", value: needsWaterTank, setter: setNeedsWaterTank, icon: Droplet, color: "from-cyan-400 to-blue-400" },
-                        { key: "needsSecurity", label: language === "fr" ? "Sécurité" : "Security", value: needsSecurity, setter: setNeedsSecurity, icon: Shield, color: "from-red-400 to-pink-400" },
-                        // Retiré : needsAirConditioning
-                        { key: "needsPool", label: language === "fr" ? "Piscine" : "Pool", value: needsPool, setter: setNeedsPool, icon: Waves, color: "from-blue-400 to-cyan-400" },
-                        { key: "needsGym", label: language === "fr" ? "Salle de sport" : "Gym", value: needsGym, setter: setNeedsGym, icon: Dumbbell, color: "from-lime-400 to-green-400" },
-                      ].map((option) => (
+                      {AMENITIES_OPTIONS.map((option) => (
                         <div
                           key={option.key}
-                          onClick={() => option.setter(!option.value)}
+                          onClick={() => toggleAmenity(option.key)}
                           className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${
-                            option.value 
-                              ? "border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md" 
+                            preferredAmenities.includes(option.key)
+                              ? "border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md"
                               : "border-gray-200 bg-white hover:border-amber-200"
                           }`}
                         >
                           <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.color} text-white flex items-center justify-center mb-2 shadow-sm`}>
                             <option.icon className="w-6 h-6" />
                           </div>
-                          <span className={`text-sm font-medium text-center ${option.value ? "text-orange-800" : "text-gray-700"}`}>{option.label}</span>
-                          {option.value && (
+                          <span className={`text-sm font-medium text-center ${preferredAmenities.includes(option.key) ? "text-orange-800" : "text-gray-700"}`}>{option.label}</span>
+                          {preferredAmenities.includes(option.key) && (
                             <Check className="w-4 h-4 text-amber-500 mt-1" />
                           )}
                         </div>
@@ -1012,6 +1026,11 @@ const ProfilePage = () => {
                       {moveInTimeline && (
                         <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
                           📅 {MOVE_TIMELINES.find(t => t.value === moveInTimeline)?.label}
+                        </span>
+                      )}
+                      {preferredAmenities.length > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
+                          ✨ {preferredAmenities.length} {language === "fr" ? "équipements" : "amenities"}
                         </span>
                       )}
                     </div>
