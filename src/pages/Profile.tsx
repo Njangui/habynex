@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import NumberStepper from "@/components/NumberStepper";
 import { 
   User, 
   Mail, 
@@ -40,26 +41,19 @@ import {
   Utensils,
   DoorOpen,
   WashingMachine,
-  Scissors,
-  Coffee,
-  UtensilsCrossed,
-  Wine,
-  BedDouble,
-  Pill,
-  Stethoscope,
-  Dumbbell,
-  Users,
-  Presentation,
-  Wrench,
-  Sparkles as SparklesIcon,
+  Sparkles,
   Wifi,
   Car,
   Waves,
   Zap,
   Droplet,
   Wind,
-  Store,
-  Warehouse,
+  BedDouble,
+  Search,
+  Filter,
+  Calendar,
+  MapPinned,
+  Bell
 } from "lucide-react";
 import { compressImage } from "@/utils/compressImage";
 
@@ -78,31 +72,20 @@ interface Profile {
   bio: string | null;
   is_verified: boolean;
   whatsapp_number: string | null;
+  // Champs pour l'algorithme de recommandations
   preferred_property_types: string[] | null;
   preferred_neighborhoods: string[] | null;
-  preferred_listing_types: string[] | null;
-  preferred_amenities: string[] | null;
+  preferred_listing_type: string | null;
   move_in_timeline: string | null;
-  // Nouveaux champs depuis create_listing
-  property_type?: string | null;
-  listing_type?: string | null;
-  deposit?: number | null;
-  bedrooms?: number | null;
-  bathrooms?: number | null;
-  area_min?: number | null;
-  area_max?: number | null;
-  is_furnished?: boolean | null;
-  floor?: number | null;
-  needs_elevator?: boolean | null;
-  needs_parking?: boolean | null;
-  needs_internet?: boolean | null;
-  needs_generator?: boolean | null;
-  needs_water_tank?: boolean | null;
-  needs_security?: boolean | null;
-  needs_cleaning?: boolean | null;
-  visit_price?: number | null;
-  rental_months?: number | null;
-  rules?: string | null;
+  // Champs additionnels pour affiner les recommandations
+  bedrooms: number | null;
+  bathrooms: number | null;
+  is_furnished: boolean | null;
+  needs_parking: boolean | null;
+  needs_internet: boolean | null;
+  needs_generator: boolean | null;
+  needs_water_tank: boolean | null;
+  needs_security: boolean | null;
 }
 
 const defaultAvatars = [
@@ -130,45 +113,32 @@ const ProfilePage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form state - Personal Info
+  // Données personnelles
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
-  const [userType, setUserType] = useState<string>("seeker");
-  
-  // Form state - Preferences (for seekers)
+
+  // Préférences pour l'algorithme de recommandations
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
   const [preferredPropertyTypes, setPreferredPropertyTypes] = useState<string[]>([]);
   const [preferredNeighborhoods, setPreferredNeighborhoods] = useState("");
-  const [preferredListingTypes, setPreferredListingTypes] = useState<string[]>([]);
-  const [preferredAmenities, setPreferredAmenities] = useState<string[]>([]);
+  const [preferredListingType, setPreferredListingType] = useState<string>("rent");
   const [moveInTimeline, setMoveInTimeline] = useState("");
-
-  // Nouveaux états depuis create_listing
-  const [propertyType, setPropertyType] = useState<string>("apartment");
-  const [listingType, setListingType] = useState<string>("rent");
-  const [deposit, setDeposit] = useState("");
+  
+  // Critères additionnels
   const [bedrooms, setBedrooms] = useState<number | null>(null);
   const [bathrooms, setBathrooms] = useState<number | null>(null);
-  const [areaMin, setAreaMin] = useState("");
-  const [areaMax, setAreaMax] = useState("");
   const [isFurnished, setIsFurnished] = useState(false);
-  const [floor, setFloor] = useState<number | null>(null);
-  const [needsElevator, setNeedsElevator] = useState(false);
   const [needsParking, setNeedsParking] = useState(false);
   const [needsInternet, setNeedsInternet] = useState(false);
   const [needsGenerator, setNeedsGenerator] = useState(false);
   const [needsWaterTank, setNeedsWaterTank] = useState(false);
   const [needsSecurity, setNeedsSecurity] = useState(false);
-  const [needsCleaning, setNeedsCleaning] = useState(false);
-  const [visitPrice, setVisitPrice] = useState("");
-  const [rentalMonths, setRentalMonths] = useState("");
-  const [rules, setRules] = useState("");
 
-  // Translated options
+  // Options traduites (inspirées de create_listing)
   const PROPERTY_TYPES = [
     { value: "studio", label: t("property.studio"), icon: "🏢", category: "residential" },
     { value: "room", label: t("property.room"), icon: "🛏️", category: "residential" },
@@ -179,85 +149,31 @@ const ProfilePage = () => {
     { value: "penthouse", label: "Penthouse", icon: "🏙️", category: "residential" },
     { value: "furnished_apartment", label: "Appartement meublé", icon: "🛋️", category: "residential" },
     { value: "shared_room", label: "Chambre partagée", icon: "👥", category: "residential" },
-    { value: "land", label: language === "fr" ? "Terrain" : "Land", icon: "🌳", category: "land" },
-    { value: "shop", label: language === "fr" ? "Boutique" : "Shop", icon: "🛍️", category: "commercial" },
-    { value: "store", label: language === "fr" ? "Magasin" : "Store", icon: "🏪", category: "commercial" },
-    { value: "commercial_space", label: language === "fr" ? "Espace commercial" : "Commercial space", icon: "🏢", category: "commercial" },
-    { value: "warehouse", label: language === "fr" ? "Entrepôt" : "Warehouse", icon: "🏭", category: "commercial" },
-    { value: "office", label: language === "fr" ? "Bureau" : "Office", icon: "💼", category: "commercial" },
-    { value: "building", label: language === "fr" ? "Bâtiment" : "Building", icon: "🏗️", category: "commercial" },
-    { value: "beauty_salon", label: language === "fr" ? "Institut de beauté" : "Beauty salon", icon: "✨", category: "commercial" },
-    { value: "hair_salon", label: language === "fr" ? "Salon de coiffure" : "Hair salon", icon: "💇", category: "commercial" },
-    { value: "gym", label: language === "fr" ? "Salle de sport" : "Gym", icon: "💪", category: "commercial" },
-    { value: "pharmacy", label: language === "fr" ? "Pharmacie" : "Pharmacy", icon: "💊", category: "commercial" },
-    { value: "clinic", label: language === "fr" ? "Clinique" : "Clinic", icon: "🏥", category: "commercial" },
-    { value: "restaurant", label: language === "fr" ? "Restaurant" : "Restaurant", icon: "🍽️", category: "commercial" },
-    { value: "cafe", label: language === "fr" ? "Café" : "Café", icon: "☕", category: "commercial" },
-    { value: "bar", label: language === "fr" ? "Bar" : "Bar", icon: "🍸", category: "commercial" },
-    { value: "hotel", label: language === "fr" ? "Hôtel" : "Hotel", icon: "🏨", category: "commercial" },
-    { value: "coworking", label: language === "fr" ? "Espace coworking" : "Coworking space", icon: "👥", category: "commercial" },
-    { value: "showroom", label: language === "fr" ? "Showroom" : "Showroom", icon: "🎨", category: "commercial" },
-    { value: "workshop", label: language === "fr" ? "Atelier" : "Workshop", icon: "🔧", category: "commercial" },
   ];
 
   const LISTING_TYPES = [
-    { value: "rent", label: t("listing.rent"), description: language === "fr" ? "Location mensuelle" : "Monthly rent" },
-    { value: "sale", label: t("listing.sale"), description: language === "fr" ? "Vente immobilière" : "Real estate sale" },
-    { value: "colocation", label: t("listing.colocation"), description: language === "fr" ? "Partage de logement" : "Shared housing" },
-    { value: "short_term", label: t("listing.shortTerm"), description: language === "fr" ? "Location journalière" : "Daily rental" },
-  ];
-
-  const ALL_AMENITIES = [
-    { value: "closet", label: "Placard", icon: DoorOpen },
-    { value: "water_heater", label: "Chauffe-eau", icon: Utensils },
-    { value: "kitchen_cabinets", label: "Placards cuisine", icon: UtensilsCrossed },
-    { value: "tiled_floor", label: "Carrelage", icon: Sofa },
-    { value: "ceiling_fan", label: "Ventilateur plafond", icon: Sofa },
-    { value: "backup_generator", label: "Groupe électrogène", icon: Wrench },
-    { value: "fence", label: "Clôture", icon: Trees },
-    { value: "gate", label: "Portail", icon: DoorOpen },
-    { value: "paved_road", label: "Route goudronnée", icon: Trees },
-    { value: "near_main_road", label: "Proche route principale", icon: Trees },
-    { value: "school_nearby", label: "École à proximité", icon: Building2 },
-    { value: "market_nearby", label: "Marché à proximité", icon: Store },
-    { value: "wifi", label: t("amenity.wifi"), icon: Wifi },
-    { value: "parking", label: t("amenity.parking"), icon: Car },
-    { value: "pool", label: t("amenity.pool"), icon: Waves },
-    { value: "gym", label: t("amenity.gym"), icon: Dumbbell },
-    { value: "security", label: t("amenity.security"), icon: Shield },
-    { value: "generator", label: t("amenity.generator"), icon: Zap },
-    { value: "water_tank", label: t("amenity.waterTank"), icon: Droplet },
-    { value: "furnished", label: t("amenity.furnished"), icon: Sofa },
-    { value: "air_conditioning", label: t("amenity.airConditioning"), icon: Wind },
-    { value: "garden", label: t("amenity.garden"), icon: Trees },
-    { value: "balcony", label: t("amenity.balcony"), icon: Building2 },
-    { value: "terrace", label: t("amenity.terrace"), icon: Building2 },
-    { value: "electricity_prepaid", label: language === "fr" ? "Lumière (prépayée)" : "Electricity (prepaid)", icon: Zap },
-    { value: "electricity_postpaid", label: language === "fr" ? "Lumière (fin de mois)" : "Electricity (monthly)", icon: Zap },
-    { value: "water_borehole", label: language === "fr" ? "Eau (forage)" : "Water (borehole)", icon: Droplet },
-    { value: "water_tap", label: language === "fr" ? "Eau (robinet)" : "Water (tap)", icon: Droplet },
-    { value: "cctv", label: language === "fr" ? "Caméra de surveillance" : "CCTV", icon: Camera },
-    { value: "elevator", label: language === "fr" ? "Ascenseur" : "Elevator", icon: Building2 },
-    { value: "reception", label: language === "fr" ? "Réception" : "Reception", icon: Users },
-    { value: "storage", label: language === "fr" ? "Stockage" : "Storage", icon: Warehouse },
-    { value: "loading_dock", label: language === "fr" ? "Quai de chargement" : "Loading dock", icon: Wrench },
-    { value: "meeting_room", label: language === "fr" ? "Salle de réunion" : "Meeting room", icon: Presentation },
-    { value: "display_window", label: language === "fr" ? "Vitrine" : "Display window", icon: Store },
-    { value: "kitchen_facilities", label: language === "fr" ? "Cuisine équipée" : "Kitchen facilities", icon: UtensilsCrossed },
-    { value: "bar_counter", label: language === "fr" ? "Comptoir bar" : "Bar counter", icon: Wine },
-    { value: "dining_area", label: language === "fr" ? "Espace restauration" : "Dining area", icon: Utensils },
-    { value: "alarm_system", label: language === "fr" ? "Système d'alarme" : "Alarm system", icon: Shield },
-    { value: "fire_safety", label: language === "fr" ? "Sécurité incendie" : "Fire safety", icon: Shield },
-    { value: "handicap_access", label: language === "fr" ? "Accès handicapé" : "Handicap access", icon: Users },
-    { value: "high_ceiling", label: language === "fr" ? "Haut plafond" : "High ceiling", icon: Building2 },
-    { value: "loading_area", label: language === "fr" ? "Zone de chargement" : "Loading area", icon: Wrench },
+    { value: "rent", label: t("listing.rent"), description: language === "fr" ? "Location mensuelle" : "Monthly rent", icon: Home },
+    { value: "sale", label: t("listing.sale"), description: language === "fr" ? "Vente immobilière" : "Real estate sale", icon: Building2 },
+    { value: "colocation", label: t("listing.colocation"), description: language === "fr" ? "Partage de logement" : "Shared housing", icon: User },
+    { value: "short_term", label: t("listing.shortTerm"), description: language === "fr" ? "Location journalière" : "Daily rental", icon: Calendar },
   ];
 
   const MOVE_TIMELINES = [
-    { value: "immediate", label: t("profile.immediate") },
-    { value: "within_month", label: t("profile.withinMonth") },
-    { value: "within_3months", label: t("profile.within3Months") },
-    { value: "flexible", label: t("profile.flexible") },
+    { value: "immediate", label: t("profile.immediate"), color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    { value: "within_month", label: t("profile.withinMonth"), color: "bg-green-100 text-green-700 border-green-200" },
+    { value: "within_3months", label: t("profile.within3Months"), color: "bg-lime-100 text-lime-700 border-lime-200" },
+    { value: "flexible", label: t("profile.flexible"), color: "bg-teal-100 text-teal-700 border-teal-200" },
+  ];
+
+  const AMENITIES = [
+    { value: "wifi", label: t("amenity.wifi"), icon: Wifi },
+    { value: "parking", label: t("amenity.parking"), icon: Car },
+    { value: "pool", label: t("amenity.pool"), icon: Waves },
+    { value: "generator", label: t("amenity.generator"), icon: Zap },
+    { value: "water_tank", label: t("amenity.waterTank"), icon: Droplet },
+    { value: "security", label: t("amenity.security"), icon: Shield },
+    { value: "air_conditioning", label: t("amenity.airConditioning"), icon: Wind },
+    { value: "furnished", label: t("amenity.furnished"), icon: Sofa },
   ];
 
   useEffect(() => {
@@ -286,41 +202,31 @@ const ProfilePage = () => {
 
       if (data) {
         setProfile(data);
+        // Données personnelles
         setFullName(data.full_name || "");
         setPhone(data.phone || "");
         setWhatsappNumber(data.whatsapp_number || "");
         setCity(data.city || "");
         setBio(data.bio || "");
-        setUserType(data.user_type || "seeker");
+        
+        // Préférences pour l'algorithme
         setBudgetMin(data.budget_min?.toString() || "");
         setBudgetMax(data.budget_max?.toString() || "");
         setAvatarUrl(data.avatar_url);
         setPreferredPropertyTypes(data.preferred_property_types || []);
         setPreferredNeighborhoods(data.preferred_neighborhoods?.join(", ") || "");
-        setPreferredListingTypes(data.preferred_listing_types || []);
-        setPreferredAmenities(data.preferred_amenities || []);
+        setPreferredListingType(data.preferred_listing_type || "rent");
         setMoveInTimeline(data.move_in_timeline || "");
         
-        // Chargement des nouveaux champs
-        setPropertyType(data.property_type || "apartment");
-        setListingType(data.listing_type || "rent");
-        setDeposit(data.deposit?.toString() || "");
+        // Critères additionnels
         setBedrooms(data.bedrooms);
         setBathrooms(data.bathrooms);
-        setAreaMin(data.area_min?.toString() || "");
-        setAreaMax(data.area_max?.toString() || "");
         setIsFurnished(data.is_furnished || false);
-        setFloor(data.floor);
-        setNeedsElevator(data.needs_elevator || false);
         setNeedsParking(data.needs_parking || false);
         setNeedsInternet(data.needs_internet || false);
         setNeedsGenerator(data.needs_generator || false);
         setNeedsWaterTank(data.needs_water_tank || false);
         setNeedsSecurity(data.needs_security || false);
-        setNeedsCleaning(data.needs_cleaning || false);
-        setVisitPrice(data.visit_price?.toString() || "");
-        setRentalMonths(data.rental_months?.toString() || "");
-        setRules(data.rules || "");
       }
     } catch (error: any) {
       toast({
@@ -398,11 +304,11 @@ const ProfilePage = () => {
     }
   };
 
-  const toggleArrayValue = (array: string[], value: string, setter: (arr: string[]) => void) => {
-    if (array.includes(value)) {
-      setter(array.filter(v => v !== value));
+  const togglePropertyType = (value: string) => {
+    if (preferredPropertyTypes.includes(value)) {
+      setPreferredPropertyTypes(preferredPropertyTypes.filter(v => v !== value));
     } else {
-      setter([...array, value]);
+      setPreferredPropertyTypes([...preferredPropertyTypes, value]);
     }
   };
 
@@ -416,40 +322,29 @@ const ProfilePage = () => {
         ? preferredNeighborhoods.split(",").map(n => n.trim()).filter(Boolean)
         : [];
 
-      const updates: Record<string, any> = {
+      const updates = {
         user_id: user.id,
         full_name: fullName,
         phone,
         whatsapp_number: whatsappNumber || null,
         city,
         bio,
+        // Champs pour l'algorithme de recommandations
         budget_min: budgetMin ? parseInt(budgetMin) : null,
         budget_max: budgetMax ? parseInt(budgetMax) : null,
         preferred_property_types: preferredPropertyTypes,
         preferred_neighborhoods: neighborhoods,
-        preferred_listing_types: preferredListingTypes,
-        preferred_amenities: preferredAmenities,
+        preferred_listing_type: preferredListingType,
         move_in_timeline: moveInTimeline || null,
-        // Nouveaux champs
-        property_type: propertyType,
-        listing_type: listingType,
-        deposit: deposit ? parseInt(deposit) : null,
+        // Critères additionnels
         bedrooms,
         bathrooms,
-        area_min: areaMin ? parseInt(areaMin) : null,
-        area_max: areaMax ? parseInt(areaMax) : null,
         is_furnished: isFurnished,
-        floor,
-        needs_elevator: needsElevator,
         needs_parking: needsParking,
         needs_internet: needsInternet,
         needs_generator: needsGenerator,
         needs_water_tank: needsWaterTank,
         needs_security: needsSecurity,
-        needs_cleaning: needsCleaning,
-        visit_price: visitPrice ? parseInt(visitPrice) : null,
-        rental_months: rentalMonths ? parseInt(rentalMonths) : null,
-        rules: rules || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -462,7 +357,7 @@ const ProfilePage = () => {
 
       toast({
         title: t("profile.updated"),
-        description: t("profile.updatedDesc"),
+        description: language === "fr" ? "Vos préférences de recherche ont été enregistrées" : "Your search preferences have been saved",
       });
     } catch (error: any) {
       toast({
@@ -478,66 +373,65 @@ const ProfilePage = () => {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
       </div>
     );
   }
 
   if (!user) return null;
 
-  const isSeeker = userType === "seeker";
-  const isOwner = userType === "owner" || userType === "agent" || userType === "agency";
-  const showTrustScore = isOwner;
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 to-background">
       <Navbar />
       
       <main className="pt-24 pb-16">
-        <div className="container mx-auto px-4 max-w-4xl">
+        <div className="container mx-auto px-4 max-w-5xl">
           {/* Back Button */}
-          <button
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
+            className="flex items-center gap-2 text-muted-foreground hover:text-emerald-600 transition-colors mb-6 group"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>{t("profile.backToHome")}</span>
-          </button>
+          </motion.button>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-2xl shadow-elegant border border-border overflow-hidden"
+            className="bg-white rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden"
           >
-            {/* Header */}
-            <div className="gradient-primary p-8 text-primary-foreground">
-              <div className="flex items-center gap-4">
+            {/* Header avec gradient vert */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 p-8 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-20"></div>
+              
+              <div className="flex items-center gap-6 relative z-10">
                 <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
                   <DialogTrigger asChild>
                     <div className="relative cursor-pointer group">
-                      <div className="w-20 h-20 rounded-full bg-primary-foreground/20 flex items-center justify-center overflow-hidden">
+                      <div className="w-24 h-24 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden border-4 border-white/30 shadow-lg group-hover:scale-105 transition-transform">
                         {avatarUrl ? (
                           <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
-                          <User className="w-10 h-10" />
+                          <User className="w-12 h-12 text-white/80" />
                         )}
                       </div>
-                      <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Camera className="w-6 h-6 text-white" />
+                      <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                        <Camera className="w-8 h-8 text-white" />
                       </div>
-                      <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-card text-foreground flex items-center justify-center shadow-md hover:bg-secondary transition-colors">
-                        <Camera className="w-4 h-4" />
-                      </button>
+                      <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-white text-emerald-600 flex items-center justify-center shadow-lg">
+                        <Camera className="w-5 h-5" />
+                      </div>
                     </div>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>{t("profile.choosePhoto")}</DialogTitle>
+                      <DialogTitle className="text-emerald-800">{t("profile.choosePhoto")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6 py-4">
-                      {/* Upload Section */}
                       <div>
-                        <Label className="text-sm font-medium mb-3 block">{t("profile.uploadImage")}</Label>
+                        <Label className="text-sm font-medium mb-3 block text-emerald-700">{t("profile.uploadImage")}</Label>
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -547,30 +441,29 @@ const ProfilePage = () => {
                         />
                         <Button
                           variant="outline"
-                          className="w-full gap-2"
+                          className="w-full gap-2 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploadingAvatar}
                         >
                           {uploadingAvatar ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
                           ) : (
-                            <Upload className="w-4 h-4" />
+                            <Upload className="w-4 h-4 text-emerald-600" />
                           )}
                           {t("profile.chooseImage")}
                         </Button>
                       </div>
 
-                      {/* Default Avatars */}
                       <div>
-                        <Label className="text-sm font-medium mb-3 block">{t("profile.orChooseAvatar")}</Label>
+                        <Label className="text-sm font-medium mb-3 block text-emerald-700">{t("profile.orChooseAvatar")}</Label>
                         <div className="grid grid-cols-4 gap-3">
                           {defaultAvatars.map((avatar, i) => (
                             <button
                               key={i}
                               onClick={() => handleSelectAvatar(avatar)}
                               disabled={uploadingAvatar}
-                              className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all hover:scale-110 ${
-                                avatarUrl === avatar ? "border-primary ring-2 ring-primary/50" : "border-border"
+                              className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all hover:scale-110 ${
+                                avatarUrl === avatar ? "border-emerald-500 ring-2 ring-emerald-200" : "border-gray-200"
                               }`}
                             >
                               <img src={avatar} alt={`Avatar ${i + 1}`} className="w-full h-full" />
@@ -581,493 +474,340 @@ const ProfilePage = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+                
                 <div className="flex-1">
-                  <h1 className="text-2xl font-bold">{fullName || t("profile.yourProfile")}</h1>
-                  <p className="text-primary-foreground/80">{user.email}</p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <h1 className="text-3xl font-bold mb-1">{fullName || t("profile.yourProfile")}</h1>
+                  <p className="text-emerald-100/90">{user.email}</p>
+                  <div className="flex items-center gap-3 mt-3 flex-wrap">
                     {badges.length > 0 ? (
                       <TrustBadges badges={badges} size="sm" />
                     ) : (
-                      <span className="text-xs px-2 py-1 rounded-full bg-primary-foreground/20">
+                      <span className="text-xs px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
                         {t("profile.notVerified")}
                       </span>
-                    )}
-                    {showTrustScore && verification && (
-                      <TrustScore score={verification.trust_score} size="sm" showLabel={false} />
                     )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Verification CTA - Only for property providers */}
-            {showTrustScore && (
-              <button
-                onClick={() => navigate("/verification")}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-accent/5 hover:from-primary/10 hover:to-accent/10 transition-colors border-b border-border"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium text-sm">{t("profile.verificationCTA")}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {verification?.trust_score || 0}/100 {t("profile.points")} • {t("profile.increaseCredibility")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              </button>
-            )}
-
-            {/* Tabs for different sections */}
-            <Tabs defaultValue="personal" className="p-6">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="personal" className="gap-2">
+            {/* Tabs */}
+            <Tabs defaultValue="personal" className="p-8">
+              <TabsList className="grid w-full grid-cols-2 mb-8 bg-emerald-50/50 p-1.5 rounded-xl">
+                <TabsTrigger value="personal" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm">
                   <User className="w-4 h-4" />
                   {t("profile.personalInfo")}
                 </TabsTrigger>
-                {isSeeker && (
-                  <TabsTrigger value="preferences" className="gap-2">
-                    <Heart className="w-4 h-4" />
-                    {t("profile.preferences")}
-                  </TabsTrigger>
-                )}
-                {isOwner && (
-                  <TabsTrigger value="owner" className="gap-2">
-                    <Settings className="w-4 h-4" />
-                    {t("profile.ownerSettings")}
-                  </TabsTrigger>
-                )}
+                <TabsTrigger value="preferences" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm">
+                  <Search className="w-4 h-4" />
+                  {language === "fr" ? "Mes critères de recherche" : "My search criteria"}
+                </TabsTrigger>
               </TabsList>
 
               <form onSubmit={handleSave}>
                 {/* Personal Info Tab */}
                 <TabsContent value="personal" className="space-y-6">
-                {/* User Type - Read Only (defined at signup) */}
-                  <div className="space-y-3">
-                    <Label>{t("profile.iAm")}</Label>
-                    <div className="px-4 py-3 rounded-xl border border-border bg-muted/50">
-                      <span className="text-sm font-medium text-foreground">
-                        {userType === "seeker" ? t("profile.seeker") : 
-                         userType === "owner" ? t("profile.ownerLabel") : 
-                         userType === "agent" ? (language === "fr" ? "Agent immobilier" : "Real estate agent") :
-                         userType === "agency" ? (language === "fr" ? "Agence immobilière" : "Real estate agency") :
-                         t("profile.seeker")}
-                      </span>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {language === "fr" ? "Défini lors de l'inscription" : "Set during registration"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Personal Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">{t("profile.fullName")}</Label>
+                      <Label htmlFor="fullName" className="text-emerald-800">{t("profile.fullName")}</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
                         <Input
                           id="fullName"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
                           placeholder="Jean Dupont"
-                          className="pl-10"
+                          className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">{t("profile.phone")}</Label>
+                      <Label htmlFor="phone" className="text-emerald-800">{t("profile.phone")}</Label>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
                         <Input
                           id="phone"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="+237 6 00 00 00 00"
-                          className="pl-10"
+                          className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="whatsapp" className="flex items-center gap-2">
+                      <Label htmlFor="whatsapp" className="text-emerald-800 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-green-500" />
-                        {language === "fr" ? "Numéro WhatsApp" : "WhatsApp Number"}
-                        <span className="text-xs text-muted-foreground">
-                          ({language === "fr" ? "optionnel" : "optional"})
-                        </span>
+                        WhatsApp
                       </Label>
                       <div className="relative">
-                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" />
                         <Input
                           id="whatsapp"
                           value={whatsappNumber}
                           onChange={(e) => setWhatsappNumber(e.target.value)}
                           placeholder="+237 6 00 00 00 00"
-                          className="pl-10"
+                          className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {language === "fr" 
-                          ? "Ce numéro sera utilisé par défaut pour le bouton WhatsApp de vos annonces" 
-                          : "This number will be used by default for the WhatsApp button on your listings"}
-                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="city" className="text-emerald-800">{t("profile.city")}</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400" />
+                        <Input
+                          id="city"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="Yaoundé, Douala..."
+                          className="pl-10 border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="city">{t("profile.city")}</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                      <Input
-                        id="city"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="Yaoundé, Douala..."
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bio */}
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">{t("profile.aboutMe")}</Label>
+                    <Label htmlFor="bio" className="text-emerald-800">{t("profile.aboutMe")}</Label>
                     <Textarea
                       id="bio"
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       placeholder={t("profile.aboutMePlaceholder")}
                       rows={4}
+                      className="border-emerald-100 focus:border-emerald-400 focus:ring-emerald-200 resize-none"
                     />
                   </div>
                 </TabsContent>
 
-                {/* Preferences Tab (Seekers) */}
-                {isSeeker && (
-                  <TabsContent value="preferences" className="space-y-6">
-                    {/* Type de bien préféré */}
-                    <div className="space-y-3">
-                      <Label>{language === "fr" ? "Type de bien recherché" : "Property type wanted"}</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {PROPERTY_TYPES.filter(p => p.category === "residential").map((type) => (
-                          <button
-                            key={type.value}
-                            type="button"
-                            onClick={() => setPropertyType(type.value)}
-                            className={`p-4 rounded-xl border-2 text-center transition-all ${
-                              propertyType === type.value
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <span className="text-2xl block mb-1">{type.icon}</span>
-                            <span className="text-sm font-medium text-foreground">{type.label}</span>
-                          </button>
-                        ))}
+                {/* Search Preferences Tab - Optimisé pour l'algorithme */}
+                <TabsContent value="preferences" className="space-y-8">
+                  
+                  {/* Section Budget */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
+                        <Wallet className="w-5 h-5" />
                       </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Budget mensuel" : "Monthly budget"}</h3>
                     </div>
-
-                    {/* Type d'annonce */}
-                    <div className="space-y-3">
-                      <Label>{language === "fr" ? "Type d'annonce" : "Listing type"}</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        {LISTING_TYPES.map((type) => (
-                          <button
-                            key={type.value}
-                            type="button"
-                            onClick={() => setListingType(type.value)}
-                            className={`p-4 rounded-xl border-2 text-left transition-all ${
-                              listingType === type.value
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <span className="font-medium text-foreground block">{type.label}</span>
-                            <span className="text-xs text-muted-foreground">{type.description}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Budget */}
-                    <div className="space-y-3">
-                      <Label>{t("profile.monthlyBudget")}</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="relative">
-                          <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            value={budgetMin}
-                            onChange={(e) => setBudgetMin(e.target.value)}
-                            placeholder={t("profile.budgetMin")}
-                            className="pl-10"
-                          />
-                        </div>
-                        <div className="relative">
-                          <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                          <Input
-                            type="number"
-                            value={budgetMax}
-                            onChange={(e) => setBudgetMax(e.target.value)}
-                            placeholder={t("profile.budgetMax")}
-                            className="pl-10"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Chambres et salles de bain */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>{language === "fr" ? "Chambres souhaitées" : "Desired bedrooms"}</Label>
-                        <div className="flex items-center gap-3">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setBedrooms(Math.max(0, (bedrooms || 0) - 1))}
-                          >
-                            -
-                          </Button>
-                          <span className="w-8 text-center font-medium">{bedrooms || 0}</span>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setBedrooms((bedrooms || 0) + 1)}
-                          >
-                            +
-                          </Button>
-                        </div>
+                        <Label className="text-emerald-700 text-sm">{language === "fr" ? "Minimum (FCFA)" : "Minimum (FCFA)"}</Label>
+                        <Input
+                          type="number"
+                          value={budgetMin}
+                          onChange={(e) => setBudgetMin(e.target.value)}
+                          placeholder="50000"
+                          className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200"
+                        />
                       </div>
                       <div className="space-y-2">
-                        <Label>{language === "fr" ? "Salles de bain" : "Bathrooms"}</Label>
-                        <div className="flex items-center gap-3">
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setBathrooms(Math.max(0, (bathrooms || 0) - 1))}
-                          >
-                            -
-                          </Button>
-                          <span className="w-8 text-center font-medium">{bathrooms || 0}</span>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setBathrooms((bathrooms || 0) + 1)}
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Surface */}
-                    <div className="space-y-3">
-                      <Label>{language === "fr" ? "Surface souhaitée (m²)" : "Desired area (sqm)"}</Label>
-                      <div className="grid grid-cols-2 gap-4">
+                        <Label className="text-emerald-700 text-sm">{language === "fr" ? "Maximum (FCFA)" : "Maximum (FCFA)"}</Label>
                         <Input
                           type="number"
-                          value={areaMin}
-                          onChange={(e) => setAreaMin(e.target.value)}
-                          placeholder={language === "fr" ? "Min" : "Min"}
-                        />
-                        <Input
-                          type="number"
-                          value={areaMax}
-                          onChange={(e) => setAreaMax(e.target.value)}
-                          placeholder={language === "fr" ? "Max" : "Max"}
+                          value={budgetMax}
+                          onChange={(e) => setBudgetMax(e.target.value)}
+                          placeholder="300000"
+                          className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Move Timeline */}
-                    <div className="space-y-3">
-                      <Label>{t("profile.moveInWhen")}</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {MOVE_TIMELINES.map((timeline) => (
-                          <button
-                            key={timeline.value}
-                            type="button"
-                            onClick={() => setMoveInTimeline(timeline.value)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                              moveInTimeline === timeline.value
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                            }`}
-                          >
-                            {timeline.label}
-                          </button>
-                        ))}
+                  {/* Section Type de bien */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-white flex items-center justify-center">
+                        <Home className="w-5 h-5" />
                       </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Types de bien recherchés" : "Property types wanted"}</h3>
                     </div>
-
-                    {/* Neighborhoods */}
-                    <div className="space-y-2">
-                      <Label htmlFor="neighborhoods">{t("profile.preferredNeighborhoods")}</Label>
-                      <Input
-                        id="neighborhoods"
-                        value={preferredNeighborhoods}
-                        onChange={(e) => setPreferredNeighborhoods(e.target.value)}
-                        placeholder={t("profile.neighborhoodsPlaceholder")}
-                      />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {PROPERTY_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => togglePropertyType(type.value)}
+                          className={`p-4 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${
+                            preferredPropertyTypes.includes(type.value)
+                              ? "border-emerald-500 bg-emerald-50 shadow-md"
+                              : "border-gray-200 hover:border-emerald-200 bg-white"
+                          }`}
+                        >
+                          <span className="text-2xl block mb-1">{type.icon}</span>
+                          <span className={`text-sm font-medium ${preferredPropertyTypes.includes(type.value) ? "text-emerald-800" : "text-gray-700"}`}>{type.label}</span>
+                          {preferredPropertyTypes.includes(type.value) && (
+                            <CheckCircle className="w-4 h-4 text-emerald-500 mx-auto mt-1" />
+                          )}
+                        </button>
+                      ))}
                     </div>
+                  </div>
 
-                    {/* Options booléennes */}
-                    <div className="space-y-3">
-                      <Label>{language === "fr" ? "Options souhaitées" : "Desired options"}</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Meublé" : "Furnished"}</span>
-                          <Switch checked={isFurnished} onCheckedChange={setIsFurnished} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Ascenseur" : "Elevator"}</span>
-                          <Switch checked={needsElevator} onCheckedChange={setNeedsElevator} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Parking" : "Parking"}</span>
-                          <Switch checked={needsParking} onCheckedChange={setNeedsParking} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">WiFi</span>
-                          <Switch checked={needsInternet} onCheckedChange={setNeedsInternet} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Générateur" : "Generator"}</span>
-                          <Switch checked={needsGenerator} onCheckedChange={setNeedsGenerator} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Réservoir d'eau" : "Water tank"}</span>
-                          <Switch checked={needsWaterTank} onCheckedChange={setNeedsWaterTank} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Sécurité" : "Security"}</span>
-                          <Switch checked={needsSecurity} onCheckedChange={setNeedsSecurity} />
-                        </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-                          <span className="text-sm">{language === "fr" ? "Ménage inclus" : "Cleaning included"}</span>
-                          <Switch checked={needsCleaning} onCheckedChange={setNeedsCleaning} />
-                        </div>
+                  {/* Section Type d'annonce */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-green-500 text-white flex items-center justify-center">
+                        <Filter className="w-5 h-5" />
                       </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Type d'annonce" : "Listing type"}</h3>
                     </div>
-
-                    {/* Équipements essentiels améliorés */}
-                    <div className="space-y-3">
-                      <Label>{language === "fr" ? "Équipements essentiels" : "Essential amenities"}</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {ALL_AMENITIES.slice(0, 12).map((amenity) => (
-                          <div
-                            key={amenity.value}
-                            className="flex items-center space-x-2"
-                          >
-                            <Checkbox
-                              id={`pref-${amenity.value}`}
-                              checked={preferredAmenities.includes(amenity.value)}
-                              onCheckedChange={() => toggleArrayValue(preferredAmenities, amenity.value, setPreferredAmenities)}
-                            />
-                            <label
-                              htmlFor={`pref-${amenity.value}`}
-                              className="text-sm text-foreground cursor-pointer"
-                            >
-                              {amenity.label}
-                            </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      {LISTING_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setPreferredListingType(type.value)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                            preferredListingType === type.value
+                              ? "border-emerald-500 bg-emerald-50 shadow-md"
+                              : "border-gray-200 hover:border-emerald-200 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <type.icon className={`w-5 h-5 ${preferredListingType === type.value ? "text-emerald-600" : "text-gray-500"}`} />
+                            <span className={`font-semibold ${preferredListingType === type.value ? "text-emerald-800" : "text-gray-800"}`}>{type.label}</span>
                           </div>
-                        ))}
-                      </div>
+                          <span className="text-xs text-gray-500">{type.description}</span>
+                        </button>
+                      ))}
                     </div>
-                  </TabsContent>
-                )}
+                  </div>
 
-                {/* Owner Settings Tab */}
-                {isOwner && (
-                  <TabsContent value="owner" className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="whatsapp">{t("profile.whatsappNumber")}</Label>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {t("profile.whatsappExplanation")}
-                      </p>
-                      <div className="relative">
-                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="whatsapp"
-                          value={whatsappNumber}
-                          onChange={(e) => setWhatsappNumber(e.target.value)}
-                          placeholder="+237 6 00 00 00 00"
-                          className="pl-10"
+                  {/* Section Composition */}
+                  <div className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl p-6 border border-teal-100">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center">
+                        <BedDouble className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Composition souhaitée" : "Desired composition"}</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-emerald-700">{language === "fr" ? "Chambres" : "Bedrooms"}</Label>
+                        <NumberStepper
+                          value={bedrooms || 0}
+                          onChange={(val) => setBedrooms(val === 0 ? null : val)}
+                          min={0}
+                          max={10}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-emerald-700">{language === "fr" ? "Salles de bain" : "Bathrooms"}</Label>
+                        <NumberStepper
+                          value={bathrooms || 0}
+                          onChange={(val) => setBathrooms(val === 0 ? null : val)}
+                          min={0}
+                          max={5}
                         />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Paramètres de publication */}
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="visitPrice">{language === "fr" ? "Prix de visite (FCFA)" : "Visit price (FCFA)"}</Label>
-                        <Input
-                          id="visitPrice"
-                          type="number"
-                          value={visitPrice}
-                          onChange={(e) => setVisitPrice(e.target.value)}
-                          placeholder="Ex: 5000"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {language === "fr" ? "Montant demandé pour les visites (optionnel)" : "Amount charged for visits (optional)"}
+                  {/* Section Quartiers */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                        <MapPinned className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Quartiers préférés" : "Preferred neighborhoods"}</h3>
+                    </div>
+                    <Textarea
+                      value={preferredNeighborhoods}
+                      onChange={(e) => setPreferredNeighborhoods(e.target.value)}
+                      placeholder={language === "fr" ? "Ex: Bastos, Odza, Mvan... (séparés par des virgules)" : "Ex: Bastos, Odza, Mvan... (comma separated)"}
+                      rows={3}
+                      className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-200 resize-none"
+                    />
+                  </div>
+
+                  {/* Section Délai */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-lime-500 text-white flex items-center justify-center">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Quand souhaitez-vous emménager ?" : "When do you want to move in?"}</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {MOVE_TIMELINES.map((timeline) => (
+                        <button
+                          key={timeline.value}
+                          type="button"
+                          onClick={() => setMoveInTimeline(timeline.value)}
+                          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all hover:scale-105 ${
+                            moveInTimeline === timeline.value
+                              ? timeline.color + " ring-2 ring-offset-2 ring-emerald-300"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          {timeline.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section Options */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-emerald-900">{language === "fr" ? "Options souhaitées" : "Desired options"}</h3>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {[
+                        { key: "isFurnished", label: language === "fr" ? "Meublé" : "Furnished", value: isFurnished, setter: setIsFurnished, icon: Sofa },
+                        { key: "needsParking", label: "Parking", value: needsParking, setter: setNeedsParking, icon: Car },
+                        { key: "needsInternet", label: "WiFi", value: needsInternet, setter: setNeedsInternet, icon: Wifi },
+                        { key: "needsGenerator", label: language === "fr" ? "Générateur" : "Generator", value: needsGenerator, setter: setNeedsGenerator, icon: Zap },
+                        { key: "needsWaterTank", label: language === "fr" ? "Réservoir" : "Water tank", value: needsWaterTank, setter: setNeedsWaterTank, icon: Droplet },
+                        { key: "needsSecurity", label: language === "fr" ? "Sécurité" : "Security", value: needsSecurity, setter: setNeedsSecurity, icon: Shield },
+                      ].map((option) => (
+                        <div
+                          key={option.key}
+                          className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-[1.02] ${
+                            option.value ? "border-emerald-400 bg-emerald-50" : "border-gray-200 bg-white"
+                          }`}
+                          onClick={() => option.setter(!option.value)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <option.icon className={`w-4 h-4 ${option.value ? "text-emerald-600" : "text-gray-400"}`} />
+                            <span className={`text-sm font-medium ${option.value ? "text-emerald-800" : "text-gray-700"}`}>{option.label}</span>
+                          </div>
+                          <Switch checked={option.value} onCheckedChange={option.setter} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Info algorithme */}
+                  <div className="bg-gradient-to-r from-emerald-100 to-teal-100 rounded-xl p-4 border border-emerald-200">
+                    <div className="flex items-start gap-3">
+                      <Bell className="w-5 h-5 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800">
+                          {language === "fr" ? "Comment fonctionnent nos recommandations" : "How our recommendations work"}
                         </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="rentalMonths">{language === "fr" ? "Durée de bail (mois)" : "Lease duration (months)"}</Label>
-                        <Input
-                          id="rentalMonths"
-                          type="number"
-                          value={rentalMonths}
-                          onChange={(e) => setRentalMonths(e.target.value)}
-                          placeholder="Ex: 12"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="deposit">{language === "fr" ? "Caution (FCFA)" : "Deposit (FCFA)"}</Label>
-                        <Input
-                          id="deposit"
-                          type="number"
-                          value={deposit}
-                          onChange={(e) => setDeposit(e.target.value)}
-                          placeholder="Ex: 300000"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="rules">{language === "fr" ? "Règles de la propriété" : "Property rules"}</Label>
-                        <Textarea
-                          id="rules"
-                          value={rules}
-                          onChange={(e) => setRules(e.target.value)}
-                          placeholder={language === "fr" ? "Animaux interdits, heures de silence..." : "No pets, quiet hours..."}
-                          rows={3}
-                        />
-                      </div>
-
-                      <div className="bg-secondary/50 rounded-xl p-4">
-                        <h3 className="font-medium mb-2">💡 {t("profile.tip")}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-emerald-600 mt-1">
                           {language === "fr" 
-                            ? "Ces informations seront utilisées par défaut pour vos nouvelles annonces." 
-                            : "These details will be used by default for your new listings."}
+                            ? "Plus vos critères sont précis, mieux notre algorithme pourra vous suggérer des biens correspondant à vos besoins. Vous pouvez modifier ces préférences à tout moment."
+                            : "The more precise your criteria, the better our algorithm can suggest properties matching your needs. You can modify these preferences anytime."}
                         </p>
                       </div>
                     </div>
-                  </TabsContent>
-                )}
+                  </div>
+                </TabsContent>
 
                 {/* Save Button */}
-                <div className="mt-8 pt-6 border-t border-border">
-                  <Button type="submit" className="w-full gap-2" disabled={saving}>
+                <div className="mt-8 pt-6 border-t border-emerald-100">
+                  <Button 
+                    type="submit" 
+                    className="w-full gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-200" 
+                    disabled={saving}
+                  >
                     {saving ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
