@@ -89,15 +89,6 @@ interface Profile {
   move_in_timeline: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
-  needs_parking: boolean | null;
-  needs_internet: boolean | null;
-  needs_generator: boolean | null;
-  needs_water_tank: boolean | null;
-  needs_security: boolean | null;
-  needs_furnished: boolean | null;
-  needs_air_conditioning: boolean | null;
-  needs_pool: boolean | null;
-  needs_gym: boolean | null;
   preferred_amenities: string[] | null;
 }
 
@@ -139,15 +130,6 @@ const ProfilePage = () => {
   const [moveInTimeline, setMoveInTimeline] = useState("");
   const [bedrooms, setBedrooms] = useState<number | null>(null);
   const [bathrooms, setBathrooms] = useState<number | null>(null);
-  const [needsParking, setNeedsParking] = useState(false);
-  const [needsInternet, setNeedsInternet] = useState(false);
-  const [needsGenerator, setNeedsGenerator] = useState(false);
-  const [needsWaterTank, setNeedsWaterTank] = useState(false);
-  const [needsSecurity, setNeedsSecurity] = useState(false);
-  const [needsFurnished, setNeedsFurnished] = useState(false);
-  const [needsAirConditioning, setNeedsAirConditioning] = useState(false);
-  const [needsPool, setNeedsPool] = useState(false);
-  const [needsGym, setNeedsGym] = useState(false);
   const [preferredAmenities, setPreferredAmenities] = useState<string[]>([]);
 
   const PROPERTY_TYPES = [
@@ -261,15 +243,6 @@ const ProfilePage = () => {
         setMoveInTimeline(data.move_in_timeline || "");
         setBedrooms(data.bedrooms);
         setBathrooms(data.bathrooms);
-        setNeedsParking(data.needs_parking || false);
-        setNeedsInternet(data.needs_internet || false);
-        setNeedsGenerator(data.needs_generator || false);
-        setNeedsWaterTank(data.needs_water_tank || false);
-        setNeedsSecurity(data.needs_security || false);
-        setNeedsFurnished(data.needs_furnished || data.is_furnished || false);
-        setNeedsAirConditioning(data.needs_air_conditioning || false);
-        setNeedsPool(data.needs_pool || false);
-        setNeedsGym(data.needs_gym || false);
         setPreferredAmenities(data.preferred_amenities || []);
       }
     } catch (error: any) {
@@ -389,15 +362,6 @@ const ProfilePage = () => {
         move_in_timeline: moveInTimeline || null,
         bedrooms,
         bathrooms,
-        needs_parking: needsParking,
-        needs_internet: needsInternet,
-        needs_generator: needsGenerator,
-        needs_water_tank: needsWaterTank,
-        needs_security: needsSecurity,
-        needs_furnished: needsFurnished,
-        needs_air_conditioning: needsAirConditioning,
-        needs_pool: needsPool,
-        needs_gym: needsGym,
         preferred_amenities: preferredAmenities,
         updated_at: new Date().toISOString(),
       };
