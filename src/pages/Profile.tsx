@@ -63,6 +63,7 @@ import {
   Presentation,
   Wrench,
   Sparkles,
+  MessageSquare,
   ArrowRight
 } from "lucide-react";
 import { compressImage } from "@/utils/compressImage";
