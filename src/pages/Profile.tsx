@@ -88,7 +88,7 @@ interface Profile {
   whatsapp_number: string | null;
   preferred_property_types: string[] | null;
   preferred_neighborhoods: string[] | null;
-  preferred_listing_type: string | null;
+  preferred_listing_types: string | null;
   preferred_amenities: string[] | null;
   move_in_timeline: string | null;
   bedrooms: number | null;
@@ -248,7 +248,7 @@ const ProfilePage = () => {
         setAvatarUrl(data.avatar_url);
         setPreferredPropertyTypes(data.preferred_property_types || []);
         setPreferredNeighborhoods(data.preferred_neighborhoods?.join(", ") || "");
-        setPreferredListingType(data.preferred_listing_type || "rent");
+        setPreferredListingType(data.preferred_listing_types || "rent");
         setPreferredAmenities(data.preferred_amenities || []);
         setMoveInTimeline(data.move_in_timeline || "");
         setBedrooms(data.bedrooms);
@@ -367,7 +367,7 @@ const ProfilePage = () => {
         budget_max: budgetMax ? parseInt(budgetMax) : null,
         preferred_property_types: preferredPropertyTypes,
         preferred_neighborhoods: neighborhoods,
-        preferred_listing_type: preferredListingType,
+        preferred_listing_types: preferredListingType,
         preferred_amenities: preferredAmenities,
         move_in_timeline: moveInTimeline || null,
         bedrooms,
