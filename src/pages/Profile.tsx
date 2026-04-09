@@ -192,11 +192,11 @@ const ProfilePage = () => {
   ];
 
   const MOVE_TIMELINES = [
-    { value: "immediate", label: language === "fr" ? "Immédiatement" : "Immediately", color: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-700", icon: "⚡" },
-    { value: "within_week", label: language === "fr" ? "Cette semaine" : "This week", color: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700", icon: "📅" },
-    { value: "within_month", label: language === "fr" ? "Ce mois-ci" : "This month", color: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-700", icon: "📆" },
-    { value: "within_3months", label: language === "fr" ? "Dans 3 mois" : "Within 3 months", color: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-700", icon: "🗓️" },
-    { value: "flexible", label: language === "fr" ? "Flexible" : "Flexible", color: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700", icon: "🤝" },
+    { value: "immediate", label: language === "fr" ? "Immédiatement" : "Immediately", color: "bg-orange-100 text-orange-800 border-orange-300", icon: "⚡" },
+    { value: "within_week", label: language === "fr" ? "Cette semaine" : "This week", color: "bg-amber-100 text-amber-800 border-amber-300", icon: "📅" },
+    { value: "within_month", label: language === "fr" ? "Ce mois-ci" : "This month", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: "📆" },
+    { value: "within_3months", label: language === "fr" ? "Dans 3 mois" : "Within 3 months", color: "bg-orange-100 text-orange-800 border-orange-300", icon: "🗓️" },
+    { value: "flexible", label: language === "fr" ? "Flexible" : "Flexible", color: "bg-amber-100 text-amber-800 border-amber-300", icon: "🤝" },
   ];
 
   const COMPOSITION_OPTIONS = [
@@ -253,7 +253,7 @@ const ProfilePage = () => {
         setNeedsWaterTank(data.needs_water_tank || false);
         setNeedsSecurity(data.needs_security || false);
         setNeedsFurnished(data.needs_furnished || data.is_furnished || false);
-        setNeedsAirConditioning(data.needs_air_conditioning || false);
+        // Retiré : setNeedsAirConditioning(data.needs_air_conditioning || false);
         setNeedsPool(data.needs_pool || false);
         setNeedsGym(data.needs_gym || false);
       }
@@ -372,7 +372,7 @@ const ProfilePage = () => {
         needs_water_tank: needsWaterTank,
         needs_security: needsSecurity,
         needs_furnished: needsFurnished,
-        needs_air_conditioning: needsAirConditioning,
+        // Retiré : needs_air_conditioning: needsAirConditioning,
         needs_pool: needsPool,
         needs_gym: needsGym,
         updated_at: new Date().toISOString(),
@@ -402,7 +402,7 @@ const ProfilePage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-orange-50/30 to-background dark:from-orange-950/20 dark:to-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-orange-50/30 to-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
       </div>
     );
@@ -411,7 +411,7 @@ const ProfilePage = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50/30 via-amber-50/20 to-background dark:from-orange-950/20 dark:via-amber-950/10 dark:to-background">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50/30 via-amber-50/20 to-background">
       <Navbar />
       
       <main className="pt-24 pb-16">
@@ -429,7 +429,7 @@ const ProfilePage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-card rounded-3xl shadow-xl border border-orange-100/50 dark:border-orange-900/30 overflow-hidden"
+            className="bg-white rounded-3xl shadow-xl border border-orange-100/50 overflow-hidden"
           >
             <div className="bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-500 p-8 text-white relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-30"></div>
@@ -940,7 +940,7 @@ const ProfilePage = () => {
                         { key: "needsGenerator", label: language === "fr" ? "Générateur" : "Generator", value: needsGenerator, setter: setNeedsGenerator, icon: Zap, color: "from-yellow-400 to-amber-400" },
                         { key: "needsWaterTank", label: language === "fr" ? "Réservoir" : "Water tank", value: needsWaterTank, setter: setNeedsWaterTank, icon: Droplet, color: "from-cyan-400 to-blue-400" },
                         { key: "needsSecurity", label: language === "fr" ? "Sécurité" : "Security", value: needsSecurity, setter: setNeedsSecurity, icon: Shield, color: "from-red-400 to-pink-400" },
-                        { key: "needsAirConditioning", label: language === "fr" ? "Climatisation" : "AC", value: needsAirConditioning, setter: setNeedsAirConditioning, icon: Wind, color: "from-teal-400 to-emerald-400" },
+                        // Retiré : needsAirConditioning
                         { key: "needsPool", label: language === "fr" ? "Piscine" : "Pool", value: needsPool, setter: setNeedsPool, icon: Waves, color: "from-blue-400 to-cyan-400" },
                         { key: "needsGym", label: language === "fr" ? "Salle de sport" : "Gym", value: needsGym, setter: setNeedsGym, icon: Dumbbell, color: "from-lime-400 to-green-400" },
                       ].map((option) => (
