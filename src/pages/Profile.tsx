@@ -64,10 +64,7 @@ import {
   Wrench,
   Sparkles,
   ArrowRight,
-  MessageSquare,
-  ChevronRight,
-  Heart,
-  Settings
+  MessageSquare
 } from "lucide-react";
 import { compressImage } from "@/utils/compressImage";
 
@@ -88,11 +85,11 @@ interface Profile {
   whatsapp_number: string | null;
   preferred_property_types: string[] | null;
   preferred_neighborhoods: string[] | null;
-  preferred_listing_types: string | null;
-  preferred_amenities: string[] | null;
+  preferred_listing_types: string[] | null; // CHANGÉ: tableau au lieu de string unique
   move_in_timeline: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
+  preferred_amenities: string[] | null;
 }
 
 const defaultAvatars = [
@@ -120,26 +117,21 @@ const ProfilePage = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form state - Personal Info (variables de l'ancien code)
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
-  const [userType, setUserType] = useState<string>("seeker");
-  
-  // Form state - Preferences (variables de l'ancien code)
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
   const [preferredPropertyTypes, setPreferredPropertyTypes] = useState<string[]>([]);
   const [preferredNeighborhoods, setPreferredNeighborhoods] = useState("");
-  const [preferredListingType, setPreferredListingType] = useState<string>("rent");
-  const [preferredAmenities, setPreferredAmenities] = useState<string[]>([]);
+  const [preferredListingTypes, setPreferredListingTypes] = useState<string[]>([]); // CHANGÉ: tableau au lieu de string
   const [moveInTimeline, setMoveInTimeline] = useState("");
   const [bedrooms, setBedrooms] = useState<number | null>(null);
   const [bathrooms, setBathrooms] = useState<number | null>(null);
+  const [preferredAmenities, setPreferredAmenities] = useState<string[]>([]);
 
-  // Options traduites (de l'ancien code)
   const PROPERTY_TYPES = [
     { value: "studio", label: language === "fr" ? "Studio" : "Studio", icon: "🏢", category: "residential", desc: language === "fr" ? "Idéal pour étudiant ou célibataire" : "Ideal for student or single" },
     { value: "room", label: language === "fr" ? "Chambre" : "Room", icon: "🛏️", category: "residential", desc: language === "fr" ? "Chambre individuelle" : "Individual room" },
@@ -177,10 +169,10 @@ const ProfilePage = () => {
   ];
 
   const LISTING_TYPES = [
-    { value: "rent", label: language === "fr" ? "Location" : "rent", description: language === "fr" ? "Paiement mensuel régulier" : "Regular monthly payment", icon: Home, color: "from-orange-500 to-amber-500" },
-    { value: "sale", label: language === "fr" ? "Achat" : "sale", description: language === "fr" ? "Propriété à acquérir" : "Property to acquire", icon: CheckCircle, color: "from-amber-500 to-yellow-500" },
-    { value: "colocation", label: language === "fr" ? "colocation" : "Roommate", description: language === "fr" ? "Partager avec d'autres" : "Share with others", icon: Users, color: "from-yellow-400 to-orange-400" },
-    { value: "short_term", label: language === "fr" ? "courte durée" : "Short term", description: language === "fr" ? "Séjour temporaire" : "Temporary stay", icon: Calendar, color: "from-orange-400 to-red-400" },
+    { value: "rent", label: language === "fr" ? "Location" : "Rent", description: language === "fr" ? "Paiement mensuel régulier" : "Regular monthly payment", icon: Home, color: "from-orange-500 to-amber-500" },
+    { value: "sale", label: language === "fr" ? "Achat" : "Buy", description: language === "fr" ? "Propriété à acquérir" : "Property to acquire", icon: CheckCircle, color: "from-amber-500 to-yellow-500" },
+    { value: "colocation", label: language === "fr" ? "Colocation" : "Roommate", description: language === "fr" ? "Partager avec d'autres" : "Share with others", icon: Users, color: "from-yellow-400 to-orange-400" },
+    { value: "short_term", label: language === "fr" ? "Courte durée" : "Short term", description: language === "fr" ? "Séjour temporaire" : "Temporary stay", icon: Calendar, color: "from-orange-400 to-red-400" },
   ];
 
   const MOVE_TIMELINES = [
@@ -242,17 +234,17 @@ const ProfilePage = () => {
         setWhatsappNumber(data.whatsapp_number || "");
         setCity(data.city || "");
         setBio(data.bio || "");
-        setUserType(data.user_type || "seeker");
         setBudgetMin(data.budget_min?.toString() || "");
         setBudgetMax(data.budget_max?.toString() || "");
         setAvatarUrl(data.avatar_url);
         setPreferredPropertyTypes(data.preferred_property_types || []);
         setPreferredNeighborhoods(data.preferred_neighborhoods?.join(", ") || "");
-        setPreferredListingType(data.preferred_listing_types || "rent");
-        setPreferredAmenities(data.preferred_amenities || []);
+        // CHANGÉ: Gestion du tableau au lieu de string unique
+        setPreferredListingTypes(data.preferred_listing_types || []);
         setMoveInTimeline(data.move_in_timeline || "");
         setBedrooms(data.bedrooms);
         setBathrooms(data.bathrooms);
+        setPreferredAmenities(data.preferred_amenities || []);
       }
     } catch (error: any) {
       toast({
@@ -338,6 +330,15 @@ const ProfilePage = () => {
     }
   };
 
+  // CHANGÉ: Fonction pour gérer le tableau des types de listing
+  const toggleListingType = (value: string) => {
+    if (preferredListingTypes.includes(value)) {
+      setPreferredListingTypes(preferredListingTypes.filter(v => v !== value));
+    } else {
+      setPreferredListingTypes([...preferredListingTypes, value]);
+    }
+  };
+
   const toggleAmenity = (key: string) => {
     if (preferredAmenities.includes(key)) {
       setPreferredAmenities(preferredAmenities.filter(a => a !== key));
@@ -367,11 +368,11 @@ const ProfilePage = () => {
         budget_max: budgetMax ? parseInt(budgetMax) : null,
         preferred_property_types: preferredPropertyTypes,
         preferred_neighborhoods: neighborhoods,
-        preferred_listing_types: preferredListingType,
-        preferred_amenities: preferredAmenities,
+        preferred_listing_types: preferredListingTypes, // CHANGÉ: tableau au lieu de string
         move_in_timeline: moveInTimeline || null,
         bedrooms,
         bathrooms,
+        preferred_amenities: preferredAmenities,
         updated_at: new Date().toISOString(),
       };
 
@@ -384,7 +385,7 @@ const ProfilePage = () => {
 
       toast({
         title: t("profile.updated"),
-        description: t("profile.updatedDesc"),
+        description: language === "fr" ? "Vos préférences de recherche ont été enregistrées avec succès !" : "Your search preferences have been saved successfully!",
       });
     } catch (error: any) {
       toast({
@@ -406,10 +407,6 @@ const ProfilePage = () => {
   }
 
   if (!user) return null;
-
-  const isSeeker = userType === "seeker";
-  const isOwner = userType === "owner" || userType === "agent" || userType === "agency";
-  const showTrustScore = isOwner;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50/30 via-amber-50/20 to-background">
@@ -515,33 +512,10 @@ const ProfilePage = () => {
                         {t("profile.notVerified")}
                       </span>
                     )}
-                    {showTrustScore && verification && (
-                      <TrustScore score={verification.trust_score} size="sm" showLabel={false} />
-                    )}
                   </div>
                 </div>
               </div>
             </div>
-
-            {showTrustScore && (
-              <button
-                onClick={() => navigate("/verification")}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 hover:from-orange-100 hover:to-amber-100 transition-colors border-b border-orange-100"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium text-sm text-orange-900">{t("profile.verificationCTA")}</p>
-                    <p className="text-xs text-orange-600">
-                      {verification?.trust_score || 0}/100 {t("profile.points")} • {t("profile.increaseCredibility")}
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-orange-400" />
-              </button>
-            )}
 
             <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 p-4 border-b border-orange-100">
               <div className="flex items-start gap-3">
@@ -555,43 +529,19 @@ const ProfilePage = () => {
             </div>
 
             <Tabs defaultValue="personal" className="p-8">
-              <TabsList className="grid w-full grid-cols-3 mb-8 bg-orange-50/50 p-1.5 rounded-xl">
+              <TabsList className="grid w-full grid-cols-2 mb-8 bg-orange-50/50 p-1.5 rounded-xl">
                 <TabsTrigger value="personal" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
                   <User className="w-4 h-4" />
-                  {t("profile.personalInfo")}
+                  {language === "fr" ? "Informations personnelles" : "Personal information"}
                 </TabsTrigger>
-                {isSeeker && (
-                  <TabsTrigger value="preferences" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
-                    <Heart className="w-4 h-4" />
-                    {t("profile.preferences")}
-                  </TabsTrigger>
-                )}
-                {isOwner && (
-                  <TabsTrigger value="owner" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
-                    <Settings className="w-4 h-4" />
-                    {t("profile.ownerSettings")}
-                  </TabsTrigger>
-                )}
+                <TabsTrigger value="preferences" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
+                  <Search className="w-4 h-4" />
+                  {language === "fr" ? "Mes critères de recherche" : "My search criteria"}
+                </TabsTrigger>
               </TabsList>
 
               <form onSubmit={handleSave}>
                 <TabsContent value="personal" className="space-y-6">
-                  <div className="space-y-3">
-                    <Label>{t("profile.iAm")}</Label>
-                    <div className="px-4 py-3 rounded-xl border border-orange-200 bg-orange-50/50">
-                      <span className="text-sm font-medium text-orange-900">
-                        {userType === "seeker" ? t("profile.seeker") : 
-                         userType === "owner" ? t("profile.ownerLabel") : 
-                         userType === "agent" ? (language === "fr" ? "Agent immobilier" : "Real estate agent") :
-                         userType === "agency" ? (language === "fr" ? "Agence immobilière" : "Real estate agency") :
-                         t("profile.seeker")}
-                      </span>
-                      <p className="text-xs text-orange-600 mt-1">
-                        {language === "fr" ? "Défini lors de l'inscription" : "Set during registration"}
-                      </p>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="fullName" className="text-orange-800">{t("profile.fullName")}</Label>
@@ -624,8 +574,8 @@ const ProfilePage = () => {
                     <div className="space-y-2">
                       <Label htmlFor="whatsapp" className="text-orange-800 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-yellow-500" />
-                        {language === "fr" ? "Numéro WhatsApp" : "WhatsApp Number"}
-                        <span className="text-xs text-orange-500 font-normal">({language === "fr" ? "optionnel" : "optional"})</span>
+                        WhatsApp
+                        <span className="text-xs text-orange-500 font-normal">({language === "fr" ? "recommandé" : "recommended"})</span>
                       </Label>
                       <div className="relative">
                         <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-400" />
@@ -638,24 +588,25 @@ const ProfilePage = () => {
                         />
                       </div>
                       <p className="text-xs text-orange-600">
-                        {language === "fr" 
-                          ? "Ce numéro sera utilisé par défaut pour le bouton WhatsApp de vos annonces" 
-                          : "This number will be used by default for the WhatsApp button on your listings"}
+                        {language === "fr" ? "Pour être contacté rapidement par les propriétaires" : "To be contacted quickly by owners"}
                       </p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="city" className="text-orange-800">{t("profile.city")}</Label>
+                      <Label htmlFor="city" className="text-orange-800">{language === "fr" ? "Ville de recherche" : "Search city"}</Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400" />
                         <Input
                           id="city"
                           value={city}
                           onChange={(e) => setCity(e.target.value)}
-                          placeholder="Yaoundé, Douala..."
+                          placeholder="Yaoundé, Douala, Bafoussam..."
                           className="pl-10 border-orange-100 focus:border-orange-400 focus:ring-orange-200"
                         />
                       </div>
+                      <p className="text-xs text-orange-600">
+                        {language === "fr" ? "Indiquez la ville où vous souhaitez emménager" : "Indicate the city where you want to move"}
+                      </p>
                     </div>
                   </div>
 
@@ -672,433 +623,393 @@ const ProfilePage = () => {
                   </div>
                 </TabsContent>
 
-                {isSeeker && (
-                  <TabsContent value="preferences" className="space-y-8">
-                    <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 rounded-2xl p-6 border border-amber-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-lg">
-                          <Wallet className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel est votre budget ?" : "What is your budget?"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Définissez une fourchette de prix réaliste" : "Set a realistic price range"}</p>
-                        </div>
+                <TabsContent value="preferences" className="space-y-8">
+                  <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 rounded-2xl p-6 border border-amber-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-lg">
+                        <Wallet className="w-6 h-6" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-orange-700 text-sm font-medium">{language === "fr" ? "Budget minimum (FCFA)" : "Minimum budget (FCFA)"}</Label>
-                          <Input
-                            type="number"
-                            value={budgetMin}
-                            onChange={(e) => setBudgetMin(e.target.value)}
-                            placeholder="50000"
-                            className="border-amber-200 focus:border-amber-500 focus:ring-amber-200"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-orange-700 text-sm font-medium">{language === "fr" ? "Budget maximum (FCFA)" : "Maximum budget (FCFA)"}</Label>
-                          <Input
-                            type="number"
-                            value={budgetMax}
-                            onChange={(e) => setBudgetMax(e.target.value)}
-                            placeholder="300000"
-                            className="border-amber-200 focus:border-amber-500 focus:ring-amber-200"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <p className="text-xs text-yellow-800 flex items-start gap-2">
-                          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          {language === "fr" 
-                            ? "💡 Conseil : Un budget trop restrictif limite vos options. Pensez aux frais supplémentaires (caution, commissions) !"
-                            : "💡 Tip: A too restrictive budget limits your options. Consider additional fees (deposit, commissions)!"}
-                        </p>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel est votre budget ?" : "What is your budget?"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Définissez une fourchette de prix réaliste" : "Set a realistic price range"}</p>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg">
-                          <Home className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel type de bien recherchez-vous ?" : "What type of property are you looking for?"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Vous pouvez sélectionner plusieurs options" : "You can select multiple options"}</p>
-                        </div>
-                      </div>
-                      
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🏠 Résidentiel" : "🏠 Residential"}</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {PROPERTY_TYPES.filter(p => p.category === "residential").map((type) => (
-                            <button
-                              key={type.value}
-                              type="button"
-                              onClick={() => togglePropertyType(type.value)}
-                              className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
-                                preferredPropertyTypes.includes(type.value)
-                                  ? "border-orange-500 bg-orange-50 shadow-md"
-                                  : "border-gray-200 hover:border-orange-200 bg-white"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <span className="text-xl">{type.icon}</span>
-                                <div>
-                                  <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
-                                  <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
-                                </div>
-                              </div>
-                              {preferredPropertyTypes.includes(type.value) && (
-                                <Check className="w-4 h-4 text-orange-500 ml-auto mt-1" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🌳 Terrains" : "🌳 Land"}</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {PROPERTY_TYPES.filter(p => p.category === "land").map((type) => (
-                            <button
-                              key={type.value}
-                              type="button"
-                              onClick={() => togglePropertyType(type.value)}
-                              className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
-                                preferredPropertyTypes.includes(type.value)
-                                  ? "border-orange-500 bg-orange-50 shadow-md"
-                                  : "border-gray-200 hover:border-orange-200 bg-white"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <span className="text-xl">{type.icon}</span>
-                                <div>
-                                  <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
-                                  <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🏢 Commercial & Professionnel" : "🏢 Commercial & Professional"}</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {PROPERTY_TYPES.filter(p => p.category === "commercial").map((type) => (
-                            <button
-                              key={type.value}
-                              type="button"
-                              onClick={() => togglePropertyType(type.value)}
-                              className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
-                                preferredPropertyTypes.includes(type.value)
-                                  ? "border-orange-500 bg-orange-50 shadow-md"
-                                  : "border-gray-200 hover:border-orange-200 bg-white"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <span className="text-xl">{type.icon}</span>
-                                <div>
-                                  <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
-                                  <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 text-white flex items-center justify-center shadow-lg">
-                          <Star className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel est votre projet ?" : "What is your project?"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez le type d'annonce qui vous intéresse" : "Select the type of listing that interests you"}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        {LISTING_TYPES.map((type) => (
-                          <button
-                            key={type.value}
-                            type="button"
-                            onClick={() => setPreferredListingType(type.value)}
-                            className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] relative overflow-hidden ${
-                              preferredListingType === type.value
-                                ? "border-amber-500 shadow-lg"
-                                : "border-gray-200 hover:border-amber-200 bg-white"
-                            }`}
-                          >
-                            <div className={`absolute inset-0 bg-gradient-to-br ${type.color} opacity-0 transition-opacity ${preferredListingType === type.value ? 'opacity-10' : ''}`}></div>
-                            <div className="relative z-10">
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${type.color} text-white flex items-center justify-center`}>
-                                  <type.icon className="w-5 h-5" />
-                                </div>
-                                <span className={`font-bold ${preferredListingType === type.value ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
-                              </div>
-                              <span className="text-xs text-gray-600">{type.description}</span>
-                            </div>
-                            {preferredListingType === type.value && (
-                              <CheckCircle className="w-6 h-6 text-amber-500 absolute top-3 right-3" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 rounded-2xl p-6 border border-yellow-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg">
-                          <Building className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quelle composition souhaitez-vous ?" : "What composition do you want?"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez le nombre de pièces idéal" : "Select your ideal number of rooms"}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
-                        {COMPOSITION_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => {
-                              const rooms = option.value === "studio" ? 0 : option.value === "t2" ? 1 : option.value === "t3" ? 2 : option.value === "t4" ? 3 : 4;
-                              setBedrooms(rooms);
-                            }}
-                            className={`p-3 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${
-                              (bedrooms === 0 && option.value === "studio") ||
-                              (bedrooms === 1 && option.value === "t2") ||
-                              (bedrooms === 2 && option.value === "t3") ||
-                              (bedrooms === 3 && option.value === "t4") ||
-                              (bedrooms && bedrooms >= 4 && option.value === "t5")
-                                ? "border-yellow-400 bg-yellow-50 shadow-md"
-                                : "border-gray-200 hover:border-yellow-200 bg-white"
-                            }`}
-                          >
-                            <span className="text-2xl block mb-1">{option.icon}</span>
-                            <span className="text-sm font-semibold block text-gray-800">{option.label}</span>
-                            <span className="text-xs text-gray-500">{option.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                          <Label className="text-orange-700 font-medium flex items-center gap-2">
-                            <Bed className="w-4 h-4" />
-                            {language === "fr" ? "Nombre de chambres" : "Number of bedrooms"}
-                          </Label>
-                          <NumberStepper
-                            value={bedrooms || 0}
-                            onChange={(val) => setBedrooms(val === 0 ? null : val)}
-                            min={0}
-                            max={10}
-                          />
-                        </div>
-                        <div className="space-y-3">
-                          <Label className="text-orange-700 font-medium flex items-center gap-2">
-                            <Bath className="w-4 h-4" />
-                            {language === "fr" ? "Salles de bain" : "Bathrooms"}
-                          </Label>
-                          <NumberStepper
-                            value={bathrooms || 0}
-                            onChange={(val) => setBathrooms(val === 0 ? null : val)}
-                            min={0}
-                            max={5}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg">
-                          <MapPinned className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quartiers préférés" : "Preferred neighborhoods"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Indiquez les zones où vous souhaitez habiter" : "Indicate the areas where you want to live"}</p>
-                        </div>
-                      </div>
-                      <Textarea
-                        value={preferredNeighborhoods}
-                        onChange={(e) => setPreferredNeighborhoods(e.target.value)}
-                        placeholder={language === "fr" ? "Ex: Bastos, Odza, Mvan, Tsinga... (séparés par des virgules)" : "Ex: Bastos, Odza, Mvan, Tsinga... (comma separated)"}
-                        rows={3}
-                        className="border-orange-200 focus:border-orange-500 focus:ring-orange-200 resize-none"
-                      />
-                      <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                        <Lightbulb className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-amber-700">
-                          {language === "fr" 
-                            ? "💡 Astuce : Plus vous indiquez de quartiers, plus vous avez de chances de trouver votre bonheur !"
-                            : "💡 Tip: The more neighborhoods you indicate, the more chances you have to find what you're looking for!"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg">
-                          <Calendar className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quand souhaitez-vous emménager ?" : "When do you want to move in?"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Cela aide les propriétaires à prioriser" : "This helps owners prioritize"}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        {MOVE_TIMELINES.map((timeline) => (
-                          <button
-                            key={timeline.value}
-                            type="button"
-                            onClick={() => setMoveInTimeline(timeline.value)}
-                            className={`px-5 py-3 rounded-xl text-sm font-medium transition-all hover:scale-105 flex items-center gap-2 ${
-                              moveInTimeline === timeline.value
-                                ? timeline.color + " ring-2 ring-offset-2 ring-yellow-300 shadow-lg"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                            }`}
-                          >
-                            <span>{timeline.icon}</span>
-                            {timeline.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Options et équipements souhaités" : "Desired options and amenities"}</h3>
-                          <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez ce qui est important pour vous" : "Select what is important to you"}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {AMENITIES_OPTIONS.map((option) => (
-                          <div
-                            key={option.key}
-                            onClick={() => toggleAmenity(option.key)}
-                            className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${
-                              preferredAmenities.includes(option.key)
-                                ? "border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md"
-                                : "border-gray-200 bg-white hover:border-amber-200"
-                            }`}
-                          >
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.color} text-white flex items-center justify-center mb-2 shadow-sm`}>
-                              <option.icon className="w-6 h-6" />
-                            </div>
-                            <span className={`text-sm font-medium text-center ${preferredAmenities.includes(option.key) ? "text-orange-800" : "text-gray-700"}`}>{option.label}</span>
-                            {preferredAmenities.includes(option.key) && (
-                              <Check className="w-4 h-4 text-amber-500 mt-1" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-amber-100 via-orange-100 to-yellow-100 rounded-xl p-5 border-2 border-amber-300">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center flex-shrink-0">
-                          <Bell className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-orange-900 mb-2">
-                            {language === "fr" ? "Comment fonctionnent nos recommandations intelligentes ?" : "How do our smart recommendations work?"}
-                          </h4>
-                          <p className="text-sm text-orange-700 leading-relaxed">
-                            {language === "fr" 
-                              ? "Notre algorithme analyse vos critères (budget, localisation, type de bien, équipements...) et compare avec des milliers d'annonces pour vous proposer les meilleures correspondances. Plus vos critères sont précis, plus les suggestions seront pertinentes ! Vous pouvez modifier ces préférences à tout moment."
-                              : "Our algorithm analyzes your criteria (budget, location, property type, amenities...) and compares with thousands of listings to suggest the best matches. The more precise your criteria, the more relevant the suggestions! You can modify these preferences anytime."}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
-                      <h4 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-orange-500" />
-                        {language === "fr" ? "Résumé de vos critères" : "Summary of your criteria"}
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {budgetMin && budgetMax && (
-                          <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
-                            {parseInt(budgetMin).toLocaleString()} - {parseInt(budgetMax).toLocaleString()} FCFA
-                          </span>
-                        )}
-                        {city && (
-                          <span className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
-                            📍 {city}
-                          </span>
-                        )}
-                        {preferredPropertyTypes.length > 0 && (
-                          <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
-                            🏠 {preferredPropertyTypes.length} {language === "fr" ? "types" : "types"}
-                          </span>
-                        )}
-                        {bedrooms !== null && bedrooms > 0 && (
-                          <span className="px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-800 text-sm font-medium">
-                            🛏️ {bedrooms} {language === "fr" ? "chambres" : "bedrooms"}
-                          </span>
-                        )}
-                        {moveInTimeline && (
-                          <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
-                            📅 {MOVE_TIMELINES.find(t => t.value === moveInTimeline)?.label}
-                          </span>
-                        )}
-                        {preferredAmenities.length > 0 && (
-                          <span className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
-                            ✨ {preferredAmenities.length} {language === "fr" ? "équipements" : "amenities"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </TabsContent>
-                )}
-
-                {isOwner && (
-                  <TabsContent value="owner" className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="whatsapp" className="text-orange-800 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-yellow-500" />
-                        {language === "fr" ? "Numéro WhatsApp" : "WhatsApp Number"}
-                      </Label>
-                      <p className="text-xs text-orange-600 mb-2">
-                        {language === "fr" 
-                          ? "Ce numéro sera utilisé par défaut pour le bouton WhatsApp de vos annonces" 
-                          : "This number will be used by default for the WhatsApp button on your listings"}
-                      </p>
-                      <div className="relative">
-                        <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-400" />
+                        <Label className="text-orange-700 text-sm font-medium">{language === "fr" ? "Budget minimum (FCFA)" : "Minimum budget (FCFA)"}</Label>
                         <Input
-                          id="whatsapp"
-                          value={whatsappNumber}
-                          onChange={(e) => setWhatsappNumber(e.target.value)}
-                          placeholder="+237 6 00 00 00 00"
-                          className="pl-10 border-orange-100 focus:border-yellow-400 focus:ring-yellow-200"
+                          type="number"
+                          value={budgetMin}
+                          onChange={(e) => setBudgetMin(e.target.value)}
+                          placeholder="50000"
+                          className="border-amber-200 focus:border-amber-500 focus:ring-amber-200"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-orange-700 text-sm font-medium">{language === "fr" ? "Budget maximum (FCFA)" : "Maximum budget (FCFA)"}</Label>
+                        <Input
+                          type="number"
+                          value={budgetMax}
+                          onChange={(e) => setBudgetMax(e.target.value)}
+                          placeholder="300000"
+                          className="border-amber-200 focus:border-amber-500 focus:ring-amber-200"
                         />
                       </div>
                     </div>
-
-                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
-                      <h3 className="font-medium text-orange-900 mb-2 flex items-center gap-2">
-                        <Lightbulb className="w-5 h-5 text-orange-500" />
-                        💡 {language === "fr" ? "Astuce" : "Tip"}
-                      </h3>
-                      <p className="text-sm text-orange-700">
+                    <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <p className="text-xs text-yellow-800 flex items-start gap-2">
+                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         {language === "fr" 
-                          ? "Un numéro WhatsApp bien renseigné augmente vos chances de contact avec les chercheurs de logement." 
-                          : "A well-filled WhatsApp number increases your chances of contact with housing seekers."}
+                          ? "💡 Conseil : Un budget trop restrictif limite vos options. Pensez aux frais supplémentaires (caution, commissions) !"
+                          : "💡 Tip: A too restrictive budget limits your options. Consider additional fees (deposit, commissions)!"}
                       </p>
                     </div>
-                  </TabsContent>
-                )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg">
+                        <Home className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel type de bien recherchez-vous ?" : "What type of property are you looking for?"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Vous pouvez sélectionner plusieurs options" : "You can select multiple options"}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🏠 Résidentiel" : "🏠 Residential"}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "residential").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-orange-500 bg-orange-50 shadow-md"
+                                : "border-gray-200 hover:border-orange-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                            {preferredPropertyTypes.includes(type.value) && (
+                              <Check className="w-4 h-4 text-orange-500 ml-auto mt-1" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🌳 Terrains" : "🌳 Land"}</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "land").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-orange-500 bg-orange-50 shadow-md"
+                                : "border-gray-200 hover:border-orange-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-orange-700 uppercase tracking-wide">{language === "fr" ? "🏢 Commercial & Professionnel" : "🏢 Commercial & Professional"}</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {PROPERTY_TYPES.filter(p => p.category === "commercial").map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => togglePropertyType(type.value)}
+                            className={`p-3 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
+                              preferredPropertyTypes.includes(type.value)
+                                ? "border-orange-500 bg-orange-50 shadow-md"
+                                : "border-gray-200 hover:border-orange-200 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="text-xl">{type.icon}</span>
+                              <div>
+                                <span className={`text-sm font-semibold block ${preferredPropertyTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
+                                <span className="text-xs text-gray-500 leading-tight block">{type.desc}</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 text-white flex items-center justify-center shadow-lg">
+                        <Star className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quel est votre projet ?" : "What is your project?"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez le type d'annonce qui vous intéresse (plusieurs choix possibles)" : "Select the type of listing that interests you (multiple choices possible)"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {LISTING_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => toggleListingType(type.value)} // CHANGÉ: utilise toggleListingType
+                          className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] relative overflow-hidden ${
+                            preferredListingTypes.includes(type.value) // CHANGÉ: vérifie l'inclusion dans le tableau
+                              ? "border-amber-500 shadow-lg"
+                              : "border-gray-200 hover:border-amber-200 bg-white"
+                          }`}
+                        >
+                          <div className={`absolute inset-0 bg-gradient-to-br ${type.color} opacity-0 transition-opacity ${preferredListingTypes.includes(type.value) ? 'opacity-10' : ''}`}></div>
+                          <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${type.color} text-white flex items-center justify-center`}>
+                                <type.icon className="w-5 h-5" />
+                              </div>
+                              <span className={`font-bold ${preferredListingTypes.includes(type.value) ? "text-orange-800" : "text-gray-800"}`}>{type.label}</span>
+                            </div>
+                            <span className="text-xs text-gray-600">{type.description}</span>
+                          </div>
+                          {preferredListingTypes.includes(type.value) && ( // CHANGÉ: vérifie l'inclusion dans le tableau
+                            <CheckCircle className="w-6 h-6 text-amber-500 absolute top-3 right-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 rounded-2xl p-6 border border-yellow-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg">
+                        <Building className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quelle composition souhaitez-vous ?" : "What composition do you want?"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez le nombre de pièces idéal" : "Select your ideal number of rooms"}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+                      {COMPOSITION_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            const rooms = option.value === "studio" ? 0 : option.value === "t2" ? 1 : option.value === "t3" ? 2 : option.value === "t4" ? 3 : 4;
+                            setBedrooms(rooms);
+                          }}
+                          className={`p-3 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ${
+                            (bedrooms === 0 && option.value === "studio") ||
+                            (bedrooms === 1 && option.value === "t2") ||
+                            (bedrooms === 2 && option.value === "t3") ||
+                            (bedrooms === 3 && option.value === "t4") ||
+                            (bedrooms && bedrooms >= 4 && option.value === "t5")
+                              ? "border-yellow-400 bg-yellow-50 shadow-md"
+                              : "border-gray-200 hover:border-yellow-200 bg-white"
+                          }`}
+                        >
+                          <span className="text-2xl block mb-1">{option.icon}</span>
+                          <span className="text-sm font-semibold block text-gray-800">{option.label}</span>
+                          <span className="text-xs text-gray-500">{option.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label className="text-orange-700 font-medium flex items-center gap-2">
+                          <Bed className="w-4 h-4" />
+                          {language === "fr" ? "Nombre de chambres" : "Number of bedrooms"}
+                        </Label>
+                        <NumberStepper
+                          value={bedrooms || 0}
+                          onChange={(val) => setBedrooms(val === 0 ? null : val)}
+                          min={0}
+                          max={10}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-orange-700 font-medium flex items-center gap-2">
+                          <Bath className="w-4 h-4" />
+                          {language === "fr" ? "Salles de bain" : "Bathrooms"}
+                        </Label>
+                        <NumberStepper
+                          value={bathrooms || 0}
+                          onChange={(val) => setBathrooms(val === 0 ? null : val)}
+                          min={0}
+                          max={5}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg">
+                        <MapPinned className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quartiers préférés" : "Preferred neighborhoods"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Indiquez les zones où vous souhaitez habiter" : "Indicate the areas where you want to live"}</p>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={preferredNeighborhoods}
+                      onChange={(e) => setPreferredNeighborhoods(e.target.value)}
+                      placeholder={language === "fr" ? "Ex: Bastos, Odza, Mvan, Tsinga... (séparés par des virgules)" : "Ex: Bastos, Odza, Mvan, Tsinga... (comma separated)"}
+                      rows={3}
+                      className="border-orange-200 focus:border-orange-500 focus:ring-orange-200 resize-none"
+                    />
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <Lightbulb className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-amber-700">
+                        {language === "fr" 
+                          ? "💡 Astuce : Plus vous indiquez de quartiers, plus vous avez de chances de trouver votre bonheur !"
+                          : "💡 Tip: The more neighborhoods you indicate, the more chances you have to find what you're looking for!"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-white flex items-center justify-center shadow-lg">
+                        <Calendar className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Quand souhaitez-vous emménager ?" : "When do you want to move in?"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Cela aide les propriétaires à prioriser" : "This helps owners prioritize"}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {MOVE_TIMELINES.map((timeline) => (
+                        <button
+                          key={timeline.value}
+                          type="button"
+                          onClick={() => setMoveInTimeline(timeline.value)}
+                          className={`px-5 py-3 rounded-xl text-sm font-medium transition-all hover:scale-105 flex items-center gap-2 ${
+                            moveInTimeline === timeline.value
+                              ? timeline.color + " ring-2 ring-offset-2 ring-yellow-300 shadow-lg"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          <span>{timeline.icon}</span>
+                          {timeline.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-orange-900">{language === "fr" ? "Options et équipements souhaités" : "Desired options and amenities"}</h3>
+                        <p className="text-sm text-orange-600">{language === "fr" ? "Sélectionnez ce qui est important pour vous" : "Select what is important to you"}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {AMENITIES_OPTIONS.map((option) => (
+                        <div
+                          key={option.key}
+                          onClick={() => toggleAmenity(option.key)}
+                          className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all cursor-pointer hover:scale-105 ${
+                            preferredAmenities.includes(option.key)
+                              ? "border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md"
+                              : "border-gray-200 bg-white hover:border-amber-200"
+                          }`}
+                        >
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.color} text-white flex items-center justify-center mb-2 shadow-sm`}>
+                            <option.icon className="w-6 h-6" />
+                          </div>
+                          <span className={`text-sm font-medium text-center ${preferredAmenities.includes(option.key) ? "text-orange-800" : "text-gray-700"}`}>{option.label}</span>
+                          {preferredAmenities.includes(option.key) && (
+                            <Check className="w-4 h-4 text-amber-500 mt-1" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-amber-100 via-orange-100 to-yellow-100 rounded-xl p-5 border-2 border-amber-300">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-orange-900 mb-2">
+                          {language === "fr" ? "Comment fonctionnent nos recommandations intelligentes ?" : "How do our smart recommendations work?"}
+                        </h4>
+                        <p className="text-sm text-orange-700 leading-relaxed">
+                          {language === "fr" 
+                            ? "Notre algorithme analyse vos critères (budget, localisation, type de bien, équipements...) et compare avec des milliers d'annonces pour vous proposer les meilleures correspondances. Plus vos critères sont précis, plus les suggestions seront pertinentes ! Vous pouvez modifier ces préférences à tout moment."
+                            : "Our algorithm analyzes your criteria (budget, location, property type, amenities...) and compares with thousands of listings to suggest the best matches. The more precise your criteria, the more relevant the suggestions! You can modify these preferences anytime."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+                    <h4 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-orange-500" />
+                      {language === "fr" ? "Résumé de vos critères" : "Summary of your criteria"}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {budgetMin && budgetMax && (
+                        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                          {parseInt(budgetMin).toLocaleString()} - {parseInt(budgetMax).toLocaleString()} FCFA
+                        </span>
+                      )}
+                      {city && (
+                        <span className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
+                          📍 {city}
+                        </span>
+                      )}
+                      {preferredPropertyTypes.length > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                          🏠 {preferredPropertyTypes.length} {language === "fr" ? "types" : "types"}
+                        </span>
+                      )}
+                      {bedrooms !== null && bedrooms > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-800 text-sm font-medium">
+                          🛏️ {bedrooms} {language === "fr" ? "chambres" : "bedrooms"}
+                        </span>
+                      )}
+                      {moveInTimeline && (
+                        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                          📅 {MOVE_TIMELINES.find(t => t.value === moveInTimeline)?.label}
+                        </span>
+                      )}
+                      {preferredAmenities.length > 0 && (
+                        <span className="px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
+                          ✨ {preferredAmenities.length} {language === "fr" ? "équipements" : "amenities"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
 
                 <div className="mt-8 pt-6 border-t border-orange-100">
                   <Button 
