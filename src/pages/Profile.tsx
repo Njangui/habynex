@@ -177,10 +177,10 @@ const ProfilePage = () => {
   ];
 
   const LISTING_TYPES = [
-    { value: "rent", label: language === "fr" ? "Location" : "Rent", description: language === "fr" ? "Paiement mensuel régulier" : "Regular monthly payment", icon: Home, color: "from-orange-500 to-amber-500" },
-    { value: "sale", label: language === "fr" ? "Achat" : "Buy", description: language === "fr" ? "Propriété à acquérir" : "Property to acquire", icon: CheckCircle, color: "from-amber-500 to-yellow-500" },
-    { value: "colocation", label: language === "fr" ? "Colocation" : "Roommate", description: language === "fr" ? "Partager avec d'autres" : "Share with others", icon: Users, color: "from-yellow-400 to-orange-400" },
-    { value: "short_term", label: language === "fr" ? "Courte durée" : "Short term", description: language === "fr" ? "Séjour temporaire" : "Temporary stay", icon: Calendar, color: "from-orange-400 to-red-400" },
+    { value: "rent", label: language === "fr" ? "Location" : "rent", description: language === "fr" ? "Paiement mensuel régulier" : "Regular monthly payment", icon: Home, color: "from-orange-500 to-amber-500" },
+    { value: "sale", label: language === "fr" ? "Achat" : "sale", description: language === "fr" ? "Propriété à acquérir" : "Property to acquire", icon: CheckCircle, color: "from-amber-500 to-yellow-500" },
+    { value: "colocation", label: language === "fr" ? "colocation" : "Roommate", description: language === "fr" ? "Partager avec d'autres" : "Share with others", icon: Users, color: "from-yellow-400 to-orange-400" },
+    { value: "short_term", label: language === "fr" ? "courte durée" : "Short term", description: language === "fr" ? "Séjour temporaire" : "Temporary stay", icon: Calendar, color: "from-orange-400 to-red-400" },
   ];
 
   const MOVE_TIMELINES = [
