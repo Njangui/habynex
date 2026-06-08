@@ -1,0 +1,35 @@
+[project]
+id = "habynex"
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+port = 54323
+
+[functions.handle-events]
+verify_jwt = false
+
+[functions.push-notifications]
+verify_jwt = false
+
+[functions.property-matching]
+verify_jwt = false
+
+[functions.high-views]
+verify_jwt = false
+
+[functions.reengagement]
+verify_jwt = false
+
+[functions.get-vapid-key]
+verify_jwt = false
+
+[functions.geocode]
+verify_jwt = false

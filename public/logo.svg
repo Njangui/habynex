@@ -1,0 +1,7 @@
+<svg width="120" height="36" viewBox="0 0 120 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icône maison -->
+  <path d="M18 4L6 13.5V30H14V22H22V30H30V13.5L18 4Z" fill="#f95d1e"/>
+  <path d="M15 30V24H21V30" fill="#c43d08" opacity="0.8"/>
+  <!-- Texte "habynex" -->
+  <text x="38" y="25" font-family="Inter, -apple-system, sans-serif" font-weight="700" font-size="20" fill="#f95d1e" letter-spacing="-0.5">habynex</text>
+</svg>

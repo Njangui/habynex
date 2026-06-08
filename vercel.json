@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/security-audit",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/agent-availability",
+      "schedule": "0 8 * * 0"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/cron/(.*)",
+      "headers": [
+        { "key": "x-vercel-cron", "value": "1" }
+      ]
+    }
+  ]
+}
