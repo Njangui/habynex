@@ -23,6 +23,13 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 type NotifType = 'new_listing' | 'message' | 'booking' | 'agent_assigned' | 'promo' | 'system'
 
+interface PushSubscription {
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_id?: string
+}
+
 interface NotifPayload {
   type: NotifType
   userId?: string           // null = envoyer à tous
@@ -51,7 +58,7 @@ export async function POST(req: NextRequest) {
     // Récupérer les abonnements
     let query = supabase.from('push_subscriptions').select('*')
     if (userId) query = query.eq('user_id', userId)
-    const { data: subscriptions, error: dbErr } = await query
+    const { data: subscriptions, error: dbErr } = await query as { data: PushSubscription[] | null, error: unknown }
 
     if (dbErr) throw dbErr
     if (!subscriptions?.length) {
