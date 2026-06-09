@@ -53,7 +53,7 @@ export function usePushNotifications() {
       const existing = await reg.pushManager.getSubscription()
       const sub = existing ?? await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToArrayBuffer(VAPID_KEY),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
       })
 
       const json = sub.toJSON()
@@ -95,13 +95,9 @@ export function usePushNotifications() {
   return { permission, isSubscribed, isSupported, isIos, loading, subscribe, unsubscribe }
 }
 
-function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
+function urlBase64ToUint8Array(base64: string): Uint8Array {
   const pad = '='.repeat((4 - base64.length % 4) % 4)
   const b64 = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/')
   const raw = atob(b64)
-  const buffer = new Uint8Array(raw.length)
-  for (let i = 0; i < raw.length; i++) {
-    buffer[i] = raw.charCodeAt(i)
-  }
-  return buffer.buffer as ArrayBuffer
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }

@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -23,7 +25,13 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Routes protégées
+  // ── Bloquer /admin dans Habynex-final ──────────────────────────
+  // Tout ce qui concerne l'administration est géré sur le site admin dédié.
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    return NextResponse.redirect(ADMIN_URL)
+  }
+
+  // Routes protégées (connexion requise)
   const protectedPaths = ['/messages', '/notifications', '/favoris', '/profil', '/devenir-agent']
   const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
 

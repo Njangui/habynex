@@ -1,5 +1,7 @@
-import type { Metadata } from 'next'
-import { AdminDashboard } from '@/components/admin/AdminDashboard'
+import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = { title: 'Admin — Habynex' }
-export default function AdminPage() { return <AdminDashboard /> }
+// Cette page redirige vers le site d'administration dédié
+// Le tableau de bord admin est géré sur admin.habynex.com
+export default function AdminRedirectPage() {
+  redirect(process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com')
+}

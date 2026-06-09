@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { anthropic, AI_MODEL } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
+
 // Appelé par Vercel Cron chaque jour à 22h
 // vercel.json → { "crons": [{ "path": "/api/cron/daily-report", "schedule": "0 22 * * *" }] }
 export async function GET(req: NextRequest) {
@@ -14,7 +16,6 @@ export async function GET(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
 
   try {
-    // Collecter les KPIs du jour
     const [
       { count: newUsers },
       { count: messages },
@@ -43,7 +44,6 @@ export async function GET(req: NextRequest) {
       visits_completed: visitsCompleted ?? 0,
     }
 
-    // Générer le rapport avec Claude
     const response = await anthropic.messages.create({
       model: AI_MODEL,
       max_tokens: 2000,
@@ -68,7 +68,6 @@ Réponds uniquement en JSON avec les champs: summary (string markdown), suggesti
       reportContent = response.content[0].type === 'text' ? response.content[0].text : ''
     }
 
-    // Sauvegarder le rapport
     await supabase.from('daily_reports').upsert({
       report_date: today,
       content: reportContent,
@@ -77,7 +76,7 @@ Réponds uniquement en JSON avec les champs: summary (string markdown), suggesti
       generated_at: new Date().toISOString(),
     }, { onConflict: 'report_date' })
 
-    // Notifier les admins
+    // Notifier les admins — lien vers habynex-admin
     const { data: admins } = await supabase
       .from('user_roles').select('user_id').in('role', ['admin', 'super_admin'])
 
@@ -87,7 +86,7 @@ Réponds uniquement en JSON avec les champs: summary (string markdown), suggesti
           user_id: a.user_id,
           title: `📊 Rapport du ${today}`,
           body: `${kpi.new_users} nouveaux utilisateurs · ${kpi.bookings} réservations · ${kpi.visits_completed} visites`,
-          action_url: '/admin/rapports',
+          action_url: `${ADMIN_URL}/rapports`,
           channel: 'in_app',
         }))
       )

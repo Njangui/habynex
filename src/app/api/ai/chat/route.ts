@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { anthropic, AI_MODEL, AI_MAX_TOKENS, SYSTEM_PROMPT_BASE, shouldEscalate } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
+
 export async function POST(req: NextRequest) {
   try {
     const { conversationId, message, listingContext } = await req.json()
@@ -14,7 +16,6 @@ export async function POST(req: NextRequest) {
 
     // Vérifier si escalade nécessaire AVANT d'appeler l'IA
     if (shouldEscalate(message)) {
-      // Escalader la conversation
       await supabase
         .from('conversations')
         .update({
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', conversationId)
 
-      // Notifier les admins
+      // Notifier les admins — lien vers habynex-admin
       const { data: admins } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
             user_id: a.user_id,
             title: '🚨 Escalade conversation',
             body: 'Un client demande une intervention humaine.',
-            action_url: `/admin/conversations/${conversationId}`,
+            action_url: `${ADMIN_URL}/conversations`,
             channel: 'in_app',
           }))
         )
@@ -56,12 +57,10 @@ export async function POST(req: NextRequest) {
       .order('created_at', { ascending: true })
       .limit(10)
 
-    // Construire le contexte du bien si disponible
     const listingCtx = listingContext
       ? `\n\nBien immobilier en cours de discussion:\n${JSON.stringify(listingContext, null, 2)}`
       : ''
 
-    // Appel Claude API
     const response = await anthropic.messages.create({
       model: AI_MODEL,
       max_tokens: AI_MAX_TOKENS,
@@ -77,7 +76,6 @@ export async function POST(req: NextRequest) {
 
     const reply = response.content[0].type === 'text' ? response.content[0].text : ''
 
-    // Logger l'action IA
     await supabase.from('ai_logs').insert({
       action_type: 'message_response',
       conversation_id: conversationId,

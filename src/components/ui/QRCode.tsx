@@ -51,8 +51,8 @@ export function HabynexQRCode({
   // Ajouter le logo Habynex au centre du QR
   const svgWithLogo = svg ? svg.replace(
     '</svg>',
-    `<rect x="46%" y="46%" width="8%" height="8%" rx="2" fill="${background}"/>
-     <text x="50%" y="52.5%" text-anchor="middle" font-size="8%" font-family="Arial" font-weight="bold" fill="#f95d1e">H</text>
+    `<rect x="43%" y="43%" width="14%" height="14%" rx="3" fill="${background}"/>
+     <image href="/habynex-icon.png" x="44%" y="44%" width="12%" height="12%"/>
      </svg>`
   ) : ''
 

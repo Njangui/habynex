@@ -240,10 +240,13 @@ export function NotificationsPage() {
 
             // ✅ CAS LINK
             if (notif.action_url) {
+              const isExternal = notif.action_url.startsWith('http')
               return (
                 <Link
                   key={notif.id}
                   href={notif.action_url}
+                  target={isExternal ? '_blank' : undefined}
+                  rel={isExternal ? 'noopener noreferrer' : undefined}
                   onClick={() => {
                     if (!notif.is_read) {
                       markRead(notif.id)

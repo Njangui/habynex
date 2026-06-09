@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { CampayWebhookPayload } from '@/types'
 
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
+
 export async function POST(req: NextRequest) {
   try {
     const payload: CampayWebhookPayload = await req.json()
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     if (!booking) return NextResponse.json({ received: true })
 
-    // Notifier le client
+    // Notifier le client (lien vers son profil dans Habynex-final)
     await supabase.from('notifications').insert({
       user_id: booking.client_id,
       title: '✅ Paiement confirmé !',
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
       channel: 'in_app',
     })
 
-    // Notifier les admins
+    // Notifier les admins — lien vers habynex-admin
     const { data: admins } = await supabase
       .from('user_roles')
       .select('user_id')
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
           user_id: a.user_id,
           title: '🏠 Nouvelle réservation payée',
           body: `${booking.nb_listings} visite(s) réservée(s) — à assigner à un agent.`,
-          action_url: `/admin/bookings/${booking.id}`,
+          action_url: `${ADMIN_URL}/reservations`,
           channel: 'in_app',
         }))
       )

@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, XCircle, Calendar, MapPin, Clock, Star, TrendingUp, Loader2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Calendar, MapPin, Clock, Star, TrendingUp, Loader2, FileText, ClipboardList, AlertCircle } from 'lucide-react'
+import { AgentContract } from '@/components/agent/AgentContract'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { cn, formatPrice } from '@/lib/utils'
 import toast from 'react-hot-toast'
+
+const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
 
 type MissionStatus = 'confirmed' | 'completed' | 'cancelled'
 
@@ -33,12 +36,29 @@ export function AgentDashboard() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'done'>('upcoming')
   const [stats, setStats] = useState({ total: 0, success: 0, pending: 0, earnings: 0 })
+  const [contractSigned, setContractSigned] = useState<boolean | null>(null)
+  const [todayReportSubmitted, setTodayReportSubmitted] = useState(false)
 
   useEffect(() => {
     if (!user) { router.push('/connexion'); return }
     if (!roles.includes('agent')) { router.push('/'); return }
+    checkContract()
+    checkTodayReport()
     loadMissions()
   }, [user, roles])
+
+  async function checkContract() {
+    if (!user) return
+    const { data } = await supabase.from('agent_contracts').select('id').eq('agent_id', user.id).eq('status', 'signed').single()
+    setContractSigned(!!data)
+  }
+
+  async function checkTodayReport() {
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase.from('field_reports').select('id').eq('agent_id', user.id).eq('report_date', today).single()
+    setTodayReportSubmitted(!!data)
+  }
 
   async function loadMissions() {
     if (!user) return
@@ -122,7 +142,7 @@ export function AgentDashboard() {
               user_id: a.user_id,
               title: '🎉 Mission réussie — Commission à créer',
               body: `L'agent a conclu une location. Créez la commission dans le dashboard.`,
-              action_url: `/admin/commissions/nouvelle?booking=${bookingId}`,
+              action_url: `${ADMIN_URL}/commissions`,
               channel: 'in_app',
             }))
           )
@@ -153,10 +173,33 @@ export function AgentDashboard() {
   const upcoming = missions.filter(m => m.status === 'confirmed' && !m.outcome)
   const done = missions.filter(m => m.status === 'completed' || m.outcome)
 
-  if (loading) {
+  if (loading || contractSigned === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 size={28} className="animate-spin text-brand-500" />
+      </div>
+    )
+  }
+
+  // ── CONTRAT NON SIGNÉ : bloquer l'accès aux missions ──
+  if (!contractSigned) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-6 text-center">
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/30 rounded-3xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={28} className="text-amber-500" />
+          </div>
+          <h1 className="text-2xl font-bold text-hb-700 dark:text-white mb-2">Signez votre contrat</h1>
+          <p className="text-hb-400 text-sm">
+            Avant de recevoir vos premières missions, vous devez signer votre contrat de prestation Habynex.
+          </p>
+        </div>
+        <AgentContract
+          agentName={profile?.full_name ?? 'Agent'}
+          agentId={user!.id}
+          roleType="agent"
+          onSigned={() => setContractSigned(true)}
+        />
       </div>
     )
   }
@@ -169,6 +212,20 @@ export function AgentDashboard() {
           Bonjour {profile?.full_name?.split(' ')[0] ?? 'Agent'} 👋
         </h1>
         <p className="text-hb-400">Dashboard agent Habynex</p>
+
+        {/* Bouton rapport du jour */}
+        <div className="mt-4">
+          {todayReportSubmitted ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 rounded-2xl text-sm font-medium">
+              <CheckCircle2 size={15} /> Rapport du jour envoyé ✓
+            </div>
+          ) : (
+            <button onClick={() => router.push('/rapport-journalier')}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl text-sm font-semibold shadow-sm shadow-brand-500/25 transition-colors">
+              <ClipboardList size={15} /> Soumettre mon rapport du jour
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
