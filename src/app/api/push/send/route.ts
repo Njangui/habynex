@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     const expired: string[] = []
 
     await Promise.allSettled(
-  (subscriptions ?? []).map(async (sub: any) => {
+      subscriptions.map(async (sub: { endpoint: string; p256dh: string; auth: string }) => {
         try {
           await webpush.sendNotification(
             {
