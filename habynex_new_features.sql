@@ -391,3 +391,76 @@ CREATE INDEX IF NOT EXISTS idx_listings_high_views
   WHERE status = 'published';
 
 SELECT 'Migration high-views ✓' AS status;
+
+-- =====================================================================
+-- HABYNEX — Migration v2 (intégrée depuis version associé)
+-- Ajouts : can_auto_publish agents, champs annonces, position GPS
+-- =====================================================================
+
+-- ── 1. can_auto_publish sur agents ───────────────────────────────────
+ALTER TABLE agents
+  ADD COLUMN IF NOT EXISTS can_auto_publish BOOLEAN NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS agents_can_auto_publish_idx ON agents (can_auto_publish);
+
+-- ── 2. Nouveaux champs sur listings ──────────────────────────────────
+ALTER TABLE listings
+  ADD COLUMN IF NOT EXISTS lat             DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS lng             DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS price_negotiable BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS floor           INTEGER,
+  ADD COLUMN IF NOT EXISTS owner_name      TEXT,
+  ADD COLUMN IF NOT EXISTS owner_phone     TEXT,
+  ADD COLUMN IF NOT EXISTS submitted_by_agent UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+  ADD COLUMN IF NOT EXISTS view_count      INTEGER NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS listings_location_idx
+  ON listings (lat, lng) WHERE lat IS NOT NULL AND lng IS NOT NULL;
+CREATE INDEX IF NOT EXISTS listings_submitted_by_agent_idx ON listings (submitted_by_agent);
+CREATE INDEX IF NOT EXISTS listings_status_idx ON listings (status);
+
+-- ── 3. RLS agents ────────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'listings' AND policyname = 'agent_own_listings_read'
+  ) THEN
+    CREATE POLICY "agent_own_listings_read" ON listings
+      FOR SELECT USING (submitted_by_agent = auth.uid());
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'listings' AND policyname = 'agent_insert_listing'
+  ) THEN
+    CREATE POLICY "agent_insert_listing" ON listings
+      FOR INSERT WITH CHECK (
+        submitted_by_agent = auth.uid()
+        AND EXISTS (SELECT 1 FROM agents WHERE id = auth.uid() AND status = 'active')
+      );
+  END IF;
+END $$;
+
+-- ── 4. Fonction incrément vues ───────────────────────────────────────
+CREATE OR REPLACE FUNCTION increment_listing_view(listing_id UUID)
+RETURNS void AS $$
+BEGIN
+  UPDATE listings SET view_count = view_count + 1 WHERE id = listing_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── 5. Vue admin complète ─────────────────────────────────────────────
+CREATE OR REPLACE VIEW listings_admin_view AS
+SELECT
+  l.*,
+  n.name AS neighborhood_name,
+  p.full_name AS agent_name,
+  p.phone AS agent_phone,
+  (SELECT url FROM listing_media WHERE listing_id = l.id AND is_cover = true LIMIT 1) AS cover_url
+FROM listings l
+LEFT JOIN neighborhoods n ON n.id = l.neighborhood_id
+LEFT JOIN profiles p ON p.id = l.submitted_by_agent;
+
+SELECT 'Migration v2 ✓' AS status;

@@ -192,14 +192,17 @@ export interface KpiSnapshot {
 }
 
 // ── Paiement ──────────────────────────────────────────────────────
-export interface CampayInitiateResponse {
-  reference: string; ussd_code: string; operator: string; status: string
+export interface CinetPayInitiateResponse {
+  code: string; message: string
+  data: { payment_token: string; payment_url: string }
 }
 
-export interface CampayWebhookPayload {
-  reference: string; status: 'SUCCESSFUL' | 'FAILED'
-  amount: number; currency: string; operator: string
-  code: string; external_reference: string
+export interface CinetPayWebhookPayload {
+  cpm_site_id: string; cpm_trans_id: string; cpm_trans_date: string
+  cpm_amount: string; cpm_currency: string; signature: string
+  payment_method: string; cel_phone_num: string
+  cpm_result: string   // '00' = SUCCÈS
+  cpm_error_message: string; cpm_designation: string
 }
 
 // ── SEO ───────────────────────────────────────────────────────────

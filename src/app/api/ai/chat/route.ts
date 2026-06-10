@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { anthropic, AI_MODEL, AI_MAX_TOKENS, SYSTEM_PROMPT_BASE, shouldEscalate } from '@/lib/ai/client'
+import { deepseek, AI_MODEL, AI_MAX_TOKENS, SYSTEM_PROMPT_BASE, shouldEscalate } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', conversationId)
 
-      // Notifier les admins — lien vers habynex-admin
       const { data: admins } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -49,7 +48,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Récupérer l'historique des messages (10 derniers)
+    // Récupérer l'historique (10 derniers messages)
     const { data: history } = await supabase
       .from('messages')
       .select('role, content')
@@ -61,26 +60,26 @@ export async function POST(req: NextRequest) {
       ? `\n\nBien immobilier en cours de discussion:\n${JSON.stringify(listingContext, null, 2)}`
       : ''
 
-    const response = await anthropic.messages.create({
+    const response = await deepseek.chat.completions.create({
       model: AI_MODEL,
       max_tokens: AI_MAX_TOKENS,
-      system: SYSTEM_PROMPT_BASE + listingCtx,
       messages: [
+        { role: 'system', content: SYSTEM_PROMPT_BASE + listingCtx },
         ...(history ?? []).map((m: { role: string; content: string }) => ({
-          role: m.role === 'ai' ? 'assistant' : 'user' as 'user' | 'assistant',
+          role: (m.role === 'ai' ? 'assistant' : 'user') as 'user' | 'assistant',
           content: m.content,
         })),
         { role: 'user', content: message },
       ],
     })
 
-    const reply = response.content[0].type === 'text' ? response.content[0].text : ''
+    const reply = response.choices[0]?.message?.content ?? ''
 
     await supabase.from('ai_logs').insert({
       action_type: 'message_response',
       conversation_id: conversationId,
-      tokens_input: response.usage.input_tokens,
-      tokens_output: response.usage.output_tokens,
+      tokens_input: response.usage?.prompt_tokens ?? 0,
+      tokens_output: response.usage?.completion_tokens ?? 0,
       escalated: false,
     })
 

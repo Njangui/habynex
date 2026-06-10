@@ -36,13 +36,12 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
     if (!phone && !useFreeVisit) { toast.error('Entrez votre numéro de téléphone'); return }
     setLoading(true)
     try {
-      const res = await fetch('/api/payments/campay/initiate', {
+      const res = await fetch('/api/payments/cinetpay/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingIds: [listing.id],
           phoneNumber: `237${phone.replace(/\s/g, '')}`,
-          operator,
           isFree: useFreeVisit,
         }),
       })

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { anthropic, AI_MODEL } from '@/lib/ai/client'
+import { deepseek, AI_MODEL } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
@@ -44,28 +44,33 @@ export async function GET(req: NextRequest) {
       visits_completed: visitsCompleted ?? 0,
     }
 
-    const response = await anthropic.messages.create({
+    const response = await deepseek.chat.completions.create({
       model: AI_MODEL,
       max_tokens: 2000,
-      system: `Tu es l'assistant analytique de Habynex, une agence immobilière à Yaoundé, Cameroun.
+      messages: [
+        {
+          role: 'system',
+          content: `Tu es l'assistant analytique de Habynex, une agence immobilière à Yaoundé, Cameroun.
 Tu génères un rapport quotidien concis et actionnable pour les administrateurs.
 Réponds uniquement en JSON avec les champs: summary (string markdown), suggestions (array de {type, title, description, priority}).`,
-      messages: [{
-        role: 'user',
-        content: `Génère le rapport quotidien du ${today} pour Habynex.\n\nKPIs du jour: ${JSON.stringify(kpi, null, 2)}\n\nFournis une analyse courte et 3-5 suggestions concrètes adaptées au marché immobilier camerounais.`,
-      }],
+        },
+        {
+          role: 'user',
+          content: `Génère le rapport quotidien du ${today} pour Habynex.\n\nKPIs du jour: ${JSON.stringify(kpi, null, 2)}\n\nFournis une analyse courte et 3-5 suggestions concrètes adaptées au marché immobilier camerounais.`,
+        },
+      ],
     })
 
     let reportContent = ''
     let suggestions = []
 
     try {
-      const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
+      const text = response.choices[0]?.message?.content ?? '{}'
       const parsed = JSON.parse(text.replace(/```json|```/g, '').trim())
       reportContent = parsed.summary ?? ''
       suggestions = parsed.suggestions ?? []
     } catch {
-      reportContent = response.content[0].type === 'text' ? response.content[0].text : ''
+      reportContent = response.choices[0]?.message?.content ?? ''
     }
 
     await supabase.from('daily_reports').upsert({
@@ -76,7 +81,6 @@ Réponds uniquement en JSON avec les champs: summary (string markdown), suggesti
       generated_at: new Date().toISOString(),
     }, { onConflict: 'report_date' })
 
-    // Notifier les admins — lien vers habynex-admin
     const { data: admins } = await supabase
       .from('user_roles').select('user_id').in('role', ['admin', 'super_admin'])
 

@@ -1,8 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import type { UserCriteria } from '@/types'
 
-export const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
-export const AI_MODEL = 'claude-sonnet-4-20250514'
+// DeepSeek est compatible avec le SDK OpenAI via une base URL personnalisée
+export const deepseek = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY!,
+  baseURL: 'https://api.deepseek.com/v1',
+})
+
+export const AI_MODEL = 'deepseek-chat'
 export const AI_MAX_TOKENS = 1024
 
 export const SYSTEM_PROMPT_BASE = `Tu es l'assistant IA de Habynex, la première agence immobilière augmentée par l'IA au Cameroun.
@@ -29,8 +34,6 @@ Contexte marché :
 
 /**
  * Construit un contexte IA enrichi à partir des critères utilisateur.
- * city_id est utilisé en premier pour lever l'ambiguïté géographique
- * (même nom de quartier dans deux villes différentes).
  */
 export function buildUserCriteriaContext(criteria: UserCriteria | null): string {
   if (!criteria) return ''
@@ -73,7 +76,6 @@ export function buildUserCriteriaContext(criteria: UserCriteria | null): string 
 
 /**
  * Détecter si l'IA doit escalader vers un humain.
- * city_id n'entre pas dans ce calcul — c'est purement un filtre métier.
  */
 export function shouldEscalate(message: string): boolean {
   const triggers = [

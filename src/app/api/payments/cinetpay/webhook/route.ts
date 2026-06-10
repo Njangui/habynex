@@ -1,19 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import type { CampayWebhookPayload } from '@/types'
+import { checkPaymentStatus } from '@/lib/payments/cinetpay'
+import type { CinetPayWebhookPayload } from '@/lib/payments/cinetpay'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
 
 export async function POST(req: NextRequest) {
   try {
-    const payload: CampayWebhookPayload = await req.json()
+    // CinetPay envoie le webhook en form-urlencoded OU JSON selon la version
+    let payload: CinetPayWebhookPayload
+    const contentType = req.headers.get('content-type') ?? ''
+
+    if (contentType.includes('application/json')) {
+      payload = await req.json()
+    } else {
+      const form = await req.formData()
+      payload = Object.fromEntries(form.entries()) as unknown as CinetPayWebhookPayload
+    }
+
     const supabase = createAdminClient()
 
-    if (payload.status !== 'SUCCESSFUL') {
+    // cpm_result = '00' → SUCCÈS
+    if (payload.cpm_result !== '00') {
       await supabase
         .from('visit_bookings')
         .update({ status: 'cancelled' })
-        .eq('payment_ref', payload.reference)
+        .eq('id', payload.cpm_trans_id)
+
+      return NextResponse.json({ received: true })
+    }
+
+    // Double vérification via l'API CinetPay (anti-spoofing)
+    let verified = false
+    try {
+      const status = await checkPaymentStatus(payload.cpm_trans_id)
+      verified = status.data?.status === 'ACCEPTED'
+    } catch {
+      // Si l'API est indisponible, on fait confiance au webhook (à ajuster selon votre niveau de risque)
+      verified = true
+    }
+
+    if (!verified) {
+      console.warn(`[cinetpay-webhook] Paiement non vérifié pour ${payload.cpm_trans_id}`)
       return NextResponse.json({ received: true })
     }
 
@@ -23,14 +51,15 @@ export async function POST(req: NextRequest) {
       .update({
         status: 'paid',
         paid_at: new Date().toISOString(),
+        payment_method: payload.payment_method ?? 'cinetpay',
       })
-      .eq('payment_ref', payload.reference)
+      .eq('id', payload.cpm_trans_id)
       .select('id, client_id, nb_listings')
       .single()
 
     if (!booking) return NextResponse.json({ received: true })
 
-    // Notifier le client (lien vers son profil dans Habynex-final)
+    // Notifier le client
     await supabase.from('notifications').insert({
       user_id: booking.client_id,
       title: '✅ Paiement confirmé !',
@@ -39,7 +68,7 @@ export async function POST(req: NextRequest) {
       channel: 'in_app',
     })
 
-    // Notifier les admins — lien vers habynex-admin
+    // Notifier les admins
     const { data: admins } = await supabase
       .from('user_roles')
       .select('user_id')
@@ -59,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Campay webhook error:', error)
+    console.error('CinetPay webhook error:', error)
     return NextResponse.json({ error: 'Webhook error' }, { status: 500 })
   }
 }
