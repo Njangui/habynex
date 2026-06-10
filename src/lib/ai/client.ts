@@ -1,11 +1,20 @@
 import OpenAI from 'openai'
 import type { UserCriteria } from '@/types'
 
-// DeepSeek est compatible avec le SDK OpenAI via une base URL personnalisée
-export const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY!,
-  baseURL: 'https://api.deepseek.com/v1',
-})
+// Lazy singleton — instancié à la 1ère utilisation (runtime uniquement)
+// Évite l'erreur "OPENAI_API_KEY missing" au moment du build Vercel
+let _client: OpenAI | null = null
+export function getDeepSeek(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY ?? 'placeholder',
+      baseURL: 'https://api.deepseek.com/v1',
+    })
+  }
+  return _client
+}
+/** @deprecated utilise getDeepSeek() */
+export const deepseek = { get chat() { return getDeepSeek().chat } }
 
 export const AI_MODEL = 'deepseek-chat'
 export const AI_MAX_TOKENS = 1024

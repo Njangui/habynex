@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { deepseek, AI_MODEL, AI_MAX_TOKENS, SYSTEM_PROMPT_BASE, shouldEscalate } from '@/lib/ai/client'
+import { getDeepSeek, AI_MODEL, AI_MAX_TOKENS, SYSTEM_PROMPT_BASE, shouldEscalate } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       ? `\n\nBien immobilier en cours de discussion:\n${JSON.stringify(listingContext, null, 2)}`
       : ''
 
-    const response = await deepseek.chat.completions.create({
+    const response = await getDeepSeek().chat.completions.create({
       model: AI_MODEL,
       max_tokens: AI_MAX_TOKENS,
       messages: [

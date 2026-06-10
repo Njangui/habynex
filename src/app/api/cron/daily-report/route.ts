@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { deepseek, AI_MODEL } from '@/lib/ai/client'
+import { getDeepSeek, AI_MODEL } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       visits_completed: visitsCompleted ?? 0,
     }
 
-    const response = await deepseek.chat.completions.create({
+    const response = await getDeepSeek().chat.completions.create({
       model: AI_MODEL,
       max_tokens: 2000,
       messages: [
