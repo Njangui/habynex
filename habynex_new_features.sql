@@ -378,3 +378,16 @@ SELECT cron.schedule(
 ) ON CONFLICT (jobname) DO UPDATE SET schedule = '0 10 * * 0';
 
 SELECT 'Triggers, tables et crons créés ✓' AS status;
+
+-- ── HIGH VIEWS : colonne pour tracer les seuils déjà notifiés ────────────────
+ALTER TABLE listings
+  ADD COLUMN IF NOT EXISTS notified_view_thresholds integer[] DEFAULT '{}';
+
+COMMENT ON COLUMN listings.notified_view_thresholds IS
+  'Seuils de vues déjà notifiés à l''agent (ex: [50, 100]). Géré par high-views Edge Function.';
+
+CREATE INDEX IF NOT EXISTS idx_listings_high_views
+  ON listings (status, views_count)
+  WHERE status = 'published';
+
+SELECT 'Migration high-views ✓' AS status;
