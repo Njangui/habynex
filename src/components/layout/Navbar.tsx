@@ -15,7 +15,10 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
-  const { user, profile, unreadMessages, unreadNotifications } = useAuthStore()
+  const { user, profile, unreadMessages, unreadNotifications, roles } = useAuthStore()
+  const isAgent = roles.includes('agent')
+  const isPhotographer = roles.includes('photographer')
+  const isAdmin = roles.includes('admin') || roles.includes('super_admin')
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 8)
@@ -102,7 +105,10 @@ export function Navbar() {
                     { href: '/messages',            label: `💬 Messages${unreadMessages > 0 ? ` (${unreadMessages})` : ''}` },
                     { href: '/profil?tab=visites',  label: '📅 Mes visites' },
                     { href: '/profil?tab=parrainage',label: '🎁 Parrainage' },
-                    { href: '/devenir-agent',       label: '🏅 Devenir agent' },
+                    ...(isAgent || isPhotographer || isAdmin
+                      ? [{ href: '/agent-dashboard', label: isPhotographer && !isAgent ? '📸 Dashboard photographe' : '📊 Dashboard agent' }]
+                      : []),
+                    ...(!isAgent && !isPhotographer ? [{ href: '/devenir-agent', label: '🏅 Devenir agent' }] : []),
                   ].map(item => (
                     <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)}
                       className="block px-5 py-2.5 text-sm text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors">
