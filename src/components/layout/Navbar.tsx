@@ -105,6 +105,10 @@ export function Navbar() {
                     { href: '/messages',            label: `💬 Messages${unreadMessages > 0 ? ` (${unreadMessages})` : ''}` },
                     { href: '/profil?tab=visites',  label: '📅 Mes visites' },
                     { href: '/profil?tab=parrainage',label: '🎁 Parrainage' },
+<<<<<<< HEAD
+=======
+                    { href: '/qr',                  label: '📱 Partager (QR code)' },
+>>>>>>> 83463af (add agent dashboard rout)
                     ...(isAgent || isPhotographer || isAdmin
                       ? [{ href: '/agent-dashboard', label: isPhotographer && !isAgent ? '📸 Dashboard photographe' : '📊 Dashboard agent' }]
                       : []),
@@ -133,6 +137,10 @@ export function Navbar() {
                 <Link href="/devenir-agent" onClick={() => setMenuOpen(false)}
                   className="block px-5 py-2.5 text-sm text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors">
                   Devenir agent
+                </Link>
+                <Link href="/qr" onClick={() => setMenuOpen(false)}
+                  className="block px-5 py-2.5 text-sm text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors">
+                  📱 Partager (QR code)
                 </Link>
               </div>
             )}

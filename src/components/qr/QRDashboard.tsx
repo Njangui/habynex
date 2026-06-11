@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { HabynexQRCode } from '@/components/ui/QRCode'
+import { QRShareKit } from '@/components/ui/QRShareKit'
 import { Globe, User, Search, UserPlus, Gift, Share2, Printer } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +22,7 @@ export function QRDashboard() {
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<'official' | 'agent' | 'referral'>('official')
   const [agentData, setAgentData] = useState<any>(null)
+  const [shareKit, setShareKit] = useState<{ url: string; title: string; subtitle?: string } | null>(null)
 
   const isAgent = roles.includes('agent') || roles.includes('admin') || roles.includes('super_admin')
 
@@ -88,6 +90,10 @@ export function QRDashboard() {
                 </div>
                 <p className="text-xs text-hb-400 mb-5 leading-relaxed">{qr.description}</p>
                 <HabynexQRCode value={qr.url} size={200} label={qr.label} showActions className="mx-auto" />
+                <button onClick={() => setShareKit({ url: qr.url, title: qr.label, subtitle: qr.sublabel })}
+                  className="w-full mt-4 py-2.5 border border-hb-200 dark:border-hb-600 rounded-xl text-sm font-semibold text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors flex items-center justify-center gap-2">
+                  <Share2 size={15} /> Partager ce QR code
+                </button>
               </div>
             ))}
           </div>
@@ -134,6 +140,10 @@ export function QRDashboard() {
               showActions
               className="mx-auto"
             />
+            <button onClick={() => setShareKit({ url: agentQrUrl, title: (profile as any)?.full_name ?? 'Agent Habynex', subtitle: 'Mon profil agent Habynex' })}
+              className="w-full mt-4 py-2.5 border border-hb-200 dark:border-hb-600 rounded-xl text-sm font-semibold text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors flex items-center justify-center gap-2">
+              <Share2 size={15} /> Partager mon QR code
+            </button>
 
             {/* Carte d'identité agent imprimable */}
             <div className="mt-6 p-4 border-2 border-dashed border-hb-200 dark:border-hb-600 rounded-2xl">
@@ -195,9 +205,22 @@ export function QRDashboard() {
               showActions
               className="mx-auto"
             />
+            <button onClick={() => setShareKit({ url: referralUrl, title: `Code parrainage ${referralCode}`, subtitle: 'Rejoindre Habynex' })}
+              className="w-full mt-4 py-2.5 border border-hb-200 dark:border-hb-600 rounded-xl text-sm font-semibold text-hb-600 dark:text-hb-300 hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors flex items-center justify-center gap-2">
+              <Share2 size={15} /> Partager mon QR code
+            </button>
             <p className="text-center text-xs text-hb-300 mt-4 break-all font-mono">{referralUrl}</p>
           </div>
         </div>
+      )}
+
+      {shareKit && (
+        <QRShareKit
+          url={shareKit.url}
+          title={shareKit.title}
+          subtitle={shareKit.subtitle}
+          onClose={() => setShareKit(null)}
+        />
       )}
     </div>
   )

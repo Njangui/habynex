@@ -215,7 +215,11 @@ export function AgentDashboard() {
         <p className="text-hb-400">Dashboard agent Habynex</p>
 
         {/* Bouton rapport du jour */}
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button onClick={() => router.push('/agent-dashboard/nouvelle-annonce')}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-trust-500 hover:bg-trust-600 text-white rounded-2xl text-sm font-semibold shadow-sm shadow-trust-500/25 transition-colors">
+            🏠 Publier une annonce
+          </button>
           {todayReportSubmitted ? (
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 rounded-2xl text-sm font-medium">
               <CheckCircle2 size={15} /> Rapport du jour envoyé ✓
@@ -243,6 +247,12 @@ export function AgentDashboard() {
             <p className="text-xs text-hb-400">{stat.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Mes annonces */}
+      <div className="mb-8">
+        <h2 className="text-lg font-bold text-hb-700 dark:text-white mb-3">Mes annonces</h2>
+        <AgentListingsOverview />
       </div>
 
       {/* Tabs */}
