@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDeepSeek, AI_MODEL } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
-import type { Listing, Neighborhood, City } from '@/types'
+import type { FaqItem } from '@/types'
 
 // ================================================================
 // POST /api/ai/generate-faq
 // Génère 12-15 Q&R via DeepSeek pour une annonce.
 // Appelé en fire-and-forget depuis AddListingForm après l'insert.
 // ================================================================
-
-export interface FaqItem {
-  q: string
-  a: string
-  keywords: string[]
-}
 
 export async function POST(req: NextRequest) {
   try {

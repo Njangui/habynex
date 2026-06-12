@@ -5,6 +5,12 @@
 export type UserRole = 'user' | 'agent' | 'photographer' | 'admin' | 'super_admin' | 'ai_system'
 export type ListingType = 'apartment' | 'duplex' | 'studio' | 'villa' | 'room' | 'commercial'
 export type TransactionType = 'rent' | 'sale' | 'short_stay' | 'coliving' | 'furnished'
+export interface FaqItem {
+  q: string
+  a: string
+  keywords: string[]
+}
+
 export type ListingStatus = 'draft' | 'pending_review' | 'published' | 'rented' | 'archived'
 export type AgentStatus = 'pending' | 'reviewing' | 'active' | 'suspended' | 'rejected'
 export type CommissionModel = 'A' | 'B'

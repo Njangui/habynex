@@ -4,8 +4,7 @@ import {
   SYSTEM_PROMPT_BASE, buildUserCriteriaContext, shouldEscalate,
 } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
-import type { FaqItem } from '../generate-faq/route'
-import type { Listing, Message, UserCriteria } from '@/types'
+import type { UserCriteria, FaqItem } from '@/types'
 
 // ================================================================
 // POST /api/ai/chat — v2
