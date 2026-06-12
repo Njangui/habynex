@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Sparkles, Shuffle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { cn, formatPrice, listingTypeLabel } from '@/lib/utils'
+import { cn, formatPrice, listingTypeLabel, BLUR_DATA_URL } from '@/lib/utils'
 import type { Listing } from '@/types'
 
 // Requête minimale — seulement ce dont ListingCard a besoin
@@ -47,6 +47,9 @@ function MiniCard({ item }: { item: { listing: RawListing; kind: 'similar' | 'ra
             className="object-cover group-hover:scale-105 transition-transform duration-300"
             sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
             quality={70}
+            loading="lazy"
+            placeholder="blur"
+            blurDataURL={BLUR_DATA_URL}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-4xl">🏠</div>

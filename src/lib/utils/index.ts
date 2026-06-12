@@ -33,3 +33,10 @@ export function listingTypeLabel(type: string): string {
 export function transactionLabel(t: string): string {
   return ({ rent:'Location', sale:'Vente', short_stay:'Court séjour', coliving:'Colocation', furnished:'Meublé' })[t] ?? t
 }
+
+// Placeholder LQIP gris neutre — évite les flashs blancs sur connexions lentes
+export const BLUR_DATA_URL =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIHZpZXdCb3g9IjAgMCAxMCAxMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNmMGYwZjAiLz48L3N2Zz4='
+
+// Qualité réduite par défaut : bon compromis poids/netteté pour connexions lentes (2G/3G) et data limitée
+export const LOW_DATA_QUALITY = 70

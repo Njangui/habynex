@@ -105,10 +105,7 @@ export function Navbar() {
                     { href: '/messages',            label: `💬 Messages${unreadMessages > 0 ? ` (${unreadMessages})` : ''}` },
                     { href: '/profil?tab=visites',  label: '📅 Mes visites' },
                     { href: '/profil?tab=parrainage',label: '🎁 Parrainage' },
-<<<<<<< HEAD
-=======
                     { href: '/qr',                  label: '📱 Partager (QR code)' },
->>>>>>> 83463af (add agent dashboard rout)
                     ...(isAgent || isPhotographer || isAdmin
                       ? [{ href: '/agent-dashboard', label: isPhotographer && !isAgent ? '📸 Dashboard photographe' : '📊 Dashboard agent' }]
                       : []),

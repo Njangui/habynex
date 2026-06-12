@@ -386,6 +386,80 @@ export function ListingDetail({ listing }: ListingDetailProps) {
 
             {amenityList.length > 0 && <div className="pb-5 border-b border-hb-100 dark:border-hb-700"><h2 className="text-lg font-semibold text-hb-700 dark:text-white mb-4">Ce que propose ce logement</h2><div className="grid grid-cols-2 gap-3">{amenityList.map(a => <div key={a.key} className="flex items-center gap-3 text-sm text-hb-600 dark:text-hb-300"><a.icon size={18} className="text-hb-500 flex-shrink-0" />{a.label}</div>)}</div></div>}
 
+            {/* ── Infos complètes mobile (visibles uniquement sur mobile) ── */}
+            <div className="md:hidden pb-5 border-b border-hb-100 dark:border-hb-700 space-y-4">
+              {/* Prix + badges */}
+              <div className="bg-hb-50 dark:bg-hb-700 rounded-2xl p-4">
+                <div className="flex items-end justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-2xl font-bold text-hb-700 dark:text-white">
+                      {formatPrice(listing.price)}
+                      {listing.transaction === 'rent' && <span className="text-base font-normal text-hb-400"> / mois</span>}
+                    </p>
+                    {listing.price_negotiable && (
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-trust-50 dark:bg-trust-950/30 text-trust-600 dark:text-trust-400 text-xs font-semibold rounded-full">
+                        💬 Prix négociable
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleFav}
+                    className={cn(
+                      'w-10 h-10 flex items-center justify-center rounded-full border-2 transition-all flex-shrink-0',
+                      isFav
+                        ? 'bg-brand-500 border-brand-500 text-white'
+                        : 'border-hb-200 dark:border-hb-600 text-hb-400 hover:border-brand-400'
+                    )}
+                    aria-label="Favoris"
+                  >
+                    <Star size={16} className={isFav ? 'fill-white' : ''} />
+                  </button>
+                </div>
+
+                {/* Infos supplémentaires */}
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {listing.floor != null && (
+                    <div className="flex items-center gap-2 text-hb-600 dark:text-hb-300">
+                      <span className="text-base">🏢</span>
+                      <span>Étage {listing.floor}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-hb-600 dark:text-hb-300">
+                    <span className="text-base">{listing.furnished ? '🛋️' : '🏠'}</span>
+                    <span>{listing.furnished ? 'Meublé' : 'Non meublé'}</span>
+                  </div>
+                  {listing.surface_m2 != null && (
+                    <div className="flex items-center gap-2 text-hb-600 dark:text-hb-300">
+                      <Maximize2 size={14} className="text-hb-400" />
+                      <span>{listing.surface_m2} m²</span>
+                    </div>
+                  )}
+                  {listing.address_hint && (
+                    <div className="flex items-center gap-2 text-hb-600 dark:text-hb-300 col-span-2">
+                      <MapPin size={14} className="text-hb-400 flex-shrink-0" />
+                      <span className="line-clamp-1">{listing.address_hint}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Boutons action */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-hb-700 dark:border-hb-300 text-hb-700 dark:text-hb-300 font-semibold rounded-2xl text-sm"
+                >
+                  <MessageSquare size={16} /> Contacter
+                </button>
+                <button
+                  onClick={() => setBookingOpen(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-2xl text-sm"
+                >
+                  <Calendar size={16} /> Réserver
+                </button>
+              </div>
+            </div>
+
             {/* Calendrier mobile */}
             <div className="md:hidden pb-5 border-b border-hb-100 dark:border-hb-700">
               <h2 className="text-lg font-semibold text-hb-700 dark:text-white mb-4 flex items-center gap-2"><Calendar size={18} className="text-brand-500" />Choisir une date de visite</h2>
@@ -410,8 +484,8 @@ export function ListingDetail({ listing }: ListingDetailProps) {
       {/* Biens similaires */}
       <SimilarListings listing={listing} />
 
-      {/* Barre mobile fixe */}
-      <div className="fixed bottom-16 md:hidden left-0 right-0 z-40 bg-white dark:bg-hb-800 border-t border-hb-100 dark:border-hb-700 px-4 py-3">
+      {/* Barre mobile fixe — simplifiée car les boutons sont déjà dans le contenu */}
+      <div className="fixed bottom-16 md:hidden left-0 right-0 z-40 bg-white/95 dark:bg-hb-800/95 backdrop-blur border-t border-hb-100 dark:border-hb-700 px-4 py-2">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold text-hb-700 dark:text-white">{formatPrice(listing.price)}{listing.transaction === 'rent' && <span className="text-sm font-normal text-hb-400"> / mois</span>}</p>

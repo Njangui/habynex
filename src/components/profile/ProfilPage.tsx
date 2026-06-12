@@ -5,8 +5,9 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   User, Settings, Calendar, Gift, Shield, ChevronRight,
-  Copy, Check, Camera, Loader2, Bell, Moon, Globe
+  Copy, Check, Camera, Loader2, Bell, Moon, Globe, Sun, BellOff,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
@@ -24,6 +25,7 @@ export function ProfilPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const { theme, setTheme, resolvedTheme } = useTheme()
 
   const [tab, setTab] = useState(searchParams.get('tab') ?? 'overview')
   const [codeCopied, setCodeCopied] = useState(false)
@@ -34,6 +36,70 @@ export function ProfilPage() {
   const [visitesLoading, setVisitesLoading] = useState(false)
   const [filleuls, setFilleuls] = useState<{ id: string; full_name: string; created_at: string }[]>([])
   const [filleulsLoading, setFilleulsLoading] = useState(false)
+
+  // Notifications push
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushSupported, setPushSupported] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
+      setPushSupported(true)
+      setPushEnabled(Notification.permission === 'granted')
+    }
+  }, [])
+
+  async function togglePushNotifications() {
+    if (!user) return
+    setPushLoading(true)
+    try {
+      if (pushEnabled) {
+        // Désactiver : supprimer la subscription
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await sub.unsubscribe()
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          })
+        }
+        setPushEnabled(false)
+        toast('Notifications désactivées', { icon: '🔕' })
+      } else {
+        // Activer : demander la permission et s'abonner
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          toast.error('Permission refusée. Activez les notifications dans les paramètres du navigateur.')
+          return
+        }
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        })
+        const json = sub.toJSON()
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            endpoint: sub.endpoint,
+            p256dh: (json.keys as any)?.p256dh ?? '',
+            auth: (json.keys as any)?.auth ?? '',
+          }),
+        })
+        setPushEnabled(true)
+        toast.success('Notifications activées ! 🔔')
+      }
+    } catch (err) {
+      console.error('Push toggle error:', err)
+      toast.error('Erreur lors de la configuration des notifications')
+    } finally {
+      setPushLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!user) { router.push('/connexion'); return }
@@ -390,25 +456,149 @@ export function ProfilPage() {
       )}
 
       {tab === 'settings' && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Paramètres</h2>
-          {[
-            { icon: Bell, label: 'Notifications', desc: 'Gérer vos alertes push et email' },
-            { icon: Globe, label: 'Langue', desc: 'Français (FR)' },
-            { icon: Moon, label: 'Apparence', desc: 'Thème clair / sombre' },
-            { icon: Shield, label: 'Sécurité', desc: 'Mot de passe, sessions actives' },
-          ].map(item => (
-            <button key={item.label} className="w-full flex items-center gap-4 p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-gray-200 dark:hover:border-gray-700 transition-all text-left group shadow-card">
+
+          {/* ── Thème ─────────────────────────────────────────────────── */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
+            <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
-                <item.icon size={18} className="text-gray-600 dark:text-gray-300" />
+                {resolvedTheme === 'dark'
+                  ? <Moon size={18} className="text-gray-600 dark:text-gray-300" />
+                  : <Sun size={18} className="text-amber-500" />}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-sm text-gray-900 dark:text-white">{item.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+                <p className="font-semibold text-sm text-gray-900 dark:text-white">Apparence</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {resolvedTheme === 'dark' ? 'Mode sombre activé' : 'Mode clair activé'}
+                </p>
               </div>
-              <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+              {/* Toggle thème */}
+              <button
+                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                className={cn(
+                  'relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0',
+                  resolvedTheme === 'dark' ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700'
+                )}
+                aria-label="Basculer thème"
+              >
+                <span className={cn(
+                  'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200',
+                  resolvedTheme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+
+            {/* Sélecteur 3 options */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { value: 'light', label: 'Clair', icon: Sun },
+                { value: 'dark', label: 'Sombre', icon: Moon },
+                { value: 'system', label: 'Système', icon: Settings },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTheme(opt.value)}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-medium border transition-all',
+                    theme === opt.value
+                      ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-400 text-brand-600 dark:text-brand-400'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300'
+                  )}
+                >
+                  <opt.icon size={16} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Notifications push ─────────────────────────────────────── */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                {pushEnabled
+                  ? <Bell size={18} className="text-brand-500" />
+                  : <BellOff size={18} className="text-gray-400" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-gray-900 dark:text-white">Notifications push</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {!pushSupported
+                    ? 'Non supporté sur ce navigateur'
+                    : pushEnabled
+                      ? 'Activées — vous recevrez des alertes'
+                      : 'Désactivées'}
+                </p>
+              </div>
+              {pushSupported && (
+                <button
+                  onClick={togglePushNotifications}
+                  disabled={pushLoading}
+                  className={cn(
+                    'relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0 disabled:opacity-60',
+                    pushEnabled ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700'
+                  )}
+                  aria-label="Activer/désactiver les notifications"
+                >
+                  {pushLoading
+                    ? <span className="absolute inset-0 flex items-center justify-center"><Loader2 size={12} className="animate-spin text-white" /></span>
+                    : <span className={cn(
+                        'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200',
+                        pushEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                      )} />
+                  }
+                </button>
+              )}
+            </div>
+
+            {pushEnabled && (
+              <div className="mt-3 p-3 bg-brand-50 dark:bg-brand-950/20 rounded-xl">
+                <p className="text-xs text-brand-600 dark:text-brand-400">
+                  🔔 Vous serez notifié pour : nouveaux messages, confirmation de visite, nouvelles annonces correspondant à vos critères.
+                </p>
+              </div>
+            )}
+
+            {!pushSupported && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ Votre navigateur ne supporte pas les notifications push. Essayez Chrome ou Firefox.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Langue ─────────────────────────────────────────────────── */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Globe size={18} className="text-gray-600 dark:text-gray-300" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-gray-900 dark:text-white">Langue</p>
+                <p className="text-xs text-gray-400 mt-0.5">Français (FR)</p>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+            </div>
+          </div>
+
+          {/* ── Sécurité ─────────────────────────────────────────────── */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
+            <button
+              onClick={() => toast('Bientôt disponible', { icon: '🔒' })}
+              className="w-full flex items-center gap-4 text-left"
+            >
+              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Shield size={18} className="text-gray-600 dark:text-gray-300" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-gray-900 dark:text-white">Sécurité</p>
+                <p className="text-xs text-gray-400 mt-0.5">Mot de passe, sessions actives</p>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
             </button>
-          ))}
+          </div>
         </div>
       )}
     </div>

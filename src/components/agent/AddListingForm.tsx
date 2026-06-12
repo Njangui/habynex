@@ -193,6 +193,15 @@ export function AddListingForm() {
     }
   }
 
+  // ── Génération FAQ (fire-and-forget) ──
+  async function triggerFaqGeneration(listingId: string) {
+    fetch('/api/ai/generate-faq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listingId }),
+    }).catch(err => console.warn('[FAQ] génération échouée (non-critique):', err))
+  }
+
   // ── Soumission ──
   async function submitListing() {
     if (!user) { toast.error('Connectez-vous'); return }
@@ -291,6 +300,7 @@ export function AddListingForm() {
         })
       }
 
+      triggerFaqGeneration(listing.id)
       setStep('done')
     } catch (err: any) {
       toast.error(err.message ?? 'Erreur lors de la soumission')

@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'next/navigation'
 import { ListingCard, ListingCardSkeleton } from './ListingCard'
 import { useListings } from '@/hooks/useListings'
-import { cn, formatPrice } from '@/lib/utils'
+import { cn, formatPrice, BLUR_DATA_URL, LOW_DATA_QUALITY } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { Listing } from '@/types'
 
@@ -249,7 +249,7 @@ function ClientVisitCard({ booking, processing, onOutcome }: {
                 className={cn('flex items-center gap-3 p-2.5 rounded-xl transition-colors group',
                   isChosen ? 'bg-trust-50 dark:bg-trust-950/20' : 'hover:bg-hb-50 dark:hover:bg-hb-700')}>
                 <div className="relative w-12 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-hb-100">
-                  {cover && <Image src={cover} alt="" fill className="object-cover" sizes="48px" />}
+                  {cover && <Image src={cover} alt="" fill className="object-cover" sizes="48px" loading="lazy" quality={LOW_DATA_QUALITY} placeholder="blur" blurDataURL={BLUR_DATA_URL} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={cn('text-xs font-medium truncate',

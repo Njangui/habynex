@@ -9,7 +9,7 @@ import { useListings } from '@/hooks/useListings'
 import { useAuthStore } from '@/stores/auth'
 import { useFiltersStore } from '@/stores/filters'
 import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
+import { cn, BLUR_DATA_URL, LOW_DATA_QUALITY } from '@/lib/utils'
 import type { Listing, RecommendationBlock } from '@/types'
 
 const BLOCKS: { key: RecommendationBlock; label: string; icon: React.ElementType }[] = [
@@ -270,7 +270,7 @@ function AirbnbBlock({ blockKey, label, subtitle, Icon, listings, loading }: {
                       return (
                         <div key={i} className={`relative overflow-hidden ${i === 0 ? 'col-span-2' : ''}`}>
                           {cover
-                            ? <Image src={cover} alt="" fill className="object-cover" sizes="100px" />
+                            ? <Image src={cover} alt="" fill className="object-cover" sizes="100px" loading="lazy" quality={LOW_DATA_QUALITY} placeholder="blur" blurDataURL={BLUR_DATA_URL} />
                             : <div className="absolute inset-0 bg-hb-200 flex items-center justify-center text-2xl">🏠</div>
                           }
                         </div>

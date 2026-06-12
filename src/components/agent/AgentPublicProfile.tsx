@@ -10,7 +10,7 @@ import {
   Star, MapPin, Phone, MessageSquare, Shield,
   Award, CheckCircle2, Calendar, Share2, QrCode
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, BLUR_DATA_URL, LOW_DATA_QUALITY } from '@/lib/utils'
 
 interface Props { agentId: string }
 
@@ -101,7 +101,7 @@ export function AgentPublicProfile({ agentId }: Props) {
           <div className="relative flex-shrink-0">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white/20 border-2 border-white/30">
               {profile.avatar_url ? (
-                <Image src={profile.avatar_url} alt={profile.full_name ?? ''} width={80} height={80} className="object-cover w-full h-full" />
+                <Image src={profile.avatar_url} alt={profile.full_name ?? ''} width={80} height={80} className="object-cover w-full h-full" quality={LOW_DATA_QUALITY} placeholder="blur" blurDataURL={BLUR_DATA_URL} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-white">
                   {profile.full_name?.charAt(0)?.toUpperCase() ?? '👤'}
@@ -240,7 +240,7 @@ export function AgentPublicProfile({ agentId }: Props) {
                 <Link key={l.id} href={`/bien/${l.slug}`}
                   className="rounded-2xl overflow-hidden border border-hb-100 dark:border-hb-700 hover:shadow-airbnb transition-shadow">
                   <div className="relative aspect-square bg-hb-100">
-                    {cover && <Image src={cover} alt={l.title} fill className="object-cover" sizes="200px" />}
+                    {cover && <Image src={cover} alt={l.title} fill className="object-cover" sizes="200px" loading="lazy" quality={LOW_DATA_QUALITY} placeholder="blur" blurDataURL={BLUR_DATA_URL} />}
                   </div>
                   <div className="p-3">
                     <p className="text-xs font-semibold text-hb-700 dark:text-white truncate">{l.title}</p>

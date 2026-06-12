@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { cn } from '@/lib/utils'
+import { cn, BLUR_DATA_URL, LOW_DATA_QUALITY } from '@/lib/utils'
 
 interface WatermarkedImageProps {
   src: string
@@ -41,7 +41,10 @@ export function WatermarkedImage({
           className="object-cover"
           sizes={sizes}
           priority={priority}
-          quality={75}
+          loading={priority ? 'eager' : 'lazy'}
+          quality={LOW_DATA_QUALITY}
+          placeholder="blur"
+          blurDataURL={BLUR_DATA_URL}
         />
       ) : (
         <Image
@@ -52,7 +55,10 @@ export function WatermarkedImage({
           className="object-cover w-full h-full"
           sizes={sizes}
           priority={priority}
-          quality={75}
+          loading={priority ? 'eager' : 'lazy'}
+          quality={LOW_DATA_QUALITY}
+          placeholder="blur"
+          blurDataURL={BLUR_DATA_URL}
         />
       )}
 

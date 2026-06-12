@@ -150,6 +150,9 @@ export interface Conversation {
   ai_active: boolean; escalated_to: string | null
   escalated_at: string | null; escalation_reason: string | null
   last_message_at: string | null; unread_count: number; created_at: string
+  admin_notified_at?: string | null
+  claimed_by?: string | null; claimed_at?: string | null
+  pending_ai_reply?: boolean; last_user_msg_at?: string | null
   listing?: Listing; client?: Profile; messages?: Message[]; last_message?: Message
 }
 
@@ -157,6 +160,7 @@ export interface Message {
   id: string; conversation_id: string; sender_id: string | null
   role: MessageRole; content: string
   attachments: MessageAttachment[] | null
+  metadata?: { type?: string; listing?: Record<string, unknown> } | null
   is_delivered: boolean; is_read: boolean
   delivered_at: string | null; read_at: string | null; created_at: string
 }
