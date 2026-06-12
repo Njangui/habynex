@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/ai-pending-replies",
-      "schedule": "*/2 * * * *"
-    },
-    {
       "path": "/api/cron/daily-report",
       "schedule": "0 21 * * *"
     },
