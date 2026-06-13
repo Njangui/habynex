@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   User, Settings, Calendar, Gift, Shield, ChevronRight,
   Copy, Check, Camera, Loader2, Bell, Moon, Globe, Sun, BellOff,
+  Sliders, MapPin, Home, DollarSign, Save,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import type { UserCriteria, ListingType, TransactionType } from '@/types'
 
 const TABS = [
   { key: 'overview', label: 'Aperçu', icon: User },
@@ -459,6 +461,9 @@ export function ProfilPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Paramètres</h2>
 
+          {/* ── Critères de recommandation ─────────────────────────── */}
+          <CriteriaEditor profile={profile} userId={user?.id} supabase={supabase} setProfile={setProfile} />
+
           {/* ── Thème ─────────────────────────────────────────────────── */}
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
             <div className="flex items-center gap-4">
@@ -623,5 +628,220 @@ function VisiteStatusBadge({ status }: { status: string }) {
     <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', styles[status] ?? 'bg-gray-100 text-gray-500')}>
       {labels[status] ?? status}
     </span>
+  )
+}
+// ── CriteriaEditor ─────────────────────────────────────────────────────────
+const LISTING_TYPES: { value: ListingType; label: string; emoji: string }[] = [
+  { value: 'studio', label: 'Studio', emoji: '🏠' },
+  { value: 'apartment', label: 'Appartement', emoji: '🏢' },
+  { value: 'room', label: 'Chambre', emoji: '🛏️' },
+  { value: 'villa', label: 'Villa', emoji: '🏡' },
+  { value: 'duplex', label: 'Duplex', emoji: '🏘️' },
+  { value: 'commercial', label: 'Commercial', emoji: '🏪' },
+]
+
+const TRANSACTIONS: { value: TransactionType; label: string; emoji: string }[] = [
+  { value: 'rent', label: 'Location', emoji: '🔑' },
+  { value: 'sale', label: 'Vente', emoji: '💰' },
+  { value: 'furnished', label: 'Meublé', emoji: '🛋️' },
+  { value: 'coliving', label: 'Colocation', emoji: '👥' },
+  { value: 'short_stay', label: 'Court séjour', emoji: '📅' },
+]
+
+const NEIGHBORHOODS_YAOUNDE = [
+  { id: 'simbock', name: 'Simbock' },
+  { id: 'biyem-assi', name: 'Biyem-Assi' },
+  { id: 'jouvence', name: 'Jouvence' },
+  { id: 'bastos', name: 'Bastos' },
+  { id: 'tkc', name: 'TKC' },
+  { id: 'mvan', name: 'Mvan' },
+  { id: 'nlongkak', name: 'Nlongkak' },
+  { id: 'etoudi', name: 'Etoudi' },
+  { id: 'mvog-ada', name: 'Mvog-Ada' },
+  { id: 'nsam', name: 'Nsam' },
+  { id: 'awae', name: 'Awae' },
+  { id: 'nkol-eton', name: 'Nkol-Eton' },
+]
+
+function CriteriaEditor({ profile, userId, supabase, setProfile }: {
+  profile: any; userId?: string; supabase: any; setProfile: (p: any) => void
+}) {
+  const existing: UserCriteria = profile?.criteria ?? {}
+
+  const [types, setTypes] = useState<ListingType[]>(existing.types ?? [])
+  const [transaction, setTransaction] = useState<TransactionType | ''>(existing.transaction ?? '')
+  const [budgetMin, setBudgetMin] = useState<string>(existing.budget_min ? String(existing.budget_min) : '')
+  const [budgetMax, setBudgetMax] = useState<string>(existing.budget_max ? String(existing.budget_max) : '')
+  const [neighborhoods, setNeighborhoods] = useState<string[]>(existing.neighborhood_ids ?? [])
+  const [furnished, setFurnished] = useState<boolean | undefined>(existing.furnished)
+  const [bedroomsMin, setBedroomsMin] = useState<string>(existing.bedrooms_min ? String(existing.bedrooms_min) : '')
+  const [saving, setSaving] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  function toggleType(t: ListingType) {
+    setTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+  }
+  function toggleNeighborhood(id: string) {
+    setNeighborhoods(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function saveCriteria() {
+    if (!userId) return
+    setSaving(true)
+    const criteria: UserCriteria = {
+      types: types.length > 0 ? types : undefined,
+      transaction: transaction || undefined,
+      budget_min: budgetMin ? Number(budgetMin) : undefined,
+      budget_max: budgetMax ? Number(budgetMax) : undefined,
+      neighborhood_ids: neighborhoods.length > 0 ? neighborhoods : undefined,
+      neighborhood_names: neighborhoods.map(id => NEIGHBORHOODS_YAOUNDE.find(n => n.id === id)?.name ?? id),
+      furnished,
+      bedrooms_min: bedroomsMin ? Number(bedroomsMin) : undefined,
+    }
+    const { data } = await supabase
+      .from('profiles').update({ criteria }).eq('id', userId).select().single()
+    if (data) setProfile(data)
+    setSaving(false)
+    toast.success('Critères de recommandation sauvegardés ✅')
+    // Vider le cache des recommandations
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('hbx_')).forEach(k => localStorage.removeItem(k))
+    } catch {}
+  }
+
+  const hasAnyCriteria = types.length > 0 || transaction || budgetMax || neighborhoods.length > 0
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-card overflow-hidden">
+      {/* Header cliquable */}
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-4 p-5 text-left">
+        <div className="w-10 h-10 bg-brand-50 dark:bg-brand-950/30 rounded-xl flex items-center justify-center flex-shrink-0">
+          <Sliders size={18} className="text-brand-500" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-sm text-gray-900 dark:text-white">Mes critères de recommandation</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {hasAnyCriteria
+              ? `${types.length > 0 ? types.join(', ') : ''}${transaction ? ` · ${transaction}` : ''}${budgetMax ? ` · ≤${Number(budgetMax).toLocaleString()} FCFA` : ''}`
+              : 'Personnalisez le bloc "Sélection IA pour vous"'}
+          </p>
+        </div>
+        <ChevronRight size={16} className={cn('text-gray-300 transition-transform', open && 'rotate-90')} />
+      </button>
+
+      {/* Formulaire */}
+      {open && (
+        <div className="px-5 pb-5 space-y-5 border-t border-gray-100 dark:border-gray-800 pt-4">
+
+          {/* Type de bien */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Home size={12} /> Type de bien
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {LISTING_TYPES.map(t => (
+                <button key={t.value} onClick={() => toggleType(t.value)}
+                  className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
+                    types.includes(t.value)
+                      ? 'bg-brand-500 border-brand-500 text-white'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand-300')}>
+                  {t.emoji} {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Transaction */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              Modalité
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {TRANSACTIONS.map(t => (
+                <button key={t.value} onClick={() => setTransaction(prev => prev === t.value ? '' : t.value)}
+                  className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
+                    transaction === t.value
+                      ? 'bg-brand-500 border-brand-500 text-white'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand-300')}>
+                  {t.emoji} {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Budget */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <DollarSign size={12} /> Budget (FCFA)
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-gray-400 mb-1 block">Minimum</label>
+                <input type="number" value={budgetMin} onChange={e => setBudgetMin(e.target.value)}
+                  placeholder="Ex: 30000"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-brand-400 transition-colors" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400 mb-1 block">Maximum</label>
+                <input type="number" value={budgetMax} onChange={e => setBudgetMax(e.target.value)}
+                  placeholder="Ex: 150000"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-brand-400 transition-colors" />
+              </div>
+            </div>
+          </div>
+
+          {/* Quartiers préférés */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <MapPin size={12} /> Quartiers préférés (Yaoundé)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {NEIGHBORHOODS_YAOUNDE.map(n => (
+                <button key={n.id} onClick={() => toggleNeighborhood(n.id)}
+                  className={cn('px-3 py-1.5 rounded-xl text-xs font-medium border transition-all',
+                    neighborhoods.includes(n.id)
+                      ? 'bg-brand-500 border-brand-500 text-white'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand-300')}>
+                  {n.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Options supplémentaires */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase tracking-wide font-semibold">Chambres min.</label>
+              <select value={bedroomsMin} onChange={e => setBedroomsMin(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-brand-400">
+                <option value="">Peu importe</option>
+                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}+</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase tracking-wide font-semibold">Meublé</label>
+              <select value={furnished === undefined ? '' : String(furnished)}
+                onChange={e => setFurnished(e.target.value === '' ? undefined : e.target.value === 'true')}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-brand-400">
+                <option value="">Peu importe</option>
+                <option value="true">Meublé</option>
+                <option value="false">Non meublé</option>
+              </select>
+            </div>
+          </div>
+
+          <button onClick={saveCriteria} disabled={saving}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-2xl text-sm transition-colors disabled:opacity-60">
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+            {saving ? 'Sauvegarde…' : 'Sauvegarder mes critères'}
+          </button>
+
+          <p className="text-[11px] text-gray-400 text-center">
+            Ces critères personnalisent le bloc "Sélection IA pour vous" sur la page d&apos;accueil.
+          </p>
+        </div>
+      )}
+    </div>
   )
 }

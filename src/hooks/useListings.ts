@@ -139,11 +139,59 @@ export function useListings() {
               .limit(8)
             break
 
-          case 'for_you':
-            query = query
-              .order('favorite_count', { ascending: false })
-              .limit(8)
-            break
+          case 'for_you': {
+            // Récupérer les critères du profil utilisateur via auth store
+            // On importe useAuthStore de façon isolée pour ne pas créer de dépendance circulaire
+            // → On passe les critères via le store Zustand déjà chargé
+            const storeState = (await import('@/stores/auth')).useAuthStore.getState()
+            const criteria = (storeState.profile as any)?.criteria ?? {}
+
+            const types: string[] = criteria?.types ?? []
+            const transaction: string = criteria?.transaction ?? ''
+            const budgetMax: number = criteria?.budget_max ?? 0
+            const budgetMin: number = criteria?.budget_min ?? 0
+            const neighborhoodIds: string[] = criteria?.neighborhood_ids ?? []
+            const furnished: boolean | undefined = criteria?.furnished
+
+            // Construire la requête avec les critères utilisateur
+            let forYouQ = supabase
+              .from('listings')
+              .select(LISTING_CARD_SELECT)
+              .eq('status', 'published')
+
+            // Appliquer les critères (du moins contraignant au plus)
+            if (transaction) forYouQ = forYouQ.eq('transaction', transaction)
+            if (types.length > 0) forYouQ = forYouQ.in('type', types)
+            if (budgetMax > 0) forYouQ = forYouQ.lte('price', budgetMax * 1.2) // +20% tolérance
+            if (budgetMin > 0) forYouQ = forYouQ.gte('price', budgetMin * 0.8)
+            if (furnished !== undefined) forYouQ = forYouQ.eq('furnished', furnished)
+            if (neighborhoodIds.length > 0) forYouQ = forYouQ.in('neighborhood_id', neighborhoodIds)
+
+            // Trier par popularité dans les critères
+            forYouQ = forYouQ.order('view_count', { ascending: false }).limit(12)
+
+            const { data: forYouData, error: forYouError } = await forYouQ
+
+            if (forYouError || !forYouData?.length) {
+              // Fallback : si aucun résultat avec critères stricts, élargir
+              const { data: fallback } = await supabase
+                .from('listings')
+                .select(LISTING_CARD_SELECT)
+                .eq('status', 'published')
+                .order('favorite_count', { ascending: false })
+                .limit(8)
+              query = supabase.from('listings').select(LISTING_CARD_SELECT).eq('status', 'published').limit(0) // dummy
+              const listings = (fallback ?? []) as unknown as Listing[]
+              blockCache.set(cacheKey, { data: listings, ts: Date.now() })
+              store.setBlock(block, listings)
+              return
+            }
+
+            const listings = (forYouData ?? []) as unknown as Listing[]
+            blockCache.set(cacheKey, { data: listings, ts: Date.now() })
+            store.setBlock(block, listings)
+            return
+          }
         }
 
         const { data, error } = await query

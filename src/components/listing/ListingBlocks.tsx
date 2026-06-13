@@ -178,6 +178,23 @@ export function ListingBlocks({ popularListings, goodDeals }: ListingBlocksProps
     activeTransaction ? TRANS_LABELS[activeTransaction] : '',
   ].filter(Boolean).join(' · ')
 
+  // ── Dédoublonnage cross-blocs ──────────────────────────────────
+  // for_you a la priorité — ses annonces sont exclues des autres blocs
+  const deduplicatedBlocks = (() => {
+    const seen = new Set<string>()
+    const result: Record<string, Listing[]> = {}
+    const PRIORITY: RecommendationBlock[] = ['for_you', 'popular', 'good_deal', 'discover']
+    for (const key of PRIORITY) {
+      const raw = key === 'for_you'
+        ? (blocks[key] ?? [])
+        : (hasFilter ? filteredBlocks[key] : blocks[key]) ?? []
+      const unique = raw.filter((l: Listing) => !seen.has(l.id))
+      unique.forEach((l: Listing) => seen.add(l.id))
+      result[key] = unique
+    }
+    return result
+  })()
+
   return (
     <div className="max-w-[1760px] mx-auto px-4 sm:px-6 md:px-10 py-8 space-y-14">
       {hasFilter && (
@@ -191,9 +208,7 @@ export function ListingBlocks({ popularListings, goodDeals }: ListingBlocksProps
         if (block.key === 'for_you' && !user) return <ForYouGuest key="for_you" />
 
         const isForYou = block.key === 'for_you'
-        const listings = isForYou
-          ? blocks[block.key]
-          : (hasFilter ? filteredBlocks[block.key] : blocks[block.key]) ?? []
+        const listings = deduplicatedBlocks[block.key] ?? []
         const loading = isForYou
           ? blocksLoading[block.key]
           : (hasFilter ? !!filteredLoading[block.key] : blocksLoading[block.key])

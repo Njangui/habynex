@@ -15,6 +15,7 @@ import { ChatBox } from '@/components/messaging/ChatBox'
 import { BookingModal } from '@/components/booking/BookingModal'
 import { MapView } from '@/components/map/MapView'
 import { SimilarListings } from '@/components/listing/SimilarListings'
+import { RecommendationsBlock } from '@/components/listing/RecommendationsBlock'
 import {
   LiveViewersBadge, ScarcityBadge, SocialProofBar,
   RecentBookingToast, PriceAnchorBadge, CountdownOffer,

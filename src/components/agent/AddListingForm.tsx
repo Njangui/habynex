@@ -252,19 +252,39 @@ export function AddListingForm() {
 
       if (error) throw error
 
-      // 3. Upload photos
+      // 3. Upload photos — séquentiel pour éviter les collisions de noms de fichiers
+      // ⚠️ NE PAS utiliser Promise.all ici : Date.now() retourne le même timestamp
+      // pour toutes les photos simultanées → collision → images écrasées
       if (photos.length > 0 && listing) {
-        await Promise.all(photos.map(async (photo, i) => {
-          const path = `${listing.id}/${Date.now()}-${i}.webp`
-          const { data: upload } = await supabase.storage.from('listing-media').upload(path, photo, { upsert: true })
-          if (upload) {
-            const { data: { publicUrl } } = supabase.storage.from('listing-media').getPublicUrl(path)
-            await supabase.from('listing_media').insert({
-              listing_id: listing.id, url: publicUrl,
-              type: 'image', is_cover: i === 0, display_order: i,
-            })
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i]
+          const uniqueSuffix = `${i}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+          const path = `${listing.id}/${uniqueSuffix}.webp`
+
+          const { data: upload, error: uploadError } = await supabase.storage
+            .from('listing-media')
+            .upload(path, photo, { upsert: true, contentType: 'image/webp' })
+
+          if (uploadError) {
+            console.error(`Upload photo ${i + 1} échoué:`, uploadError.message)
+            continue
           }
-        }))
+
+          if (upload) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('listing-media')
+              .getPublicUrl(path)
+
+            const { error: insertError } = await supabase.from('listing_media').insert({
+              listing_id: listing.id,
+              url: publicUrl,
+              type: 'image',
+              is_cover: i === 0,
+              display_order: i,
+            })
+            if (insertError) console.error(`Insert media ${i + 1} échoué:`, insertError.message)
+          }
+        }
       }
 
       // 4. Notifications
