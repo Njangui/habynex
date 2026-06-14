@@ -330,7 +330,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
                 </div>
                 {[1,2,3,4].map(i => (
                   <div key={i} className="relative cursor-pointer" onClick={() => { setImgIdx(i); setLightbox(true) }}>
-                    {images[i] ? <Image src={images[i].url} alt="" fill className="object-cover hover:brightness-95 transition-all" sizes="25vw" quality={80} />
+                    {images[i] ? <Image src={images[i].url} alt={`${listing.title} — photo ${i + 1}`} fill className="object-cover hover:brightness-95 transition-all" sizes="25vw" quality={80} />
                       : <div className="absolute inset-0 bg-hb-100" />}
                   </div>
                 ))}
@@ -506,7 +506,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
         <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center" onClick={() => setLightbox(false)}>
           <button className="absolute top-4 right-4 text-white/80 hover:text-white z-10"><X size={28} /></button>
           <div className="relative w-full max-w-5xl aspect-video px-4" onClick={e => e.stopPropagation()}>
-            <Image src={images[imgIdx].url} alt="" fill className="object-contain" sizes="100vw" />
+            <Image src={images[imgIdx].url} alt={`${listing.title} — photo ${imgIdx + 1}`} fill className="object-contain" sizes="100vw" />
             <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='130'%3E%3Cg transform='rotate(-22 110 65)' opacity='0.15'%3E%3Ctext x='10' y='55' font-family='Arial' font-size='15' font-weight='bold' fill='white' letter-spacing='3'%3EHABYNEX%3C/text%3E%3C/g%3E%3C/svg%3E")`, backgroundRepeat: 'repeat', backgroundSize: '220px 130px' }} />
           </div>
           {images.length > 1 && <>
@@ -528,7 +528,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
               {images.map((img, i) => (
                 <div key={img.id} className={cn('relative rounded-2xl overflow-hidden cursor-pointer', i === 0 ? 'col-span-2 aspect-[16/9]' : 'aspect-square')}
                   onClick={() => { setImgIdx(i); setLightboxAll(false); setLightbox(true) }}>
-                  <Image src={img.url} alt="" fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="600px" />
+                  <Image src={img.url} alt={`${listing.title} — photo ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="600px" />
                 </div>
               ))}
             </div>

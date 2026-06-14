@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata: Metadata = {
   title: 'Habynex — Trouvez votre logement idéal au Cameroun',
   description: 'Habynex, l\'agence immobilière intelligente au Cameroun. Appartements, studios et villas vérifiés à Yaoundé et Douala. IA, visites terrain, agents certifiés.',
+  alternates: { canonical: 'https://habynex.com' },
 }
 
 // Page d'accueil générée côté serveur pour le SEO

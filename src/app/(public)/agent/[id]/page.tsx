@@ -11,9 +11,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: data?.full_name ? `${data.full_name} — Agent Habynex` : 'Agent Habynex',
     description: `Profil public de ${data?.full_name ?? 'cet agent'} — Agent immobilier certifié Habynex au Cameroun.`,
+    alternates: { canonical: `https://habynex.com/agent/${params.id}` },
     openGraph: {
       title: `${data?.full_name ?? 'Agent'} — Agent Habynex`,
       description: 'Agent immobilier certifié Habynex — Visites terrain au Cameroun.',
+      url: `https://habynex.com/agent/${params.id}`,
       images: data?.avatar_url ? [data.avatar_url] : ['/icons/icon-512.png'],
     },
   }

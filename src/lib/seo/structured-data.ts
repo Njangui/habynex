@@ -93,3 +93,19 @@ export function generateBreadcrumbStructuredData(items: { name: string; url: str
     })),
   }
 }
+
+// Schema.org FAQPage — pour les blocs de questions fréquentes par quartier
+export function generateFaqStructuredData(items: { question: string; answer: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((item) => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    })),
+  }
+}

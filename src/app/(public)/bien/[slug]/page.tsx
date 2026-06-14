@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: ListingPageProps): Promise<Me
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('title, description, meta_title, meta_description, price, transaction, neighborhood:neighborhoods(name)')
+    .select('title, description, meta_title, meta_description, price, transaction, neighborhood:neighborhoods(name), media:listing_media(url, is_cover, display_order)')
     .eq('slug', slug)
     .eq('status', 'published')
     .single()
@@ -26,13 +26,23 @@ export async function generateMetadata({ params }: ListingPageProps): Promise<Me
     ? listing.neighborhood[0]
     : listing.neighborhood
 
+  const pageTitle = listing.meta_title || listing.title
+  const pageDescription = listing.meta_description || listing.description?.substring(0, 160) || ''
+
+  const cover = listing.media
+    ?.slice()
+    .sort((a: { is_cover?: boolean }, b: { is_cover?: boolean }) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0))[0]
+
   return {
-    title: listing.meta_title || listing.title,
-    description: listing.meta_description || listing.description?.substring(0, 160),
+    title: pageTitle,
+    description: pageDescription,
+    alternates: { canonical: `https://habynex.com/bien/${slug}` },
     openGraph: {
-      title: listing.meta_title || listing.title,
-      description: listing.meta_description || listing.description?.substring(0, 160) || '',
+      title: pageTitle,
+      description: pageDescription,
       type: 'website',
+      url: `https://habynex.com/bien/${slug}`,
+      images: cover ? [{ url: cover.url, width: 1200, height: 630, alt: pageTitle }] : undefined,
     },
   }
 }

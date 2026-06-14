@@ -12,7 +12,7 @@ export default function TermesPage() {
       <p className="text-hb-400 text-sm mb-10">Dernière mise à jour : Mai 2026 · Habynex SAS, Yaoundé, Cameroun</p>
 
       <Section title="1. Présentation de la plateforme">
-        <p>Habynex est une plateforme immobilière numérique basée au Cameroun, accessible via le site web <strong>habynex.com</strong> et son application mobile. Elle met en relation des propriétaires, des locataires, des acheteurs et des agents immobiliers certifiés. Habynex n'est pas une agence immobilière au sens traditionnel du terme, mais un intermédiaire technologique facilitant les transactions immobilières.</p>
+        <p>Habynex est une plateforme immobilière numérique basée au Cameroun, accessible via le site web <strong>habynex.com</strong> Elle met en relation des propriétaires, des locataires, des acheteurs et des agents immobiliers certifiés. Habynex n'est pas une agence immobilière au sens traditionnel du terme, mais un intermédiaire technologique facilitant les transactions immobilières.</p>
       </Section>
 
       <Section title="2. Acceptation des conditions">
