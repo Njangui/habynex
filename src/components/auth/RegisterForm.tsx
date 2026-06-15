@@ -22,12 +22,14 @@ export function RegisterForm() {
   const [showPwd, setShowPwd]         = useState(false)
   const [referralCode, setReferralCode] = useState(refCode)
   const [loading, setLoading]         = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const strong = password.length >= 8
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!strong) { toast.error('Mot de passe trop court (min. 8 caractères)'); return }
+    if (!acceptedTerms) { toast.error('Vous devez accepter les termes et conditions'); return }
     setLoading(true)
     try {
       // Vérifier code de parrainage via API (bypass RLS — un non-connecté ne peut pas lire profiles)
@@ -132,7 +134,25 @@ export function RegisterForm() {
               className="w-full px-4 py-3 border border-hb-200 dark:border-hb-600 rounded-xl text-sm font-mono tracking-widest uppercase text-hb-700 dark:text-white bg-white dark:bg-hb-700 placeholder:text-hb-300 outline-none focus:border-hb-500 transition-colors" />
           </div>
 
-          <button type="submit" disabled={loading || !email || !fullName || !strong}
+          {/* Termes et conditions — obligatoire */}
+          <label className="flex items-start gap-3 cursor-pointer select-none pt-1">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={e => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-hb-300 text-brand-500 flex-shrink-0 cursor-pointer"
+            />
+            <span className="text-sm text-hb-500 dark:text-hb-400 leading-snug">
+              J&apos;ai lu et j&apos;accepte les{' '}
+              <Link href="/termes-et-conditions" target="_blank" className="text-brand-500 hover:text-brand-600 font-semibold underline transition-colors">
+                termes et conditions d&apos;utilisation
+              </Link>{' '}
+              de Habynex.{' '}
+              <span className="text-red-400 font-semibold">*</span>
+            </span>
+          </label>
+
+          <button type="submit" disabled={loading || !email || !fullName || !strong || !acceptedTerms}
             className={cn('w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all mt-2',
               loading || !email || !fullName || !strong
                 ? 'bg-hb-200 dark:bg-hb-700 cursor-not-allowed text-hb-400'
