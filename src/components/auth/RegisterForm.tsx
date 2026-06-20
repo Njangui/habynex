@@ -144,7 +144,7 @@ export function RegisterForm() {
             />
             <span className="text-sm text-hb-500 dark:text-hb-400 leading-snug">
               J&apos;ai lu et j&apos;accepte les{' '}
-              <Link href="/termes-et-conditions" target="_blank" className="text-brand-500 hover:text-brand-600 font-semibold underline transition-colors">
+              <Link href="/termes" target="_blank" className="text-brand-500 hover:text-brand-600 font-semibold underline transition-colors">
                 termes et conditions d&apos;utilisation
               </Link>{' '}
               de Habynex.{' '}
