@@ -202,11 +202,11 @@ function PricingCard({ listing, onChat, onBook, isFav, onFav, visitDate, onVisit
           {listing.transaction === 'rent' && <span className="text-base font-normal text-hb-400 ml-1">/ mois</span>}
         </p>
         {listing.price_negotiable && <p className="text-xs text-trust-500 mt-0.5">✓ Prix négociable</p>}
-        <PriceAnchorBadge price={listing.price} marketAvg={marketAvg} className="mt-2" />
+        <PriceAnchorBadge price={listing.price} neighborhoodId={listing.neighborhood_id ?? undefined} propertyType={listing.type} className="mt-2" />
       </div>
 
       {/* Preuve sociale */}
-      <SocialProofBar favoriteCount={listing.favorite_count} viewCount={listing.view_count} />
+      <SocialProofBar listingId={listing.id} />
 
       {/* Calendrier */}
       <div>
@@ -289,7 +289,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
   return (
     <>
       {/* FOMO toast — visiteurs récents */}
-      {neighborhood?.name && <RecentBookingToast neighborhood={neighborhood.name} />}
+      {neighborhood?.id && <RecentBookingToast neighborhoodId={neighborhood.id} />}
 
       <div className="relative">
         {/* Actions flottantes */}
@@ -348,7 +348,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
             {/* Badges persuasion — en haut */}
             <div className="space-y-2">
               <LiveViewersBadge listingId={listing.id} />
-              <ScarcityBadge total={1} />
+              <ScarcityBadge listingId={listing.id} neighborhoodId={listing.neighborhood_id ?? undefined} propertyType={listing.type} />
               <FavoriteNudge count={listing.favorite_count} />
             </div>
 

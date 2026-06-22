@@ -258,6 +258,34 @@ export function DiscountBadge({ originalPrice, currentPrice, className }: {
   )
 }
 
+// ── 9b. NUDGE FAVORIS ────────────────────────────────────────────────
+export function FavoriteNudge({ count, className }: { count: number; className?: string }) {
+  if (!count || count < 3) return null
+  return (
+    <div className={cn('flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl', className)}>
+      <Heart size={13} className="text-rose-500 fill-rose-500 flex-shrink-0" />
+      <span className="text-xs font-bold text-rose-700 dark:text-rose-400">
+        {count} personnes ont sauvegardé ce bien — très demandé !
+      </span>
+    </div>
+  )
+}
+
+// ── 9c. BIAIS DE PERTE ───────────────────────────────────────────────
+export function LossBiasPrompt({ pricePerDay, className }: { pricePerDay: number; className?: string }) {
+  if (!pricePerDay || pricePerDay <= 0) return null
+  return (
+    <div className={cn('flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl', className)}>
+      <Clock size={14} className="text-amber-500 flex-shrink-0" />
+      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+        En attendant, vous perdez environ{' '}
+        <strong>{pricePerDay.toLocaleString('fr-FR')} FCFA/jour</strong>{' '}
+        par rapport au prix du marché.
+      </p>
+    </div>
+  )
+}
+
 // ── 9. BANNIÈRE VALEUR HABYNEX ───────────────────────────────────────
 export function HabynexValueBanner({ className }: { className?: string }) {
   const [totalVisits, setTotalVisits] = useState<number | null>(null)
