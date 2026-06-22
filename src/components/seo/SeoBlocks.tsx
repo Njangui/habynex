@@ -1,6 +1,57 @@
 import Link from 'next/link'
 import { ALL_SEO_ARTICLES_FINAL } from '@/lib/seo/articles-data'
 
+// ─── Mappers : convertit le nom neighborhood/ville → slug URL réel ──────────
+const NEIGHBORHOOD_SLUG: Record<string, string> = {
+  'Simbock': 'simbock',
+  'Biyem-Assi': 'biyem-assi',
+  'Bastos': 'bastos',
+  'Jouvence': 'jouvence',
+  'TKC': 'tkc',
+  'Mvan': 'mvan',
+  'Nlongkak': 'nlongkak',
+  'Etoudi': 'etoudi',
+  'Mvog-Ada': 'mvog-ada',
+  'Nsam': 'nsam',
+  'Awae': 'awae',
+  'Omnisport': 'omnisport',
+  'Melen': 'melen',
+  'Emana': 'emana',
+  'Nkolbisson': 'nkolbisson',
+  'Bonanjo': 'bonanjo',
+  'Akwa': 'akwa',
+  'Bonapriso': 'bonapriso',
+  'Makepe': 'makepe',
+  'Logbessou': 'logbessou',
+  'Kotto': 'kotto',
+  'Deido': 'deido',
+}
+
+const CITY_SLUG: Record<string, string> = {
+  'Bafoussam': 'bafoussam',
+  'Garoua': 'garoua',
+  'Bamenda': 'bamenda',
+  'Ebolowa': 'ebolowa',
+  'Maroua': 'maroua',
+  'Bertoua': 'bertoua',
+  'Ngaoundéré': 'ngaoundere',
+  'Kribi': 'kribi',
+  'Limbé': 'limbe',
+  'Buéa': 'buea',
+}
+
+/** Retourne l'URL correcte selon la catégorie de l'article */
+function articleUrl(a: { category: string; slug: string; neighborhood?: string; city: string }): string {
+  if (a.category === 'guide-quartier' && a.neighborhood && NEIGHBORHOOD_SLUG[a.neighborhood]) {
+    return `/quartier/${NEIGHBORHOOD_SLUG[a.neighborhood]}`
+  }
+  if (a.category === 'ville' && CITY_SLUG[a.city]) {
+    return `/ville/${CITY_SLUG[a.city]}`
+  }
+  // guides-pratiques, proprietaire, habynex → page article blog
+  return `/blog/${a.slug}`
+}
+
 export function SeoHomeBlocks() {
   const popular = ALL_SEO_ARTICLES_FINAL.filter(a => a.category === 'guide-quartier' && a.city === 'Yaoundé').slice(0, 8)
   const guides = ALL_SEO_ARTICLES_FINAL.filter(a => a.category === 'guide-pratique').slice(0, 6)
@@ -15,7 +66,7 @@ export function SeoHomeBlocks() {
           <h2 className="text-lg font-bold text-hb-700 dark:text-white mb-4">Trouver un logement par quartier à Yaoundé</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {popular.map(a => (
-              <Link key={a.slug} href={`/blog/${a.slug}`}
+              <Link key={a.slug} href={articleUrl(a)}
                 className="p-3 bg-hb-50 dark:bg-hb-700 rounded-xl text-sm text-hb-600 dark:text-hb-300 hover:bg-brand-50 dark:hover:bg-brand-950/20 hover:text-brand-600 transition-colors">
                 🏘️ {a.neighborhood}
               </Link>
@@ -33,7 +84,7 @@ export function SeoHomeBlocks() {
           </p>
           <div className="flex flex-wrap gap-2">
             {awae.map(a => (
-              <Link key={a.slug} href={`/blog/${a.slug}`}
+              <Link key={a.slug} href={articleUrl(a)}
                 className="px-3 py-1.5 bg-white dark:bg-hb-700 rounded-full text-xs text-hb-600 dark:text-hb-300 border border-brand-200 dark:border-brand-800 hover:bg-brand-50 transition-colors">
                 {a.title.split('—')[0].trim()}
               </Link>
@@ -48,7 +99,7 @@ export function SeoHomeBlocks() {
           <h2 className="text-lg font-bold text-hb-700 dark:text-white mb-4">Guides pratiques immobilier au Cameroun</h2>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
             {guides.map(a => (
-              <Link key={a.slug} href={`/blog/${a.slug}`}
+              <Link key={a.slug} href={articleUrl(a)}
                 className="flex items-start gap-2 p-3 bg-hb-50 dark:bg-hb-700 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-colors group">
                 <span className="text-base flex-shrink-0">📖</span>
                 <span className="text-xs text-hb-600 dark:text-hb-300 group-hover:text-brand-600 leading-relaxed">{a.title}</span>
@@ -61,7 +112,7 @@ export function SeoHomeBlocks() {
           <h2 className="text-lg font-bold text-hb-700 dark:text-white mb-4">Immobilier dans d&apos;autres villes du Cameroun</h2>
           <div className="flex flex-wrap gap-2">
             {cities.map(a => (
-              <Link key={a.slug} href={`/blog/${a.slug}`}
+              <Link key={a.slug} href={articleUrl(a)}
                 className="px-4 py-2 bg-hb-50 dark:bg-hb-700 rounded-full text-sm text-hb-600 dark:text-hb-300 hover:bg-brand-50 hover:text-brand-600 transition-colors border border-hb-100 dark:border-hb-600">
                 📍 {a.city}
               </Link>

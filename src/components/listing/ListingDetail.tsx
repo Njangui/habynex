@@ -15,7 +15,8 @@ import { ChatBox } from '@/components/messaging/ChatBox'
 import { BookingModal } from '@/components/booking/BookingModal'
 import { MapView } from '@/components/map/MapView'
 import { SimilarListings } from '@/components/listing/SimilarListings'
-import { RecommendationsBlock } from '@/components/listing/RecommendationsBlock'
+import { ListingRating } from '@/components/listing/ListingRating'
+import { VirtualTourViewer } from '@/components/listing/VirtualTour/VirtualTourViewer'
 import {
   LiveViewersBadge, ScarcityBadge, SocialProofBar,
   RecentBookingToast, PriceAnchorBadge, CountdownOffer,
@@ -330,7 +331,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
                 </div>
                 {[1,2,3,4].map(i => (
                   <div key={i} className="relative cursor-pointer" onClick={() => { setImgIdx(i); setLightbox(true) }}>
-                    {images[i] ? <Image src={images[i].url} alt={`${listing.title} — photo ${i + 1}`} fill className="object-cover hover:brightness-95 transition-all" sizes="25vw" quality={80} />
+                    {images[i] ? <Image src={images[i].url} alt="" fill className="object-cover hover:brightness-95 transition-all" sizes="25vw" quality={80} />
                       : <div className="absolute inset-0 bg-hb-100" />}
                   </div>
                 ))}
@@ -386,6 +387,13 @@ export function ListingDetail({ listing }: ListingDetailProps) {
             {listing.description && <div className="pb-5 border-b border-hb-100 dark:border-hb-700"><h2 className="text-lg font-semibold text-hb-700 dark:text-white mb-3">Description</h2><ExpandableText text={listing.description} /></div>}
 
             {amenityList.length > 0 && <div className="pb-5 border-b border-hb-100 dark:border-hb-700"><h2 className="text-lg font-semibold text-hb-700 dark:text-white mb-4">Ce que propose ce logement</h2><div className="grid grid-cols-2 gap-3">{amenityList.map(a => <div key={a.key} className="flex items-center gap-3 text-sm text-hb-600 dark:text-hb-300"><a.icon size={18} className="text-hb-500 flex-shrink-0" />{a.label}</div>)}</div></div>}
+
+            {/* Visite virtuelle 360° — affichée si activée et scenes présentes */}
+            {listing.virtual_tour?.is_active && Array.isArray(listing.virtual_tour.scenes) && (listing.virtual_tour.scenes as any[]).length > 0 && (
+              <div className="pb-5 border-b border-hb-100 dark:border-hb-700">
+                <VirtualTourViewer scenes={listing.virtual_tour.scenes as any[]} />
+              </div>
+            )}
 
             {/* ── Infos complètes mobile (visibles uniquement sur mobile) ── */}
             <div className="md:hidden pb-5 border-b border-hb-100 dark:border-hb-700 space-y-4">
@@ -471,6 +479,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
             {listing.lat && listing.lng && <div><h2 className="text-lg font-semibold text-hb-700 dark:text-white mb-3">Où se situe ce logement</h2><MapView lat={listing.lat} lng={listing.lng} title={listing.title} neighborhoodName={neighborhood?.name} height="300px" />{listing.address_hint && <p className="text-sm text-hb-400 mt-2 flex items-center gap-1"><MapPin size={13} /> {listing.address_hint}</p>}</div>}
 
             <CommentsSection listingId={listing.id} />
+            <ListingRating listingId={listing.id} className="pb-5" />
           </div>
 
           {/* Sidebar */}
@@ -506,7 +515,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
         <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center" onClick={() => setLightbox(false)}>
           <button className="absolute top-4 right-4 text-white/80 hover:text-white z-10"><X size={28} /></button>
           <div className="relative w-full max-w-5xl aspect-video px-4" onClick={e => e.stopPropagation()}>
-            <Image src={images[imgIdx].url} alt={`${listing.title} — photo ${imgIdx + 1}`} fill className="object-contain" sizes="100vw" />
+            <Image src={images[imgIdx].url} alt="" fill className="object-contain" sizes="100vw" />
             <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='130'%3E%3Cg transform='rotate(-22 110 65)' opacity='0.15'%3E%3Ctext x='10' y='55' font-family='Arial' font-size='15' font-weight='bold' fill='white' letter-spacing='3'%3EHABYNEX%3C/text%3E%3C/g%3E%3C/svg%3E")`, backgroundRepeat: 'repeat', backgroundSize: '220px 130px' }} />
           </div>
           {images.length > 1 && <>
@@ -528,7 +537,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
               {images.map((img, i) => (
                 <div key={img.id} className={cn('relative rounded-2xl overflow-hidden cursor-pointer', i === 0 ? 'col-span-2 aspect-[16/9]' : 'aspect-square')}
                   onClick={() => { setImgIdx(i); setLightboxAll(false); setLightbox(true) }}>
-                  <Image src={img.url} alt={`${listing.title} — photo ${i + 1}`} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="600px" />
+                  <Image src={img.url} alt="" fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="600px" />
                 </div>
               ))}
             </div>

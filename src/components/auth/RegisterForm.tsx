@@ -29,9 +29,22 @@ export function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!strong) { toast.error('Mot de passe trop court (min. 8 caractères)'); return }
-    if (!acceptedTerms) { toast.error('Vous devez accepter les termes et conditions'); return }
+    if (!acceptedTerms) { toast.error('Vous devez accepter les termes et conditions de Habynex'); return }
     setLoading(true)
     try {
+      // Vérification rate limiting avant inscription
+      const rlRes = await fetch('/api/auth/check-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email, action: 'register' }),
+      })
+      const rlData = await rlRes.json()
+      if (!rlData.allowed) {
+        toast.error(rlData.error ?? 'Trop de tentatives. Réessayez plus tard.')
+        setLoading(false)
+        return
+      }
+
       // Vérifier code de parrainage via API (bypass RLS — un non-connecté ne peut pas lire profiles)
       let referredBy: string | null = null
       if (referralCode.trim()) {
@@ -64,6 +77,14 @@ export function RegisterForm() {
       }
 
       toast.success('Compte créé ! Bienvenue sur Habynex 🎉')
+
+      // Email de bienvenue — fire-and-forget, non bloquant
+      fetch('/api/email/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fullName }),
+      }).catch(() => {})
+
       // → Redirection vers onboarding pour que l'IA collecte les critères
       router.push('/onboarding')
     } finally {
@@ -140,19 +161,24 @@ export function RegisterForm() {
               type="checkbox"
               checked={acceptedTerms}
               onChange={e => setAcceptedTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-hb-300 text-brand-500 flex-shrink-0 cursor-pointer"
+              className="mt-0.5 w-4 h-4 rounded border-hb-300 text-brand-500 flex-shrink-0 cursor-pointer accent-brand-500"
             />
             <span className="text-sm text-hb-500 dark:text-hb-400 leading-snug">
               J&apos;ai lu et j&apos;accepte les{' '}
-              <Link href="/termes" target="_blank" className="text-brand-500 hover:text-brand-600 font-semibold underline transition-colors">
+              <Link
+                href="/termes"
+                target="_blank"
+                className="text-brand-500 hover:text-brand-600 font-semibold underline underline-offset-2 transition-colors"
+              >
                 termes et conditions d&apos;utilisation
               </Link>{' '}
-              de Habynex.{' '}
-              <span className="text-red-400 font-semibold">*</span>
+              de Habynex <span className="text-red-400 font-bold">*</span>
             </span>
           </label>
 
-          <button type="submit" disabled={loading || !email || !fullName || !strong || !acceptedTerms}
+          <button
+            type="submit"
+            disabled={loading || !email || !fullName || !strong || !acceptedTerms}
             className={cn('w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all mt-2',
               loading || !email || !fullName || !strong
                 ? 'bg-hb-200 dark:bg-hb-700 cursor-not-allowed text-hb-400'

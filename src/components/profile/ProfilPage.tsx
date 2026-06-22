@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   User, Settings, Calendar, Gift, Shield, ChevronRight,
   Copy, Check, Camera, Loader2, Bell, Moon, Globe, Sun, BellOff,
-  Sliders, MapPin, Home, DollarSign, Save,
+  Sliders, MapPin, Home, DollarSign, Save, Trash2,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
@@ -604,6 +604,90 @@ export function ProfilPage() {
               <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
             </button>
           </div>
+
+          {/* ── Supprimer mon compte ──────────────────────────────────── */}
+          <DeleteAccountSection />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DeleteAccountSection() {
+  const [open, setOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (confirmText !== 'SUPPRIMER') return
+    setDeleting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/account/delete', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? 'Erreur lors de la suppression')
+        setDeleting(false)
+        return
+      }
+      // Déconnexion + redirection
+      const supabase = (await import('@/lib/supabase/client')).createClient()
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    } catch {
+      setError('Erreur réseau. Réessayez.')
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-red-200 dark:border-red-900/40 p-5 shadow-card">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-4 text-left">
+        <div className="w-10 h-10 bg-red-50 dark:bg-red-950/30 rounded-xl flex items-center justify-center flex-shrink-0">
+          <Trash2 size={18} className="text-red-500" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-sm text-red-600 dark:text-red-400">Supprimer mon compte</p>
+          <p className="text-xs text-gray-400 mt-0.5">Action définitive et irréversible</p>
+        </div>
+        <ChevronRight size={16} className={cn('text-gray-300 transition-transform flex-shrink-0', open && 'rotate-90')} />
+      </button>
+
+      {open && (
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+          <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
+            <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed">
+              ⚠️ Cette action supprimera <strong>définitivement</strong> votre compte, vos favoris, vos messages et votre historique de visites. Cette action ne peut pas être annulée.
+            </p>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+              <p className="text-xs text-amber-600 dark:text-amber-400">{error}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 block mb-1.5">
+              Tapez <strong className="text-red-500">SUPPRIMER</strong> pour confirmer
+            </label>
+            <input
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value)}
+              placeholder="SUPPRIMER"
+              className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-white outline-none focus:border-red-400 transition-colors"
+            />
+          </div>
+
+          <button
+            onClick={handleDelete}
+            disabled={confirmText !== 'SUPPRIMER' || deleting}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-2xl text-sm transition-colors"
+          >
+            {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+            {deleting ? 'Suppression…' : 'Supprimer définitivement mon compte'}
+          </button>
         </div>
       )}
     </div>

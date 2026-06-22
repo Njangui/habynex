@@ -1,35 +1,93 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Calendar, Phone, Loader2, Check, AlertCircle } from 'lucide-react'
+/**
+ * BookingModal — Réservation de visite(s)
+ * L'utilisateur sélectionne 1 à 3 biens PUIS paie tout en une fois.
+ * Tarifs : 1 bien = 3000 FCFA, 2 biens = 5000 FCFA, 3 biens = 7000 FCFA
+ */
+
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
+import {
+  X, Calendar, Phone, Loader2, Check, AlertCircle,
+  Plus, Minus, MapPin, BedDouble, Maximize2, ChevronRight,
+  ShoppingBag, Tag,
+} from 'lucide-react'
 import { formatPrice, cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
+import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import type { Listing } from '@/types'
 
 interface BookingModalProps {
-  listing: Listing
+  listing: Listing           // Bien principal (déjà sélectionné)
   onClose: () => void
 }
 
 const PRICES: Record<number, number> = { 1: 3000, 2: 5000, 3: 7000 }
+const MAX_LISTINGS = 3
 
 export function BookingModal({ listing, onClose }: BookingModalProps) {
   const { user, profile } = useAuthStore()
-  const [step, setStep] = useState<'details' | 'payment' | 'success'>('details')
-  const [nbListings, setNbListings] = useState(1)
+  const supabase = createClient()
+
+  const [step, setStep] = useState<'select' | 'payment' | 'success'>('select')
+  const [selectedListings, setSelectedListings] = useState<Listing[]>([listing])
+  const [suggestions, setSuggestions] = useState<Listing[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [phone, setPhone] = useState(profile?.phone?.replace('+237', '') ?? '')
   const [operator, setOperator] = useState<'mtn' | 'orange'>('mtn')
   const [useFreeVisit, setUseFreeVisit] = useState(false)
   const [loading, setLoading] = useState(false)
   const [bookingRef, setBookingRef] = useState('')
 
-  const price = useFreeVisit ? 0 : PRICES[nbListings]
+  const nbListings = selectedListings.length
+  const price = useFreeVisit ? 0 : (PRICES[nbListings] ?? 7000)
   const hasFreeVisit = (profile?.free_visits_balance ?? 0) > 0
 
-  if (!user) {
-    window.location.href = '/connexion'
-    return null
+  if (!user) { window.location.href = '/connexion'; return null }
+
+  // Charger des suggestions de biens à visiter en même temps
+  useEffect(() => {
+    loadSuggestions()
+  }, [])
+
+  async function loadSuggestions() {
+    setSuggestionsLoading(true)
+    const nbh = Array.isArray(listing.neighborhood) ? listing.neighborhood[0] : listing.neighborhood as any
+
+    // Chercher des biens similaires dans le même quartier ou même type
+    const { data } = await supabase
+      .from('listings')
+      .select(`
+        id, slug, title, type, transaction, price, price_negotiable,
+        bedrooms, surface_m2, furnished,
+        neighborhood:neighborhoods!listings_neighborhood_id_fkey(name),
+        media:listing_media(url, is_cover, display_order)
+      `)
+      .eq('status', 'published')
+      .neq('id', listing.id)
+      .or(`neighborhood_id.eq.${listing.neighborhood_id ?? 'none'},type.eq.${listing.type}`)
+      .order('view_count', { ascending: false })
+      .limit(6)
+
+    setSuggestions((data ?? []) as unknown as Listing[])
+    setSuggestionsLoading(false)
+  }
+
+  function toggleListing(l: Listing) {
+    const isSelected = selectedListings.find(s => s.id === l.id)
+    if (isSelected) {
+      // Ne pas désélectionner le bien principal
+      if (l.id === listing.id) return
+      setSelectedListings(prev => prev.filter(s => s.id !== l.id))
+    } else {
+      if (selectedListings.length >= MAX_LISTINGS) {
+        toast.error(`Maximum ${MAX_LISTINGS} biens par visite`)
+        return
+      }
+      setSelectedListings(prev => [...prev, l])
+    }
   }
 
   async function handlePay() {
@@ -40,14 +98,13 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          listingIds: [listing.id],
+          listingIds: selectedListings.map(l => l.id),
           phoneNumber: `237${phone.replace(/\s/g, '')}`,
           isFree: useFreeVisit,
         }),
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error ?? 'Erreur paiement'); return }
-
       setBookingRef(data.bookingId)
       setStep('success')
     } catch {
@@ -59,179 +116,308 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-0 md:p-4">
-      <div className="w-full md:max-w-md bg-white dark:bg-gray-900 rounded-t-3xl md:rounded-3xl shadow-2xl animate-slide-up max-h-[88vh] flex flex-col">
-        {/* Handle bar mobile */}
-        <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-200 dark:bg-gray-700 rounded-full" />
-        </div>
+      <div className="w-full md:max-w-lg bg-white dark:bg-hb-800 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="font-bold text-gray-900 dark:text-white">
-            {step === 'success' ? 'Réservation confirmée !' : 'Réserver une visite'}
-          </h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Fermer">
-            <X size={18} />
+        <div className="flex items-center justify-between px-5 py-4 border-b border-hb-100 dark:border-hb-700 flex-shrink-0">
+          <div>
+            <p className="font-bold text-hb-700 dark:text-white text-base">
+              {step === 'select' ? '🗓️ Réserver des visites' : step === 'payment' ? '💳 Paiement' : '✅ Confirmée !'}
+            </p>
+            {step === 'select' && (
+              <p className="text-xs text-hb-400 mt-0.5">
+                Ajoutez jusqu&apos;à {MAX_LISTINGS} biens — payez en une fois
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full text-hb-400 hover:bg-hb-100 dark:hover:bg-hb-700 transition-colors">
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-6">
-        {step === 'success' ? (
-          <div className="p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-trust-50 rounded-full flex items-center justify-center mx-auto">
-              <Check size={28} className="text-trust-500" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 dark:text-white mb-1">Visite réservée avec succès !</p>
-              <p className="text-sm text-gray-500">Un agent Habynex va vous contacter très prochainement pour confirmer le créneau.</p>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-xs text-gray-500 font-mono">
-              Réf: {bookingRef.slice(0, 8).toUpperCase()}
-            </div>
-            <button
-              onClick={onClose}
-              className="w-full py-3 bg-brand-500 text-white font-semibold rounded-xl hover:bg-brand-600 transition-colors text-sm"
-            >
-              Fermer
-            </button>
-          </div>
-        ) : (
-          <div className="p-5 space-y-5">
-            {/* Bien sélectionné */}
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Bien à visiter</p>
-              <p className="font-medium text-sm text-gray-900 dark:text-white line-clamp-1">{listing.title}</p>
-              <p className="text-xs text-brand-500 font-semibold mt-1">{formatPrice(listing.price)}/mois</p>
+        {/* ── ÉTAPE 1 : Sélection des biens ── */}
+        {step === 'select' && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-5 space-y-5">
+
+              {/* Panier — biens sélectionnés */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <ShoppingBag size={15} className="text-brand-500" />
+                  <p className="text-sm font-bold text-hb-700 dark:text-white">
+                    Mes biens à visiter ({nbListings}/{MAX_LISTINGS})
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {selectedListings.map(l => {
+                    const cover = l.media?.find(m => m.is_cover)?.url ?? l.media?.[0]?.url
+                    const nbh = Array.isArray(l.neighborhood) ? l.neighborhood[0] : l.neighborhood as any
+                    return (
+                      <div key={l.id} className="flex items-center gap-3 p-3 bg-brand-50 dark:bg-brand-950/20 border border-brand-200 dark:border-brand-800/40 rounded-2xl">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-hb-100">
+                          {cover
+                            ? <Image src={cover} alt="" width={48} height={48} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-hb-700 dark:text-white line-clamp-1">{l.title}</p>
+                          <p className="text-xs text-hb-400 flex items-center gap-1 mt-0.5">
+                            <MapPin size={9} />{nbh?.name ?? ''}
+                          </p>
+                          <p className="text-xs font-bold text-brand-500 mt-0.5">{formatPrice(l.price)}</p>
+                        </div>
+                        {l.id !== listing.id && (
+                          <button onClick={() => toggleListing(l)}
+                            className="w-7 h-7 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/30 text-red-400 hover:bg-red-200 transition-colors flex-shrink-0">
+                            <X size={13} />
+                          </button>
+                        )}
+                        {l.id === listing.id && (
+                          <span className="text-[9px] text-brand-500 font-bold bg-brand-100 dark:bg-brand-950/30 px-2 py-0.5 rounded-full flex-shrink-0">
+                            Principal
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Récapitulatif tarif */}
+                <div className="mt-3 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                      {nbListings === 1 ? '1 bien → 3 000 FCFA' : nbListings === 2 ? '2 biens → 5 000 FCFA (-17%)' : '3 biens → 7 000 FCFA (-22%)'}
+                    </span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-400">
+                      {useFreeVisit ? 'Gratuit ✅' : formatPrice(price)}
+                    </span>
+                  </div>
+                  {nbListings > 1 && (
+                    <p className="text-[10px] text-green-600 dark:text-green-500 mt-0.5">
+                      🎉 Économisez {formatPrice(nbListings * 3000 - price)} en groupant vos visites !
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Suggestions à ajouter */}
+              {nbListings < MAX_LISTINGS && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Plus size={14} className="text-hb-400" />
+                    <p className="text-sm font-semibold text-hb-600 dark:text-hb-300">
+                      Ajouter un autre bien à visiter
+                    </p>
+                    <span className="text-[10px] text-hb-400 ml-auto">+{formatPrice(PRICES[nbListings + 1] - price)}</span>
+                  </div>
+
+                  {suggestionsLoading ? (
+                    <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-hb-300" /></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {suggestions
+                        .filter(s => !selectedListings.find(sel => sel.id === s.id))
+                        .slice(0, 4)
+                        .map(s => {
+                          const cover = s.media?.find(m => m.is_cover)?.url ?? s.media?.[0]?.url
+                          const nbh = Array.isArray(s.neighborhood) ? s.neighborhood[0] : s.neighborhood as any
+                          return (
+                            <button key={s.id} onClick={() => toggleListing(s)}
+                              className="w-full flex items-center gap-3 p-3 bg-white dark:bg-hb-700/50 border border-hb-100 dark:border-hb-700 rounded-2xl hover:border-brand-300 dark:hover:border-brand-700 transition-all text-left group">
+                              <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-hb-100">
+                                {cover
+                                  ? <Image src={cover} alt="" width={48} height={48} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-hb-700 dark:text-white line-clamp-1">{s.title}</p>
+                                <p className="text-xs text-hb-400 flex items-center gap-1 mt-0.5">
+                                  <MapPin size={9} />{nbh?.name ?? ''}
+                                  {s.bedrooms != null && <><BedDouble size={9} /> {s.bedrooms} ch.</>}
+                                </p>
+                                <p className="text-xs font-bold text-brand-500 mt-0.5">{formatPrice(s.price)}</p>
+                              </div>
+                              <div className="w-7 h-7 flex items-center justify-center rounded-full bg-hb-100 dark:bg-hb-700 group-hover:bg-brand-500 group-hover:text-white text-hb-400 transition-all flex-shrink-0">
+                                <Plus size={13} />
+                              </div>
+                            </button>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {nbListings >= MAX_LISTINGS && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-center">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    🎯 Maximum {MAX_LISTINGS} biens atteint — Excellent choix !
+                  </p>
+                </div>
+              )}
+
+              {/* Visite gratuite */}
+              {hasFreeVisit && (
+                <button
+                  onClick={() => setUseFreeVisit(!useFreeVisit)}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all text-left',
+                    useFreeVisit
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/20'
+                      : 'border-hb-200 dark:border-hb-700 hover:border-brand-300'
+                  )}
+                >
+                  <div className={cn(
+                    'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                    useFreeVisit ? 'border-brand-500 bg-brand-500' : 'border-hb-300'
+                  )}>
+                    {useFreeVisit && <Check size={11} className="text-white" />}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-hb-700 dark:text-white">
+                      🎁 Utiliser ma visite gratuite
+                    </p>
+                    <p className="text-[10px] text-hb-400 mt-0.5">
+                      {profile?.free_visits_balance} visite{(profile?.free_visits_balance ?? 0) > 1 ? 's' : ''} gratuite{(profile?.free_visits_balance ?? 0) > 1 ? 's' : ''} disponible{(profile?.free_visits_balance ?? 0) > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </button>
+              )}
             </div>
 
-            {/* Nombre de biens */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Combien de biens voulez-vous visiter ?</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 3].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setNbListings(n)}
-                    className={cn(
-                      'py-3 rounded-xl border-2 text-sm font-medium transition-colors',
-                      nbListings === n
-                        ? 'border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950 dark:text-brand-400'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
-                    )}
-                  >
-                    {n} bien{n > 1 ? 's' : ''}
-                    <br />
-                    <span className="text-xs font-normal">{useFreeVisit ? 'Gratuit' : `${PRICES[n].toLocaleString()} F`}</span>
-                  </button>
-                ))}
+            {/* Footer sticky */}
+            <div className="sticky bottom-0 p-5 bg-white dark:bg-hb-800 border-t border-hb-100 dark:border-hb-700">
+              <button
+                onClick={() => setStep('payment')}
+                className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors text-sm"
+              >
+                Continuer vers le paiement
+                <ChevronRight size={16} />
+              </button>
+              <p className="text-center text-[10px] text-hb-400 mt-2">
+                {nbListings} bien{nbListings > 1 ? 's' : ''} sélectionné{nbListings > 1 ? 's' : ''} · {useFreeVisit ? 'Gratuit' : formatPrice(price)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── ÉTAPE 2 : Paiement ── */}
+        {step === 'payment' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Récapitulatif */}
+            <div className="bg-hb-50 dark:bg-hb-700/40 rounded-2xl p-4">
+              <p className="text-xs font-semibold text-hb-500 dark:text-hb-300 uppercase tracking-wide mb-3">Récapitulatif</p>
+              {selectedListings.map(l => (
+                <div key={l.id} className="flex items-center justify-between py-1.5">
+                  <p className="text-xs text-hb-600 dark:text-hb-300 line-clamp-1 flex-1 mr-2">{l.title}</p>
+                  <p className="text-xs font-semibold text-hb-700 dark:text-white">3 000 FCFA</p>
+                </div>
+              ))}
+              {nbListings > 1 && (
+                <div className="flex items-center justify-between py-1.5 border-t border-hb-100 dark:border-hb-700 mt-1">
+                  <p className="text-xs text-green-600 dark:text-green-400">Remise groupée</p>
+                  <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+                    -{formatPrice(nbListings * 3000 - price)}
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-2 border-t border-hb-200 dark:border-hb-600 mt-1">
+                <p className="text-sm font-bold text-hb-700 dark:text-white">Total</p>
+                <p className="text-base font-bold text-brand-500">{useFreeVisit ? 'Gratuit' : formatPrice(price)}</p>
               </div>
             </div>
 
-            {/* Visite gratuite */}
-            {hasFreeVisit && (
-              <label className="flex items-center gap-3 p-3 bg-trust-50 dark:bg-trust-950/20 rounded-xl cursor-pointer">
-                <div
-                  onClick={() => setUseFreeVisit(!useFreeVisit)}
-                  className={cn(
-                    'w-10 h-6 rounded-full transition-colors flex items-center',
-                    useFreeVisit ? 'bg-trust-500' : 'bg-gray-200 dark:bg-gray-700'
-                  )}
-                >
-                  <span className={cn('w-4 h-4 bg-white rounded-full shadow transition-transform mx-1', useFreeVisit ? 'translate-x-4' : '')} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-trust-700 dark:text-trust-400">Utiliser ma visite gratuite</p>
-                  <p className="text-xs text-trust-600 dark:text-trust-500">{profile?.free_visits_balance} visite(s) disponible(s)</p>
-                </div>
-              </label>
-            )}
-
-            {/* Paiement — masqué si visite gratuite */}
             {!useFreeVisit && (
               <>
+                {/* Opérateur */}
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Opérateur de paiement</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <p className="text-xs font-semibold text-hb-500 dark:text-hb-300 uppercase tracking-wide mb-3">Opérateur Mobile Money</p>
+                  <div className="grid grid-cols-2 gap-3">
                     {(['mtn', 'orange'] as const).map(op => (
-                      <button
-                        key={op}
-                        onClick={() => setOperator(op)}
+                      <button key={op} onClick={() => setOperator(op)}
                         className={cn(
-                          'py-3 rounded-xl border-2 text-sm font-semibold transition-colors',
+                          'flex items-center gap-3 p-4 rounded-2xl border-2 font-semibold transition-all text-sm',
                           operator === op
-                            ? op === 'mtn' ? 'border-yellow-400 bg-yellow-50 text-yellow-700' : 'border-orange-400 bg-orange-50 text-orange-700'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
-                        )}
-                      >
-                        {op === 'mtn' ? '🟡 MTN Money' : '🟠 Orange Money'}
+                            ? op === 'mtn'
+                              ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-300'
+                              : 'border-orange-400 bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300'
+                            : 'border-hb-200 dark:border-hb-600 text-hb-500 hover:border-hb-300'
+                        )}>
+                        <span className="text-xl">{op === 'mtn' ? '🟡' : '🟠'}</span>
+                        <span className="uppercase">{op}</span>
+                        {operator === op && <Check size={16} className="ml-auto" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {/* Numéro de téléphone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                    Numéro de téléphone
+                  <label className="text-xs font-semibold text-hb-500 dark:text-hb-300 uppercase tracking-wide block mb-2">
+                    Votre numéro {operator.toUpperCase()}
                   </label>
-                  <div className="flex">
-                    <span className="flex items-center px-3 bg-gray-100 dark:bg-gray-700 border border-r-0 border-gray-200 dark:border-gray-600 rounded-l-xl text-sm text-gray-500">
-                      🇨🇲 +237
-                    </span>
+                  <div className="flex items-center gap-2 border-2 border-hb-200 dark:border-hb-600 rounded-2xl px-4 py-3 focus-within:border-brand-500 transition-colors bg-white dark:bg-hb-700">
+                    <Phone size={16} className="text-hb-400 flex-shrink-0" />
+                    <span className="text-hb-500 text-sm font-medium">+237</span>
                     <input
-                      type="tel"
                       value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="6 XX XX XX XX"
-                      className="flex-1 px-4 py-3 rounded-r-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:border-brand-500"
+                      onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                      placeholder="6XX XXX XXX"
+                      className="flex-1 outline-none bg-transparent text-hb-700 dark:text-white text-sm"
                     />
                   </div>
                 </div>
               </>
             )}
 
-            {/* Avertissement paiement — bien visible */}
-            <div className="flex gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800">
-              <span className="text-lg flex-shrink-0">⚠️</span>
-              <div>
-                <p className="text-xs font-bold text-red-700 dark:text-red-400 mb-0.5">Ne payez jamais un agent directement</p>
-                <p className="text-xs text-red-600 dark:text-red-300 leading-relaxed">
-                  Tous les paiements se font uniquement sur la plateforme. Un pourboire volontaire est possible, mais jamais obligatoire. Les paiements hors plateforme ne sont pas couverts par Habynex.
-                </p>
-              </div>
-            </div>
-            {/* Remboursement */}
-            <div className="flex gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
-              <AlertCircle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Les frais de visite vous sont intégralement remboursés en cas d&apos;annonce frauduleuse prouvée.
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl">
+              <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                Vous recevrez une confirmation par message et un agent vous contactera dans les 24h.
               </p>
             </div>
 
-            {/* Total + Payer */}
-            <div className="space-y-3 pt-1">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Total à payer</span>
-                <span className="text-xl font-bold text-gray-900 dark:text-white">
-                  {useFreeVisit ? 'GRATUIT' : `${price.toLocaleString()} FCFA`}
-                </span>
-              </div>
-              <button
-                onClick={handlePay}
-                disabled={loading || (!useFreeVisit && !phone)}
-                className={cn(
-                  'w-full py-3.5 rounded-xl font-semibold text-white transition-all text-sm flex items-center justify-center gap-2',
-                  loading || (!useFreeVisit && !phone)
-                    ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed'
-                    : 'bg-brand-500 hover:bg-brand-600 active:scale-[0.98]'
-                )}
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
-                {loading ? 'Traitement...' : useFreeVisit ? 'Confirmer la visite' : `Payer ${price.toLocaleString()} FCFA`}
+            <div className="flex gap-3">
+              <button onClick={() => setStep('select')}
+                className="flex-1 py-3.5 border-2 border-hb-200 dark:border-hb-600 text-hb-600 dark:text-hb-300 font-semibold rounded-2xl hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors text-sm">
+                Retour
+              </button>
+              <button onClick={handlePay} disabled={loading || (!phone && !useFreeVisit)}
+                className="flex-1 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors text-sm">
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                {loading ? 'Traitement…' : useFreeVisit ? 'Confirmer (Gratuit)' : `Payer ${formatPrice(price)}`}
               </button>
             </div>
           </div>
         )}
-        </div>
+
+        {/* ── ÉTAPE 3 : Succès ── */}
+        {step === 'success' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-950/30 rounded-full flex items-center justify-center">
+              <Check size={36} className="text-green-500" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-hb-700 dark:text-white mb-1">Visite{nbListings > 1 ? 's' : ''} réservée{nbListings > 1 ? 's' : ''} !</p>
+              <p className="text-sm text-hb-400">
+                {nbListings} bien{nbListings > 1 ? 's' : ''} · Réf: <strong className="font-mono text-hb-600 dark:text-white">{bookingRef?.slice(0, 8).toUpperCase()}</strong>
+              </p>
+            </div>
+            <p className="text-xs text-hb-400 bg-hb-50 dark:bg-hb-700 rounded-xl px-4 py-3">
+              Un agent Habynex vous contactera dans les 24h pour fixer les rendez-vous de visite. 📞
+            </p>
+            {selectedListings.map(l => (
+              <div key={l.id} className="w-full text-left p-3 bg-brand-50 dark:bg-brand-950/20 rounded-xl">
+                <p className="text-xs font-semibold text-brand-600 dark:text-brand-400 line-clamp-1">{l.title}</p>
+              </div>
+            ))}
+            <button onClick={onClose}
+              className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl transition-colors">
+              Fermer
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

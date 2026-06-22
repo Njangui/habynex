@@ -5,23 +5,11 @@ import { MapPin, ChevronRight, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { ListingCard } from '@/components/listing/ListingCard'
 import { MapView } from '@/components/map/MapView'
-import { generateBreadcrumbStructuredData, generateFaqStructuredData } from '@/lib/seo/structured-data'
-import { getNeighborhoodContent } from '@/lib/seo/neighborhood-content'
+import { generateBreadcrumbStructuredData } from '@/lib/seo/structured-data'
 import type { Listing } from '@/types'
 
 interface QuartierPageProps {
   params: Promise<{ slug: string }>
-}
-
-// Groupes de quartiers proches — utilisés pour la sidebar "Quartiers à proximité"
-const NEIGHBOR_GROUPS: string[][] = [
-  ['simbock', 'jouvence', 'biyem-assi', 'tkc'],
-  ['awae', 'nkol-eton', 'odza', 'emana'],
-]
-
-function getNearbySlugs(slug: string): string[] {
-  const group = NEIGHBOR_GROUPS.find((g) => g.includes(slug))
-  return group ?? NEIGHBOR_GROUPS[0]
 }
 
 export async function generateMetadata({ params }: QuartierPageProps): Promise<Metadata> {
@@ -66,18 +54,15 @@ export default async function QuartierPage({ params }: QuartierPageProps) {
   if (!neighborhood) notFound()
 
   const city = Array.isArray(neighborhood.city) ? neighborhood.city[0] : neighborhood.city
-  const content = getNeighborhoodContent(slug)
   const breadcrumb = generateBreadcrumbStructuredData([
     { name: 'Accueil', url: 'https://habynex.com' },
     { name: 'Yaoundé', url: `https://habynex.com/ville/${city?.slug ?? 'yaounde'}` },
     { name: neighborhood.name, url: `https://habynex.com/quartier/${slug}` },
   ])
-  const faqSchema = content && content.faq.length > 0 ? generateFaqStructuredData(content.faq) : null
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Breadcrumb */}
@@ -101,9 +86,6 @@ export default async function QuartierPage({ params }: QuartierPageProps) {
           </div>
           {neighborhood.seo_description && (
             <p className="text-gray-500 max-w-2xl leading-relaxed">{neighborhood.seo_description}</p>
-          )}
-          {content && (
-            <p className="text-gray-600 dark:text-gray-300 max-w-2xl leading-relaxed mt-2">{content.intro}</p>
           )}
           <div className="flex items-center gap-3 mt-3">
             <span className="px-3 py-1 bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 text-sm font-medium rounded-full">
@@ -152,7 +134,7 @@ export default async function QuartierPage({ params }: QuartierPageProps) {
             <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-5 shadow-card">
               <h2 className="font-bold text-gray-900 dark:text-white mb-3">Quartiers à proximité</h2>
               <div className="space-y-2">
-                {getNearbySlugs(slug)
+                {['simbock', 'jouvence', 'biyem-assi', 'tkc']
                   .filter(s => s !== slug)
                   .map(s => (
                     <Link
@@ -184,46 +166,6 @@ export default async function QuartierPage({ params }: QuartierPageProps) {
             </div>
           </div>
         </div>
-
-        {/* Contenu détaillé du quartier — pour le SEO et l'information des visiteurs */}
-        {content && (
-          <div className="mt-12 grid lg:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 shadow-card">
-              <h2 className="font-bold text-gray-900 dark:text-white mb-2">Vivre à {neighborhood.name}</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-4">{content.ambiance}</p>
-              <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">Transports</h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{content.transport}</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 shadow-card">
-              <h2 className="font-bold text-gray-900 dark:text-white mb-2">Prix des loyers à {neighborhood.name}</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-4">{content.priceRange}</p>
-              <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">Idéal pour</h3>
-              <div className="flex flex-wrap gap-2">
-                {content.goodFor.map((g) => (
-                  <span key={g} className="px-3 py-1 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full">
-                    {g}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* FAQ — questions fréquentes sur le quartier */}
-        {content && content.faq.length > 0 && (
-          <div className="mt-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 shadow-card">
-            <h2 className="font-bold text-gray-900 dark:text-white mb-4">Questions fréquentes sur {neighborhood.name}</h2>
-            <div className="space-y-4">
-              {content.faq.map((item) => (
-                <div key={item.question}>
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{item.question}</h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{item.answer}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </>
   )

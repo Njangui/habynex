@@ -7,7 +7,6 @@ import { ChevronRight } from 'lucide-react'
 export const metadata: Metadata = {
   title: 'Blog immobilier — Habynex',
   description: 'Conseils, guides et actualités immobilières au Cameroun. Tout ce que vous devez savoir pour louer, acheter ou investir à Yaoundé et Douala.',
-  alternates: { canonical: 'https://habynex.com/blog' },
 }
 
 export default async function BlogPage() {

@@ -292,10 +292,24 @@ export function useListings() {
         }
 
         if (filters.query) {
-          query = query.ilike(
-            'title',
-            `%${filters.query}%`
-          )
+          // Full-text search PostgreSQL sur titre + description + adresse
+          // Supabase textSearch utilise to_tsvector('french', ...) côté DB
+          // Assure-toi d'avoir créé l'index GIN (voir migration SQL ci-dessous)
+          const q = filters.query.trim()
+          if (q.length > 0) {
+            // On combine : textSearch sur le contenu + ilike en fallback sur le titre
+            // pour les requêtes courtes (< 3 chars) ou avec accents
+            if (q.length >= 3) {
+              query = query.textSearch(
+                'fts', // colonne générée : to_tsvector('french', title||' '||coalesce(description,'')||' '||coalesce(address_hint,''))
+                q,
+                { type: 'websearch', config: 'french' }
+              )
+            } else {
+              // Fallback ilike pour les requêtes très courtes
+              query = query.ilike('title', `%${q}%`)
+            }
+          }
         }
 
         const {

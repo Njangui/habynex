@@ -25,6 +25,18 @@ export function LoginForm() {
     e.preventDefault()
     setLoading(true)
     try {
+      // Vérification rate limiting avant la tentative de connexion
+      const rlRes = await fetch('/api/auth/check-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: email, action: 'login' }),
+      })
+      const rlData = await rlRes.json()
+      if (!rlData.allowed) {
+        toast.error(rlData.error ?? 'Trop de tentatives. Réessayez plus tard.')
+        return
+      }
+
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         toast.error(error.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : error.message)

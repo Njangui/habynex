@@ -4,6 +4,7 @@ import {
   SYSTEM_PROMPT_BASE, buildUserCriteriaContext, shouldEscalate,
 } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
+import { sendPushToUser } from '@/lib/push/sendToUser'
 import type { UserCriteria, FaqItem } from '@/types'
 
 // ================================================================
@@ -39,6 +40,8 @@ async function notifyAdmins(
   const { data: admins } = await supabase
     .from('user_roles').select('user_id').in('role', ['admin', 'super_admin'])
   if (!admins?.length) return
+
+  // Notification in-app (visible dans le dashboard admin)
   await supabase.from('notifications').insert(
     admins.map((a: { user_id: string }) => ({
       user_id: a.user_id,
@@ -48,6 +51,20 @@ async function notifyAdmins(
       channel: 'in_app',
       metadata: { conversationId, listingId },
     }))
+  )
+
+  // Push — canal principal, pas d'email pour ce cas (trop fréquent, peu lu)
+  await Promise.allSettled(
+    admins.map((a: { user_id: string }) =>
+      sendPushToUser({
+        userId: a.user_id,
+        type: 'message',
+        title,
+        message: body,
+        url: `/conversations?id=${conversationId}`,
+        requireInteraction: true,
+      })
+    )
   )
 }
 

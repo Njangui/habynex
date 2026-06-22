@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata: Metadata = {
   title: 'Rechercher un logement — Habynex',
   description: 'Trouvez votre logement idéal au Cameroun. Filtrez par quartier, prix, type de bien. Recherche assistée par IA.',
-  alternates: { canonical: 'https://habynex.com/rechercher' },
 }
 
 interface SearchPageProps {

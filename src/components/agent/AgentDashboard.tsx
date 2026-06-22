@@ -39,7 +39,6 @@ export function AgentDashboard() {
   const [stats, setStats] = useState({ total: 0, success: 0, pending: 0, earnings: 0 })
   const [contractSigned, setContractSigned] = useState<boolean | null>(null)
   const [todayReportSubmitted, setTodayReportSubmitted] = useState(false)
-  const [showContractModal, setShowContractModal] = useState(false)
 
   useEffect(() => {
     if (!user) { router.push('/connexion'); return }
@@ -217,13 +216,6 @@ export function AgentDashboard() {
 
         {/* Bouton rapport du jour */}
         <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            onClick={() => setShowContractModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-hb-100 dark:bg-hb-700 hover:bg-hb-200 dark:hover:bg-hb-600 text-hb-600 dark:text-hb-300 border border-hb-200 dark:border-hb-600 rounded-2xl text-sm font-semibold transition-colors">
-            <FileText size={15} />
-            Mon contrat
-            {contractSigned && <span className="w-2 h-2 rounded-full bg-trust-500 flex-shrink-0" />}
-          </button>
           <button onClick={() => router.push('/agent-dashboard/nouvelle-annonce')}
             className="inline-flex items-center gap-2 px-4 py-2 bg-trust-500 hover:bg-trust-600 text-white rounded-2xl text-sm font-semibold shadow-sm shadow-trust-500/25 transition-colors">
             🏠 Publier une annonce
@@ -278,39 +270,6 @@ export function AgentDashboard() {
           </button>
         ))}
       </div>
-
-      {/* ── MODAL CONTRAT ── */}
-      {showContractModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          onClick={e => { if (e.target === e.currentTarget) setShowContractModal(false) }}
-        >
-          <div className="bg-white dark:bg-hb-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header modal */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-hb-100 dark:border-hb-700 sticky top-0 bg-white dark:bg-hb-800 rounded-t-3xl z-10">
-              <div className="flex items-center gap-3">
-                <FileText size={20} className="text-brand-500" />
-                <h2 className="text-lg font-bold text-hb-700 dark:text-white">Mon contrat de prestation</h2>
-              </div>
-              <button
-                onClick={() => setShowContractModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-hb-100 dark:bg-hb-700 text-hb-500 dark:text-hb-300 hover:bg-hb-200 dark:hover:bg-hb-600 transition-colors text-lg font-semibold"
-                aria-label="Fermer">
-                ✕
-              </button>
-            </div>
-            {/* Contenu */}
-            <div className="p-6">
-              <AgentContract
-                agentName={profile?.full_name ?? 'Agent'}
-                agentId={user!.id}
-                roleType="agent"
-                onSigned={() => setContractSigned(true)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Liste missions */}
       <div className="space-y-4">

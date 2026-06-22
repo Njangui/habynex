@@ -31,7 +31,12 @@ const nextConfig = {
     ]
   },
   async redirects() {
-    return [{ source: '/home', destination: '/', permanent: true }]
+    return [
+      { source: '/home', destination: '/', permanent: true },
+      // Ancienne URL indexée par Google — redirige vers la route courante
+      // Si l'ID est un UUID sans slug connu, la page /bien/[slug] gère le notFound()
+      { source: '/property/:id', destination: '/bien/:id', permanent: true },
+    ]
   },
 }
 

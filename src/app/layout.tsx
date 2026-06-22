@@ -3,6 +3,8 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { ServiceWorkerRegister } from '@/components/ui/ServiceWorkerRegister'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -28,9 +30,6 @@ export const metadata: Metadata = {
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
     shortcut: '/favicon.ico',
-  },
-   verification: {
-    google: "oJynxyMGVqRFCRo9SkyGCsjXQ64mFO8ZKxj-VrwDfkM",
   },
 }
 
@@ -74,6 +73,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

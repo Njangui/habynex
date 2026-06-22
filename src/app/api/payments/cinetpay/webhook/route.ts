@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { checkPaymentStatus } from '@/lib/payments/cinetpay'
 import type { CinetPayWebhookPayload } from '@/lib/payments/cinetpay'
+import { sendBookingConfirmationEmail } from '@/lib/email/resend'
+import { sendPushToUser } from '@/lib/push/sendToUser'
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.habynex.com'
 
@@ -54,12 +56,12 @@ export async function POST(req: NextRequest) {
         payment_method: payload.payment_method ?? 'cinetpay',
       })
       .eq('id', payload.cpm_trans_id)
-      .select('id, client_id, nb_listings')
+      .select('id, client_id, nb_listings, amount_paid, listing_ids')
       .single()
 
     if (!booking) return NextResponse.json({ received: true })
 
-    // Notifier le client
+    // Notifier le client — in-app + PUSH (canal principal en Afrique)
     await supabase.from('notifications').insert({
       user_id: booking.client_id,
       title: '✅ Paiement confirmé !',
@@ -67,6 +69,41 @@ export async function POST(req: NextRequest) {
       action_url: `/profil?tab=visites`,
       channel: 'in_app',
     })
+
+    sendPushToUser({
+      userId: booking.client_id,
+      type: 'booking',
+      title: '✅ Paiement confirmé !',
+      message: `Votre réservation de ${booking.nb_listings} visite(s) est confirmée. Un agent va vous être assigné.`,
+      url: '/profil?tab=visites',
+      requireInteraction: true,
+    }).catch(() => {})
+
+    // ── Email de confirmation au client (cas important : paiement) ──
+    try {
+      const { data: clientProfile } = await supabase.auth.admin.getUserById(booking.client_id)
+      const email = clientProfile?.user?.email
+      const { data: profileData } = await supabase
+        .from('profiles').select('full_name').eq('id', booking.client_id).single()
+
+      if (email) {
+        let listingTitles: string[] = []
+        if (booking.listing_ids?.length) {
+          const { data: listings } = await supabase
+            .from('listings').select('title').in('id', booking.listing_ids)
+          listingTitles = (listings ?? []).map((l: { title: string }) => l.title)
+        }
+        await sendBookingConfirmationEmail(email, profileData?.full_name ?? 'Client', {
+          bookingId: booking.id,
+          nbListings: booking.nb_listings,
+          amount: booking.amount_paid ?? 0,
+          listingTitles: listingTitles.length ? listingTitles : ['Bien réservé'],
+        })
+      }
+    } catch (emailErr) {
+      // Email non-bloquant — le paiement reste confirmé même si l'email échoue
+      console.error('[Webhook] Erreur envoi email confirmation:', emailErr)
+    }
 
     // Notifier les admins
     const { data: admins } = await supabase

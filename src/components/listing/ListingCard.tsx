@@ -7,6 +7,7 @@ import { cn, formatPrice, listingTypeLabel, transactionLabel } from '@/lib/utils
 import { useAuthStore } from '@/stores/auth'
 import { useListings } from '@/hooks/useListings'
 import { WatermarkedImage } from '@/components/ui/WatermarkedImage'
+import { DiscountBadge } from '@/components/ui/PersuasionLayer'
 import type { Listing } from '@/types'
 
 interface ListingCardProps {
@@ -102,8 +103,21 @@ export function ListingCard({ listing, className, priority }: ListingCardProps) 
 
         {/* BADGE IA */}
         {listing.ai_generated && (
-          <div className="absolute top-3 left-3 bg-white rounded-lg px-2 py-1 text-xs font-semibold text-hb-700 shadow-airbnb">
+          <div className={cn(
+            'absolute left-3 bg-white rounded-lg px-2 py-1 text-xs font-semibold text-hb-700 shadow-airbnb z-10',
+            (listing as any).original_price > listing.price ? 'top-9' : 'top-3'
+          )}>
             ✨ IA
+          </div>
+        )}
+
+        {/* BADGE RÉDUCTION — affiché si original_price > prix actuel */}
+        {(listing as any).original_price > listing.price && (
+          <div className="absolute top-3 left-3 z-10">
+            <DiscountBadge
+              originalPrice={(listing as any).original_price}
+              currentPrice={listing.price}
+            />
           </div>
         )}
 
@@ -191,6 +205,13 @@ export function ListingCard({ listing, className, priority }: ListingCardProps) 
           <span className="font-semibold text-hb-700">
             {formatPrice(listing.price)}
           </span>
+
+          {/* Prix barré si réduction */}
+          {(listing as any).original_price > listing.price && (
+            <span className="ml-1.5 text-xs text-hb-300 line-through">
+              {formatPrice((listing as any).original_price)}
+            </span>
+          )}
 
           {listing.transaction === 'rent' && (
             <span className="text-hb-400"> / mois</span>

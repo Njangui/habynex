@@ -17,13 +17,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   return {
     title: post.meta_title ?? `${post.title} — Habynex`,
     description: post.meta_description ?? undefined,
-    alternates: { canonical: `https://habynex.com/blog/${slug}` },
     openGraph: {
       title: post.meta_title ?? post.title,
-      description: post.meta_description ?? undefined,
-      type: 'article',
-      url: `https://habynex.com/blog/${slug}`,
-      images: post.cover_url ? [{ url: post.cover_url, width: 1200, height: 630, alt: post.title }] : [],
+      images: post.cover_url ? [{ url: post.cover_url }] : [],
     },
   }
 }

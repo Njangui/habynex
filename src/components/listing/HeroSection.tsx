@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useFiltersStore } from '@/stores/filters'
+import { HabynexValueBanner } from '@/components/ui/PersuasionLayer'
 
 const LISTING_TYPES = [
   { value: '',           label: 'Tous',         emoji: '🏘️' },
@@ -71,6 +72,10 @@ export function HeroSection() {
             </button>
           ))}
         </div>
+
+        {/* Bannière avantages Habynex — visible dès l'arrivée sur le site */}
+        <HabynexValueBanner className="mt-4 mb-1" />
+
       </div>
     </div>
   )

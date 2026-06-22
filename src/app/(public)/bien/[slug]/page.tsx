@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+
+// Détecte si la chaîne est un UUID (ancienne URL indexée par Google avant migration vers slugs)
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 import { createClient } from '@/lib/supabase/server'
 import { ListingDetail } from '@/components/listing/ListingDetail'
 import { generateListingStructuredData } from '@/lib/seo/structured-data'
@@ -15,7 +18,7 @@ export async function generateMetadata({ params }: ListingPageProps): Promise<Me
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('title, description, meta_title, meta_description, price, transaction, neighborhood:neighborhoods(name), media:listing_media(url, is_cover, display_order)')
+    .select('title, description, meta_title, meta_description, price, transaction, neighborhood:neighborhoods(name)')
     .eq('slug', slug)
     .eq('status', 'published')
     .single()
@@ -26,23 +29,20 @@ export async function generateMetadata({ params }: ListingPageProps): Promise<Me
     ? listing.neighborhood[0]
     : listing.neighborhood
 
-  const pageTitle = listing.meta_title || listing.title
-  const pageDescription = listing.meta_description || listing.description?.substring(0, 160) || ''
-
-  const cover = listing.media
-    ?.slice()
-    .sort((a: { is_cover?: boolean }, b: { is_cover?: boolean }) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0))[0]
-
   return {
-    title: pageTitle,
-    description: pageDescription,
-    alternates: { canonical: `https://habynex.com/bien/${slug}` },
+    title: listing.meta_title || listing.title,
+    description: listing.meta_description || listing.description?.substring(0, 160),
     openGraph: {
-      title: pageTitle,
-      description: pageDescription,
+      title: listing.meta_title || listing.title,
+      description: listing.meta_description || listing.description?.substring(0, 160) || '',
       type: 'website',
-      url: `https://habynex.com/bien/${slug}`,
-      images: cover ? [{ url: cover.url, width: 1200, height: 630, alt: pageTitle }] : undefined,
+      siteName: 'Habynex',
+      locale: 'fr_FR',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: listing.meta_title || listing.title,
+      description: listing.meta_description || listing.description?.substring(0, 160) || '',
     },
   }
 }
@@ -50,6 +50,23 @@ export async function generateMetadata({ params }: ListingPageProps): Promise<Me
 export default async function BienPage({ params }: ListingPageProps) {
   const { slug } = await params
   const supabase = await createClient()
+
+  // ── Redirection UUID → slug ──────────────────────────────────────────────
+  // Google a indexé /property/{uuid} puis /bien/{uuid} (avant la migration slugs).
+  // On cherche le vrai slug en DB et on redirige en 301 pour corriger l'index Google.
+  if (UUID_REGEX.test(slug)) {
+    const { data: found } = await supabase
+      .from('listings')
+      .select('slug')
+      .eq('id', slug)
+      .single()
+    if (found?.slug) {
+      redirect(`/bien/${found.slug}`)   // 301 permanent → Google met à jour l'index
+    } else {
+      notFound()
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   const { data: listing } = await supabase
     .from('listings')

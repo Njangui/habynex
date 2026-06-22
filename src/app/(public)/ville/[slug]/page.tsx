@@ -14,12 +14,6 @@ export async function generateMetadata({ params }: CityPageProps): Promise<Metad
   return {
     title: city.seo_title || `Logement à ${city.name} — Habynex`,
     description: city.seo_description || `Trouvez votre logement à ${city.name} avec Habynex.`,
-    alternates: { canonical: `https://habynex.com/ville/${slug}` },
-    openGraph: {
-      title: city.seo_title || `Logement à ${city.name} — Habynex`,
-      description: city.seo_description || `Trouvez votre logement à ${city.name} avec Habynex.`,
-      url: `https://habynex.com/ville/${slug}`,
-    },
   }
 }
 
