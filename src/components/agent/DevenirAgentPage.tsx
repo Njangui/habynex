@@ -100,10 +100,10 @@ export function DevenirAgentPage() {
       // Upload documents dans Supabase Storage
       const uploadFile = async (file: File, path: string) => {
         const { data } = await supabase.storage
-          .from('agent-documents')
+          .from('verification-documents')
           .upload(`${user.id}/${path}`, file, { upsert: true })
         const { data: { publicUrl } } = supabase.storage
-          .from('agent-documents')
+          .from('verification-documents')
           .getPublicUrl(data?.path ?? '')
         return publicUrl
       }

@@ -3,6 +3,29 @@ import { getDeepSeek, AI_MODEL } from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { FaqItem } from '@/types'
 
+// Domaines autorisés à appeler cette route depuis le navigateur
+const ALLOWED_ORIGINS = [
+  'https://admin.habynex.com',
+  'https://www.habynex.com',
+  'https://habynex.com',
+  'http://localhost:3001', // dev local admin
+]
+
+function corsHeaders(origin: string | null) {
+  const allowed = ALLOWED_ORIGINS.includes(origin ?? '') ? origin! : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  }
+}
+
+// Preflight CORS — le navigateur envoie OPTIONS avant POST cross-origin
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin')
+  return new NextResponse(null, { status: 204, headers: corsHeaders(origin) })
+}
+
 // ================================================================
 // POST /api/ai/generate-faq
 // Génère 12-15 Q&R via DeepSeek pour une annonce.
@@ -10,9 +33,12 @@ import type { FaqItem } from '@/types'
 // ================================================================
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin')
+  const cors = corsHeaders(origin)
+
   try {
     const { listingId } = await req.json()
-    if (!listingId) return NextResponse.json({ error: 'listingId requis' }, { status: 400 })
+    if (!listingId) return NextResponse.json({ error: 'listingId requis' }, { status: 400, headers: cors })
 
     const supabase = createAdminClient()
 
@@ -143,9 +169,9 @@ RETOURNE UNIQUEMENT ce JSON valide, rien d'autre :
       escalated: false,
     }).then(() => {})
 
-    return NextResponse.json({ success: true, faqId: faq.id, count: questions.length })
+    return NextResponse.json({ success: true, faqId: faq.id, count: questions.length }, { headers: cors })
   } catch (err) {
     console.error('generate-faq error:', err)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500, headers: cors })
   }
 }
