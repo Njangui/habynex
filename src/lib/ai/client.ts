@@ -1,18 +1,17 @@
 import OpenAI from 'openai'
 import type { UserCriteria } from '@/types'
 
-// Lazy singleton — instancié à la 1ère utilisation (runtime uniquement)
-// Évite l'erreur "OPENAI_API_KEY missing" au moment du build Vercel
-let _client: OpenAI | null = null
+// On crée le client à chaque appel pour toujours lire la clé courante
+// (pas de singleton — évite le bug où une ancienne clé reste en cache)
 export function getDeepSeek(): OpenAI {
-  if (!_client) {
-    _client = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY ?? 'placeholder',
-      baseURL: 'https://api.deepseek.com/v1',
-    })
-  }
-  return _client
+  const apiKey = process.env.DEEPSEEK_API_KEY
+  if (!apiKey) throw new Error('DEEPSEEK_API_KEY manquante dans les variables d\'environnement Vercel')
+  return new OpenAI({
+    apiKey,
+    baseURL: 'https://api.deepseek.com/v1',
+  })
 }
+
 /** @deprecated utilise getDeepSeek() */
 export const deepseek = { get chat() { return getDeepSeek().chat } }
 
