@@ -35,8 +35,8 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
   const [selectedListings, setSelectedListings] = useState<Listing[]>([listing])
   const [suggestions, setSuggestions] = useState<Listing[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
-  const [phone, setPhone] = useState(profile?.phone?.replace('+237', '') ?? '')
   const [operator, setOperator] = useState<'mtn' | 'orange'>('mtn')
+  const [transactionRef, setTransactionRef] = useState('')
   const [useFreeVisit, setUseFreeVisit] = useState(false)
   const [loading, setLoading] = useState(false)
   const [bookingRef, setBookingRef] = useState('')
@@ -91,20 +91,24 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
   }
 
   async function handlePay() {
-    if (!phone && !useFreeVisit) { toast.error('Entrez votre numéro de téléphone'); return }
+    if (!useFreeVisit && !transactionRef.trim()) {
+      toast.error('Entrez votre référence de transaction MoMo')
+      return
+    }
     setLoading(true)
     try {
-      const res = await fetch('/api/payments/cinetpay/initiate', {
+      const res = await fetch('/api/payments/manual/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingIds: selectedListings.map(l => l.id),
-          phoneNumber: `237${phone.replace(/\s/g, '')}`,
+          transactionRef: transactionRef.trim(),
+          operator,
           isFree: useFreeVisit,
         }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Erreur paiement'); return }
+      if (!res.ok) { toast.error(data.error ?? 'Erreur lors de la soumission'); return }
       setBookingRef(data.bookingId)
       setStep('success')
     } catch {
@@ -330,51 +334,73 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
 
             {!useFreeVisit && (
               <>
-                {/* Opérateur */}
-                <div>
-                  <p className="text-xs font-semibold text-hb-500 dark:text-hb-300 uppercase tracking-wide mb-3">Opérateur Mobile Money</p>
+                {/* Instructions paiement */}
+                <div className="rounded-2xl border-2 border-dashed border-hb-200 dark:border-hb-600 p-4 space-y-3">
+                  <p className="text-xs font-bold text-hb-700 dark:text-white uppercase tracking-wide">
+                    Étape 1 — Payez {formatPrice(price)} sur l&apos;un de ces numéros
+                  </p>
+
+                  {/* Choix opérateur + numéro */}
                   <div className="grid grid-cols-2 gap-3">
-                    {(['mtn', 'orange'] as const).map(op => (
-                      <button key={op} onClick={() => setOperator(op)}
-                        className={cn(
-                          'flex items-center gap-3 p-4 rounded-2xl border-2 font-semibold transition-all text-sm',
-                          operator === op
-                            ? op === 'mtn'
-                              ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-300'
-                              : 'border-orange-400 bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300'
-                            : 'border-hb-200 dark:border-hb-600 text-hb-500 hover:border-hb-300'
-                        )}>
-                        <span className="text-xl">{op === 'mtn' ? '🟡' : '🟠'}</span>
-                        <span className="uppercase">{op}</span>
-                        {operator === op && <Check size={16} className="ml-auto" />}
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => setOperator('mtn')}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all',
+                        operator === 'mtn'
+                          ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20'
+                          : 'border-hb-200 dark:border-hb-600 hover:border-yellow-300'
+                      )}>
+                      <span className="text-2xl">🟡</span>
+                      <span className="text-xs font-bold text-hb-700 dark:text-white">MTN MoMo</span>
+                      <span className="text-sm font-mono font-bold text-yellow-700 dark:text-yellow-300">
+                        {process.env.NEXT_PUBLIC_MTN_MOMO_NUMBER ?? '6XX XXX XXX'}
+                      </span>
+                      {operator === 'mtn' && <Check size={14} className="text-yellow-500" />}
+                    </button>
+
+                    <button
+                      onClick={() => setOperator('orange')}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all',
+                        operator === 'orange'
+                          ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20'
+                          : 'border-hb-200 dark:border-hb-600 hover:border-orange-300'
+                      )}>
+                      <span className="text-2xl">🟠</span>
+                      <span className="text-xs font-bold text-hb-700 dark:text-white">Orange Money</span>
+                      <span className="text-sm font-mono font-bold text-orange-700 dark:text-orange-300">
+                        {process.env.NEXT_PUBLIC_ORANGE_MONEY_NUMBER ?? '6XX XXX XXX'}
+                      </span>
+                      {operator === 'orange' && <Check size={14} className="text-orange-500" />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Numéro de téléphone */}
+                {/* Référence transaction */}
                 <div>
-                  <label className="text-xs font-semibold text-hb-500 dark:text-hb-300 uppercase tracking-wide block mb-2">
-                    Votre numéro {operator.toUpperCase()}
-                  </label>
+                  <p className="text-xs font-bold text-hb-700 dark:text-white uppercase tracking-wide mb-2">
+                    Étape 2 — Entrez votre référence de transaction
+                  </p>
                   <div className="flex items-center gap-2 border-2 border-hb-200 dark:border-hb-600 rounded-2xl px-4 py-3 focus-within:border-brand-500 transition-colors bg-white dark:bg-hb-700">
                     <Phone size={16} className="text-hb-400 flex-shrink-0" />
-                    <span className="text-hb-500 text-sm font-medium">+237</span>
                     <input
-                      value={phone}
-                      onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                      placeholder="6XX XXX XXX"
-                      className="flex-1 outline-none bg-transparent text-hb-700 dark:text-white text-sm"
+                      value={transactionRef}
+                      onChange={e => setTransactionRef(e.target.value.toUpperCase())}
+                      placeholder="Ex: CI26061234567"
+                      className="flex-1 outline-none bg-transparent text-hb-700 dark:text-white text-sm font-mono"
                     />
                   </div>
+                  <p className="text-xs text-hb-400 mt-1.5 ml-1">
+                    La référence s&apos;affiche dans votre SMS de confirmation MoMo
+                  </p>
                 </div>
               </>
             )}
 
-            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl">
-              <AlertCircle size={14} className="text-blue-500 flex-shrink-0" />
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                Vous recevrez une confirmation par message et un agent vous contactera dans les 24h.
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+              <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Votre réservation sera confirmée sous <strong>30 minutes</strong> après vérification du paiement.
               </p>
             </div>
 
@@ -383,10 +409,12 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
                 className="flex-1 py-3.5 border-2 border-hb-200 dark:border-hb-600 text-hb-600 dark:text-hb-300 font-semibold rounded-2xl hover:bg-hb-50 dark:hover:bg-hb-700 transition-colors text-sm">
                 Retour
               </button>
-              <button onClick={handlePay} disabled={loading || (!phone && !useFreeVisit)}
+              <button
+                onClick={handlePay}
+                disabled={loading || (!useFreeVisit && !transactionRef.trim())}
                 className="flex-1 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 transition-colors text-sm">
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                {loading ? 'Traitement…' : useFreeVisit ? 'Confirmer (Gratuit)' : `Payer ${formatPrice(price)}`}
+                {loading ? 'Envoi…' : useFreeVisit ? 'Confirmer (Gratuit)' : 'Soumettre le paiement'}
               </button>
             </div>
           </div>
@@ -395,17 +423,26 @@ export function BookingModal({ listing, onClose }: BookingModalProps) {
         {/* ── ÉTAPE 3 : Succès ── */}
         {step === 'success' && (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-950/30 rounded-full flex items-center justify-center">
-              <Check size={36} className="text-green-500" />
+            <div className={cn(
+              'w-20 h-20 rounded-full flex items-center justify-center',
+              useFreeVisit ? 'bg-green-100 dark:bg-green-950/30' : 'bg-amber-100 dark:bg-amber-950/30'
+            )}>
+              {useFreeVisit
+                ? <Check size={36} className="text-green-500" />
+                : <AlertCircle size={36} className="text-amber-500" />}
             </div>
             <div>
-              <p className="text-xl font-bold text-hb-700 dark:text-white mb-1">Visite{nbListings > 1 ? 's' : ''} réservée{nbListings > 1 ? 's' : ''} !</p>
+              <p className="text-xl font-bold text-hb-700 dark:text-white mb-1">
+                {useFreeVisit ? 'Visite confirmée !' : 'Demande envoyée !'}
+              </p>
               <p className="text-sm text-hb-400">
                 {nbListings} bien{nbListings > 1 ? 's' : ''} · Réf: <strong className="font-mono text-hb-600 dark:text-white">{bookingRef?.slice(0, 8).toUpperCase()}</strong>
               </p>
             </div>
             <p className="text-xs text-hb-400 bg-hb-50 dark:bg-hb-700 rounded-xl px-4 py-3">
-              Un agent Habynex vous contactera dans les 24h pour fixer les rendez-vous de visite. 📞
+              {useFreeVisit
+                ? 'Un agent Habynex vous contactera dans les 24h pour fixer les rendez-vous. 📞'
+                : '⏳ Nous vérifions votre paiement MoMo. Vous recevrez une confirmation dans les 30 minutes.'}
             </p>
             {selectedListings.map(l => (
               <div key={l.id} className="w-full text-left p-3 bg-brand-50 dark:bg-brand-950/20 rounded-xl">

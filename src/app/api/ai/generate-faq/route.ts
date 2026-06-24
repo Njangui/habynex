@@ -148,30 +148,37 @@ RETOURNE UNIQUEMENT ce JSON valide, rien d'autre :
     }
 
     const questions: FaqItem[] = parsed.questions ?? []
-    if (!questions.length) return NextResponse.json({ error: 'FAQ vide' }, { status: 500 })
+    if (!questions.length) return NextResponse.json({ error: 'FAQ vide — DeepSeek n\'a pas retourné de questions' }, { status: 500, headers: cors })
 
+    // Insertion du FAQ — on log l'erreur précise si ça échoue
     const { data: faq, error: ie } = await supabase
       .from('listing_faqs')
-      .insert({ listing_id: listingId, questions, generated_by: 'ai' })
+      .insert({ listing_id: listingId, questions })
       .select('id').single()
 
     if (ie) {
-      console.error('FAQ insert error:', ie)
-      return NextResponse.json({ error: 'Erreur sauvegarde' }, { status: 500 })
+      console.error('FAQ insert error (détail):', JSON.stringify(ie))
+      return NextResponse.json({
+        error: `Erreur insertion listing_faqs : ${ie.message} (code: ${ie.code})`,
+      }, { status: 500, headers: cors })
     }
 
-    // Log tokens IA
-    await supabase.from('ai_logs').insert({
+    // Log tokens IA — non-bloquant, on ne laisse pas une erreur ici casser la réponse
+    supabase.from('ai_logs').insert({
       action_type: 'faq_generation',
       conversation_id: null,
       tokens_input: response.usage?.prompt_tokens ?? 0,
       tokens_output: response.usage?.completion_tokens ?? 0,
       escalated: false,
-    }).then(() => {})
+    }).then(({ error: logErr }) => {
+      if (logErr) console.warn('ai_logs insert warning (non-bloquant):', logErr.message)
+    })
 
     return NextResponse.json({ success: true, faqId: faq.id, count: questions.length }, { headers: cors })
-  } catch (err) {
+  } catch (err: any) {
     console.error('generate-faq error:', err)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500, headers: cors })
+    // Retourner le vrai message pour diagnostiquer
+    const message = err?.message ?? err?.toString() ?? 'Erreur inconnue'
+    return NextResponse.json({ error: message }, { status: 500, headers: cors })
   }
 }
