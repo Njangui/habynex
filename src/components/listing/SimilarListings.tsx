@@ -4,34 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Sparkles, Shuffle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { cn, formatPrice, listingTypeLabel, BLUR_DATA_URL } from '@/lib/utils'
+import { useRecommendations } from '@/hooks/useRecommendations'
 import type { Listing } from '@/types'
-
-// Requête minimale — seulement ce dont ListingCard a besoin
-const SELECT = `
-  id, slug, title, description, type, transaction, price, price_negotiable,
-  neighborhood_id, furnished, ai_generated, view_count, favorite_count,
-  bedrooms, bathrooms, surface_m2, published_at, created_at,
-  neighborhood:neighborhoods(id, name, slug, city_id, city:cities(id, name, slug)),
-  media:listing_media(id, url, type, is_cover, display_order)
-`.trim()
 
 interface Props { listing: Listing }
 
-type RawListing = {
-  id: string; slug: string; title: string; description: string | null
-  type: string; transaction: string; price: number; price_negotiable: boolean
-  neighborhood_id: string | null; furnished: boolean; ai_generated: boolean
-  view_count: number; favorite_count: number; bedrooms: number | null
-  bathrooms: number | null; surface_m2: number | null
-  published_at: string | null; created_at: string
-  neighborhood: { id: string; name: string; slug: string; city_id: string; city: { id: string; name: string; slug: string }[] }[] | null
-  media: { id: string; url: string; type: string; is_cover: boolean; display_order: number }[]
-}
-
 // Mini carte annonce sans WatermarkedImage — image next/image directe
-function MiniCard({ item }: { item: { listing: RawListing; kind: 'similar' | 'random' } }) {
+function MiniCard({ item }: { item: { listing: Listing; kind: 'similar' | 'random' } }) {
   const { listing, kind } = item
   const cover = listing.media?.find(m => m.is_cover)?.url ?? listing.media?.[0]?.url
   const neighborhood = Array.isArray(listing.neighborhood) ? listing.neighborhood[0] : listing.neighborhood
@@ -95,58 +75,42 @@ function MiniCard({ item }: { item: { listing: RawListing; kind: 'similar' | 'ra
 }
 
 export function SimilarListings({ listing }: Props) {
-  const supabase = createClient()
+  const { loadRecommendations, preloadListings } = useRecommendations()
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [items, setItems] = useState<{ listing: RawListing; kind: 'similar' | 'random' }[]>([])
+  const [items, setItems] = useState<{ listing: Listing; kind: 'similar' | 'random' }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [listing.id])
 
   async function load() {
     setLoading(true)
-    const pMin = Math.round(listing.price * 0.65)
-    const pMax = Math.round(listing.price * 1.35)
 
-    // 60% similaires
-    let { data: sim } = await supabase
-      .from('listings').select(SELECT)
-      .eq('status', 'published').eq('type', listing.type)
-      .eq('transaction', listing.transaction)
-      .neq('id', listing.id)
-      .gte('price', pMin).lte('price', pMax)
-      .order('view_count', { ascending: false }).limit(6)
+    // ── Similaires + personnalisées ────────────────────────────────
+    // loadRecommendations combine la similarité avec le bien consulté
+    // (type, transaction, quartier, prix, chambres...) ET les critères
+    // du profil de l'utilisateur connecté s'il y en a. Le pool sous-jacent
+    // est mis en cache (localStorage 30min + Zustand) donc les visites
+    // suivantes ne refont pas de requête Supabase.
+    const sim = await loadRecommendations(listing.id, 6)
 
-    if (!sim || sim.length < 3) {
-      const { data: ext } = await supabase
-        .from('listings').select(SELECT)
-        .eq('status', 'published').eq('type', listing.type)
-        .neq('id', listing.id)
-        .order('view_count', { ascending: false }).limit(6)
-      sim = ext ?? []
-    }
-
-    // 40% aléatoires
-    const { data: pool } = await supabase
-      .from('listings').select(SELECT)
-      .eq('status', 'published').neq('id', listing.id)
-      .neq('type', listing.type)
-      .order('published_at', { ascending: false }).limit(20)
-
-    const simIds = new Set(((sim ?? []) as any[]).map((l) => l.id))
-    const rnd = shuffle(((pool ?? []) as any[]).filter((l) => !simIds.has(l.id))).slice(0, 4)
+    // ── 40% découvertes aléatoires ──────────────────────────────────
+    // On réutilise le même pool en cache plutôt que de relancer une
+    // requête dédiée : on exclut le bien actuel et les similaires déjà
+    // choisis, puis on mélange.
+    const pool = await preloadListings()
+    const excludeIds = new Set([listing.id, ...sim.map(l => l.id)])
+    const rnd = shuffle(pool.filter(l => !excludeIds.has(l.id))).slice(0, 4)
 
     // Intercaler 3 similaires + 2 aléatoires
-    const mixed: { listing: RawListing; kind: 'similar' | 'random' }[] = []
-    const s = ((sim ?? []) as any[]) as RawListing[]
-    const r = (rnd as any[]) as RawListing[]
+    const mixed: { listing: Listing; kind: 'similar' | 'random' }[] = []
     let si = 0, ri = 0, pi = 0
-    const pattern = ['S','S','S','R','R'] as const
-    while (si < s.length || ri < r.length) {
+    const pattern = ['S', 'S', 'S', 'R', 'R'] as const
+    while (si < sim.length || ri < rnd.length) {
       const slot = pattern[pi++ % pattern.length]
-      if (slot === 'S' && si < s.length) mixed.push({ listing: s[si++] as RawListing, kind: 'similar' })
-      else if (slot === 'R' && ri < r.length) mixed.push({ listing: r[ri++] as RawListing, kind: 'random' })
-      else if (si < s.length) mixed.push({ listing: s[si++] as RawListing, kind: 'similar' })
-      else if (ri < r.length) mixed.push({ listing: r[ri++] as RawListing, kind: 'random' })
+      if (slot === 'S' && si < sim.length) mixed.push({ listing: sim[si++], kind: 'similar' })
+      else if (slot === 'R' && ri < rnd.length) mixed.push({ listing: rnd[ri++], kind: 'random' })
+      else if (si < sim.length) mixed.push({ listing: sim[si++], kind: 'similar' })
+      else if (ri < rnd.length) mixed.push({ listing: rnd[ri++], kind: 'random' })
       else break
     }
 
@@ -191,7 +155,7 @@ export function SimilarListings({ listing }: Props) {
                   <div className="h-3 bg-hb-100 rounded animate-pulse w-1/2" />
                 </div>
               ))
-            : items.map((item, i) => (
+            : items.map((item) => (
                 <div key={item.listing.id} className="flex-shrink-0 w-[160px] sm:w-[200px] md:w-[240px] snap-start">
                   <MiniCard item={item} />
                 </div>

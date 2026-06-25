@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { ImageUploader } from '@/components/ui/ImageUploader'
+import { useRecommendations } from '@/hooks/useRecommendations'
 import {
   Loader2, CheckCircle2, Sparkles, MapPin, Navigation,
   ChevronDown, ChevronUp, Info, Zap
@@ -59,6 +60,7 @@ export function AddListingForm() {
   const supabase = createClient()
   const { user, profile } = useAuthStore()
   const router = useRouter()
+  const { invalidateCache } = useRecommendations()
 
   const [step, setStep] = useState<'form' | 'ai' | 'done'>('form')
   const [photos, setPhotos] = useState<File[]>([])
@@ -321,6 +323,9 @@ export function AddListingForm() {
       }
 
       triggerFaqGeneration(listing.id)
+      // Le pool de recommandations en cache (localStorage + Zustand) est
+      // maintenant périmé puisqu'une nouvelle annonce vient d'être ajoutée.
+      invalidateCache()
       setStep('done')
     } catch (err: any) {
       toast.error(err.message ?? 'Erreur lors de la soumission')

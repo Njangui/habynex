@@ -4,7 +4,6 @@ import { z } from 'zod'
 
 // ================================================================
 // Paiement manuel — MTN MoMo / Orange Money
-// Remplace CinetPay pendant la phase de test (sans entreprise enregistrée)
 //
 // Flux :
 //   1. Client paie sur le numéro MoMo de l'admin
@@ -42,15 +41,15 @@ export async function POST(req: NextRequest) {
     const nbListings = listingIds.length
     const amount = isFree ? 0 : (PRICES[nbListings] ?? 7000)
 
-    // ── Vérifier solde visites gratuites ──────────────────────────
+    // ── Visite gratuite : décrémenter le solde de façon ATOMIQUE ────
+    // On consomme la visite gratuite AVANT de créer le booking. La
+    // fonction SQL decrement_free_visits fait le check ET la
+    // décrémentation en une seule opération côté base de données,
+    // donc deux requêtes concurrentes ne peuvent jamais passer toutes
+    // les deux (contrairement à un "select balance" puis "update" séparés).
     if (isFree) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('free_visits_balance')
-        .eq('id', user.id)
-        .single()
-
-      if (!profile || profile.free_visits_balance < 1) {
+      const { error: decrementError } = await supabase.rpc('decrement_free_visits', { user_id: user.id })
+      if (decrementError) {
         return NextResponse.json({ error: 'Aucune visite gratuite disponible' }, { status: 400 })
       }
     }
@@ -74,13 +73,16 @@ export async function POST(req: NextRequest) {
 
     if (bookingError || !booking) {
       console.error('Booking insert error:', bookingError)
+      // La visite gratuite a déjà été décrémentée : on la restitue pour ne pas
+      // pénaliser le client si la création du booking échoue.
+      if (isFree) {
+        await supabase.rpc('increment_free_visits', { user_id: user.id })
+      }
       return NextResponse.json({ error: 'Erreur lors de la création de la réservation' }, { status: 500 })
     }
 
-    // ── Visite gratuite : décrémenter + notifier client ──────────
+    // ── Visite gratuite : notifier le client ──────────────────────
     if (isFree) {
-      await supabase.rpc('decrement_free_visits', { user_id: user.id })
-
       await supabase.from('notifications').insert({
         user_id:    user.id,
         title:      '✅ Visite confirmée !',

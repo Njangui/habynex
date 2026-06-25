@@ -1,36 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  getDeepSeek, AI_MODEL, AI_MAX_TOKENS,
+  SYSTEM_PROMPT_BASE, buildUserCriteriaContext, shouldEscalate,
+} from '@/lib/ai/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import { sendPushToUser } from '@/lib/push/sendToUser'
-import type { FaqItem } from '@/types'
+import type { UserCriteria, FaqItem } from '@/types'
 
 // ================================================================
-// POST /api/ai/chat — version sans IA externe
-//
-// Flux simplifié :
-// 1. Créer/récupérer la conversation dans la table conversations
-// 2. Sauvegarder le message de l'utilisateur
-// 3. Si la question est dans le FAQ → répondre automatiquement
-//    (la conversation reste ouverte dans tous les cas)
-// 4. Notifier les admins par push + in-app
-// 5. Retourner la réponse FAQ (si trouvée) ou null
-//
-// L'admin répond depuis le dashboard admin OU depuis l'onglet
-// Messages de habynex. Plus de timer, plus d'IA fallback.
+// POST /api/ai/chat — v2
+// Ordre : escalade → FAQ (0 token) → attente admin 5min → IA fallback
 // ================================================================
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? ''
+const ADMIN_TIMEOUT_MS = 5 * 60 * 1000
 
 // ── Correspondance FAQ ─────────────────────────────────────────────
-function findFaqMatch(message: string, questions: FaqItem[]): FaqItem | null {
+function findFaqMatch(message: string, questions: FaqItem[]): string | null {
   const normalize = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   const msg = normalize(message)
 
   for (const item of questions) {
-    const keywords = item.keywords ?? []
-    const matches = keywords.filter((kw: string) => msg.includes(normalize(kw)))
-    const hasStrong = matches.some((kw: string) => kw.length > 5)
-    if (matches.length >= 2 || (matches.length === 1 && hasStrong)) return item
+    const matches = item.keywords.filter(kw => msg.includes(normalize(kw)))
+    const hasStrong = matches.some(kw => kw.length > 5)
+    if (matches.length >= 2 || (matches.length === 1 && hasStrong)) return item.a
   }
   return null
 }
@@ -39,31 +33,27 @@ function findFaqMatch(message: string, questions: FaqItem[]): FaqItem | null {
 async function notifyAdmins(
   supabase: ReturnType<typeof createAdminClient>,
   conversationId: string,
-  listingTitle: string,
-  clientName: string,
-  messagePreview: string,
+  listingId: string,
+  title: string,
+  body: string,
 ) {
   const { data: admins } = await supabase
     .from('user_roles').select('user_id').in('role', ['admin', 'super_admin'])
   if (!admins?.length) return
 
-  const title = `💬 ${clientName} — ${listingTitle}`
-  const body = messagePreview.slice(0, 80) + (messagePreview.length > 80 ? '…' : '')
-  const actionUrl = `${ADMIN_URL}/conversations?id=${conversationId}`
-
-  // In-app (dashboard admin)
+  // Notification in-app (visible dans le dashboard admin)
   await supabase.from('notifications').insert(
     admins.map((a: { user_id: string }) => ({
       user_id: a.user_id,
       title,
       body,
-      action_url: actionUrl,
+      action_url: `${ADMIN_URL}/conversations?id=${conversationId}`,
       channel: 'in_app',
-      metadata: { conversationId },
+      metadata: { conversationId, listingId },
     }))
   )
 
-  // Push (canal principal)
+  // Push — canal principal, pas d'email pour ce cas (trop fréquent, peu lu)
   await Promise.allSettled(
     admins.map((a: { user_id: string }) =>
       sendPushToUser({
@@ -71,143 +61,199 @@ async function notifyAdmins(
         type: 'message',
         title,
         message: body,
-        url: actionUrl,
+        url: `/conversations?id=${conversationId}`,
         requireInteraction: true,
       })
     )
   )
 }
 
-// ── Route principale ───────────────────────────────────────────────
+// ── Snapshot annonce pour la carte ─────────────────────────────────
+async function getListingSnapshot(supabase: ReturnType<typeof createAdminClient>, listingId: string) {
+  const { data } = await supabase
+    .from('listings')
+    .select(`
+      id, slug, title, price, price_negotiable, type, transaction,
+      bedrooms, bathrooms, surface_m2, furnished, address_hint,
+      neighborhood:neighborhoods!listings_neighborhood_id_fkey(name,
+        city:cities!neighborhoods_city_id_fkey(name)
+      ),
+      media:listing_media(url, is_cover, display_order)
+    `)
+    .eq('id', listingId)
+    .single()
+  return data
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { listingId, message, conversationId: existingConvId } = await req.json()
+    const {
+      conversationId,
+      message,
+      listingContext,
+    }: {
+      conversationId: string
+      message: string
+      listingContext?: UserCriteria | null
+    } = await req.json()
 
-    if (!listingId || !message?.trim()) {
-      return NextResponse.json({ error: 'listingId et message requis' }, { status: 400 })
-    }
+    if (!conversationId || !message)
+      return NextResponse.json({ error: 'conversationId et message requis' }, { status: 400 })
 
     const supabase = createAdminClient()
+    const now = new Date()
 
-    // Récupérer les infos utilisateur depuis le token
-    const authHeader = req.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '')
-    let userId: string | null = null
-    let clientName = 'Client'
-
-    if (token) {
-      const { data: { user } } = await supabase.auth.getUser(token)
-      if (user) {
-        userId = user.id
-        const { data: profile } = await supabase
-          .from('profiles').select('full_name').eq('id', user.id).single()
-        clientName = profile?.full_name ?? 'Client'
-      }
-    }
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
-
-    // ── 1. Créer ou récupérer la conversation ──────────────────────
-    let conversationId = existingConvId
-
-    if (!conversationId) {
-      // Chercher une conv existante pour cet utilisateur + annonce
-      const { data: existing } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('listing_id', listingId)
-        .eq('client_id', userId)
-        .single()
-
-      if (existing) {
-        conversationId = existing.id
-      } else {
-        // Créer une nouvelle conversation
-        const { data: created, error: convErr } = await supabase
-          .from('conversations')
-          .insert({
-            listing_id: listingId,
-            client_id: userId,
-            status: 'open',
-            admin_notified_at: new Date().toISOString(),
-          })
-          .select('id')
-          .single()
-
-        if (convErr || !created) {
-          console.error('Conversation create error:', convErr)
-          return NextResponse.json({ error: 'Impossible de créer la conversation' }, { status: 500 })
-        }
-        conversationId = created.id
-      }
-    }
-
-    // ── 2. Sauvegarder le message de l'utilisateur ─────────────────
-    await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content: message.trim(),
-      role: 'user',
-    })
-
-    // Mettre à jour le timestamp de la conversation
-    await supabase.from('conversations').update({
-      last_message_at: new Date().toISOString(),
-      status: 'open',
-    }).eq('id', conversationId)
-
-    // ── 3. Chercher une correspondance dans le FAQ ─────────────────
-    const { data: faqData } = await supabase
-      .from('listing_faqs')
-      .select('questions')
-      .eq('listing_id', listingId)
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('id, listing_id, ai_active, claimed_by, last_user_msg_at, admin_notified_at')
+      .eq('id', conversationId)
       .single()
 
-    let faqAnswer: string | null = null
+    if (!conv) return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 })
 
-    if (faqData?.questions?.length) {
-      const match = findFaqMatch(message.trim(), faqData.questions as FaqItem[])
-      if (match) {
-        faqAnswer = match.a
-        // Sauvegarder la réponse FAQ comme message automatique
+    // Mettre à jour horodatage dernier message utilisateur
+    await supabase.from('conversations').update({
+      last_user_msg_at: now.toISOString(),
+      last_message_at: now.toISOString(),
+      pending_ai_reply: true,
+    }).eq('id', conversationId)
+
+    // ── 1. Escalade urgente ──────────────────────────────────────────
+    if (shouldEscalate(message)) {
+      await supabase.from('conversations').update({
+        ai_active: false,
+        escalated_at: now.toISOString(),
+        escalation_reason: 'Sujet sensible (argent/confirmation)',
+        pending_ai_reply: false,
+      }).eq('id', conversationId)
+
+      await notifyAdmins(supabase, conversationId, conv.listing_id,
+        '🚨 Escalade urgente',
+        `Client: "${message.slice(0, 80)}"`)
+
+      return NextResponse.json({
+        reply: 'Je transfère votre demande à un conseiller Habynex qui vous répondra très rapidement. Merci pour votre patience ! 🙏',
+        source: 'escalation',
+        escalated: true,
+      })
+    }
+
+    // ── 2. Admin a déjà pris en main → attente (max 5min) ────────────
+    if (conv.claimed_by && !conv.ai_active) {
+      const elapsed = now.getTime() - new Date(conv.last_user_msg_at ?? now).getTime()
+      if (elapsed < ADMIN_TIMEOUT_MS) {
+        // Encore dans le délai, on n'envoie rien
+        return NextResponse.json({ reply: null, source: 'waiting_admin' })
+      }
+      // Délai dépassé → IA reprend
+      await supabase.from('conversations')
+        .update({ ai_active: true, claimed_by: null, claimed_at: null })
+        .eq('id', conversationId)
+    }
+
+    // ── 3. Chercher dans le FAQ (0 token IA) ────────────────────────
+    const { data: faq } = await supabase
+      .from('listing_faqs').select('questions').eq('listing_id', conv.listing_id).single()
+
+    if (faq?.questions?.length) {
+      const faqAnswer = findFaqMatch(message, faq.questions as FaqItem[])
+      if (faqAnswer) {
+        // Insérer la réponse FAQ en DB pour la voir en realtime côté client
         await supabase.from('messages').insert({
           conversation_id: conversationId,
           sender_id: null,
+          role: 'ai',
           content: faqAnswer,
-          role: 'ai',   // badge "FAQ" côté client
-          metadata: { source: 'faq', question: match.q },
         })
+        await supabase.from('conversations')
+          .update({ pending_ai_reply: false }).eq('id', conversationId)
+
+        return NextResponse.json({ reply: faqAnswer, source: 'faq', escalated: false })
       }
     }
 
-    // ── 4. Notifier les admins (dans tous les cas) ─────────────────
-    // Récupérer le titre de l'annonce pour la notification
-    const { data: listing } = await supabase
-      .from('listings').select('title').eq('id', listingId).single()
+    // ── 4. Première notification admin + carte annonce ────────────────
+    if (!conv.admin_notified_at) {
+      await notifyAdmins(supabase, conversationId, conv.listing_id,
+        '💬 Nouveau message client',
+        `Question hors FAQ : "${message.slice(0, 80)}${message.length > 80 ? '…' : ''}"`)
 
-    // Notifier seulement si c'est le premier message (nouvelle conv)
-    // ou si c'est une vraie question sans réponse FAQ
-    if (!faqAnswer || !existingConvId) {
-      notifyAdmins(
-        supabase,
-        conversationId,
-        listing?.title ?? 'Annonce',
-        clientName,
-        message.trim(),
-      ).catch(() => {}) // non-bloquant
+      // Envoyer la carte annonce (metadata pour le composant ChatBox)
+      const snap = await getListingSnapshot(supabase, conv.listing_id)
+      if (snap) {
+        await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_id: null,
+          role: 'ai',
+          content: '📋 Voici les informations du bien concerné',
+          metadata: { type: 'listing_card', listing: snap },
+        })
+      }
+
+      // Message d'attente pour l'utilisateur
+      const waitMsg = '💬 Votre message a bien été reçu ! Un conseiller Habynex va vous répondre très prochainement. Notre assistant IA prendra le relais si aucune réponse dans 5 minutes. 🙏'
+      await supabase.from('messages').insert({
+        conversation_id: conversationId, sender_id: null, role: 'ai', content: waitMsg,
+      })
+
+      await supabase.from('conversations').update({
+        admin_notified_at: now.toISOString(),
+        ai_active: false,
+        pending_ai_reply: true,
+      }).eq('id', conversationId)
+
+      return NextResponse.json({ reply: waitMsg, source: 'pending_admin', escalated: false })
     }
 
-    // ── 5. Retourner la réponse ────────────────────────────────────
-    return NextResponse.json({
-      conversationId,
-      faqAnswer,            // null si pas de correspondance FAQ
-      source: faqAnswer ? 'faq' : 'human', // indique si réponse auto ou attente humain
+    // ── 5. Vérifier si délai 5min dépassé pour réponse IA ────────────
+    const elapsed = now.getTime() - new Date(conv.admin_notified_at).getTime()
+    if (elapsed < ADMIN_TIMEOUT_MS) {
+      return NextResponse.json({ reply: null, source: 'waiting_admin' })
+    }
+
+    // ── 6. IA prend le relais (timeout admin) ────────────────────────
+    const { data: history } = await supabase
+      .from('messages')
+      .select('role, content')
+      .eq('conversation_id', conversationId)
+      .filter('metadata', 'is', null) // exclure les cartes annonce
+      .order('created_at', { ascending: true })
+      .limit(12)
+
+    const criteriaCtx = buildUserCriteriaContext(listingContext as UserCriteria ?? null)
+
+    const aiResponse = await getDeepSeek().chat.completions.create({
+      model: AI_MODEL,
+      max_tokens: AI_MAX_TOKENS,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT_BASE + criteriaCtx },
+        ...(history ?? [])
+          .filter((m: { role: string }) => m.role === 'user' || m.role === 'ai')
+          .map((m: { role: string; content: string }) => ({
+            role: (m.role === 'ai' ? 'assistant' : 'user') as 'user' | 'assistant',
+            content: m.content,
+          })),
+        { role: 'user', content: message },
+      ],
     })
 
-  } catch (err: any) {
-    console.error('chat route error:', err)
-    return NextResponse.json({ error: err?.message ?? 'Erreur serveur' }, { status: 500 })
+    const reply = aiResponse.choices[0]?.message?.content ?? ''
+
+    await supabase.from('conversations')
+      .update({ ai_active: true, pending_ai_reply: false })
+      .eq('id', conversationId)
+
+    await supabase.from('ai_logs').insert({
+      action_type: 'message_response_timeout',
+      conversation_id: conversationId,
+      tokens_input: aiResponse.usage?.prompt_tokens ?? 0,
+      tokens_output: aiResponse.usage?.completion_tokens ?? 0,
+      escalated: false,
+    })
+
+    return NextResponse.json({ reply, source: 'ai_timeout', escalated: false })
+  } catch (err) {
+    console.error('ai/chat error:', err)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

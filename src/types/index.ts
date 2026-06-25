@@ -201,19 +201,9 @@ export interface KpiSnapshot {
   active_agents: number; visits_completed: number
 }
 
-// ── Paiement ──────────────────────────────────────────────────────
-export interface CinetPayInitiateResponse {
-  code: string; message: string
-  data: { payment_token: string; payment_url: string }
-}
-
-export interface CinetPayWebhookPayload {
-  cpm_site_id: string; cpm_trans_id: string; cpm_trans_date: string
-  cpm_amount: string; cpm_currency: string; signature: string
-  payment_method: string; cel_phone_num: string
-  cpm_result: string   // '00' = SUCCÈS
-  cpm_error_message: string; cpm_designation: string
-}
+// ── Paiement (manuel MTN MoMo / Orange Money) ──────────────────────
+export type PaymentOperator = 'mtn' | 'orange'
+export type PaymentMethod = PaymentOperator | 'free'
 
 // ── SEO ───────────────────────────────────────────────────────────
 export interface SeoMetadata {

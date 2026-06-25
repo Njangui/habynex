@@ -3,6 +3,8 @@
 import { useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useListingsStore } from '@/stores/listings'
+import { useAuthStore } from '@/stores/auth'
+import { useRecommendations, scoreListing } from '@/hooks/useRecommendations'
 import type {
   Listing,
   ListingFilters,
@@ -72,6 +74,8 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 min
 export function useListings() {
   const supabase = createClient()
   const store = useListingsStore()
+  const { profile } = useAuthStore()
+  const { preloadListings } = useRecommendations()
 
   const pendingRef = useRef<Set<string>>(new Set())
 
@@ -140,54 +144,24 @@ export function useListings() {
             break
 
           case 'for_you': {
-            // Récupérer les critères du profil utilisateur via auth store
-            // On importe useAuthStore de façon isolée pour ne pas créer de dépendance circulaire
-            // → On passe les critères via le store Zustand déjà chargé
-            const storeState = (await import('@/stores/auth')).useAuthStore.getState()
-            const criteria = (storeState.profile as any)?.criteria ?? {}
+            // ── Moteur unifié ────────────────────────────────────────
+            // Avant : une requête SQL dédiée qui filtrait strictement sur
+            // les critères du profil, avec un fallback séparé si vide.
+            // Maintenant : on récupère le MÊME pool en cache (localStorage
+            // 30min + Zustand, partagé avec SimilarListings / la page de
+            // détail) et on le note avec le même algorithme (scoreListing)
+            // — un seul moteur de recommandation, une seule requête
+            // possible pour toute l'app au lieu de deux logiques + deux
+            // jeux de requêtes différents.
+            const criteria = (profile as any)?.criteria ?? null
+            const pool = await preloadListings()
 
-            const types: string[] = criteria?.types ?? []
-            const transaction: string = criteria?.transaction ?? ''
-            const budgetMax: number = criteria?.budget_max ?? 0
-            const budgetMin: number = criteria?.budget_min ?? 0
-            const neighborhoodIds: string[] = criteria?.neighborhood_ids ?? []
-            const furnished: boolean | undefined = criteria?.furnished
+            const scored = pool
+              .map(l => ({ listing: l, score: scoreListing(l, criteria, null) }))
+              .sort((a, b) => b.score - a.score)
 
-            // Construire la requête avec les critères utilisateur
-            let forYouQ = supabase
-              .from('listings')
-              .select(LISTING_CARD_SELECT)
-              .eq('status', 'published')
+            const listings = scored.slice(0, 12).map(s => s.listing)
 
-            // Appliquer les critères (du moins contraignant au plus)
-            if (transaction) forYouQ = forYouQ.eq('transaction', transaction)
-            if (types.length > 0) forYouQ = forYouQ.in('type', types)
-            if (budgetMax > 0) forYouQ = forYouQ.lte('price', budgetMax * 1.2) // +20% tolérance
-            if (budgetMin > 0) forYouQ = forYouQ.gte('price', budgetMin * 0.8)
-            if (furnished !== undefined) forYouQ = forYouQ.eq('furnished', furnished)
-            if (neighborhoodIds.length > 0) forYouQ = forYouQ.in('neighborhood_id', neighborhoodIds)
-
-            // Trier par popularité dans les critères
-            forYouQ = forYouQ.order('view_count', { ascending: false }).limit(12)
-
-            const { data: forYouData, error: forYouError } = await forYouQ
-
-            if (forYouError || !forYouData?.length) {
-              // Fallback : si aucun résultat avec critères stricts, élargir
-              const { data: fallback } = await supabase
-                .from('listings')
-                .select(LISTING_CARD_SELECT)
-                .eq('status', 'published')
-                .order('favorite_count', { ascending: false })
-                .limit(8)
-              query = supabase.from('listings').select(LISTING_CARD_SELECT).eq('status', 'published').limit(0) // dummy
-              const listings = (fallback ?? []) as unknown as Listing[]
-              blockCache.set(cacheKey, { data: listings, ts: Date.now() })
-              store.setBlock(block, listings)
-              return
-            }
-
-            const listings = (forYouData ?? []) as unknown as Listing[]
             blockCache.set(cacheKey, { data: listings, ts: Date.now() })
             store.setBlock(block, listings)
             return
@@ -215,7 +189,7 @@ export function useListings() {
         pendingRef.current.delete(cacheKey)
       }
     },
-    [supabase, store]
+    [supabase, store, profile, preloadListings]
   )
 
   // ───────────────────────────────────────────────────────────

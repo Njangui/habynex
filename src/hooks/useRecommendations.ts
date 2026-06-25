@@ -69,7 +69,7 @@ export const useRecoStore = create<RecoStore>((set, get) => ({
 }))
 
 // ── Algorithme de score ────────────────────────────────────────────
-function scoreListing(
+export function scoreListing(
   listing: Listing,
   criteria: UserCriteria | null,
   currentListing: Listing | null,
