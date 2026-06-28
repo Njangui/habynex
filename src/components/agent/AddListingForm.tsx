@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth'
 import { ImageUploader } from '@/components/ui/ImageUploader'
-import { useRecommendations } from '@/hooks/useRecommendations'
 import {
   Loader2, CheckCircle2, Sparkles, MapPin, Navigation,
   ChevronDown, ChevronUp, Info, Zap
@@ -60,7 +59,6 @@ export function AddListingForm() {
   const supabase = createClient()
   const { user, profile } = useAuthStore()
   const router = useRouter()
-  const { invalidateCache } = useRecommendations()
 
   const [step, setStep] = useState<'form' | 'ai' | 'done'>('form')
   const [photos, setPhotos] = useState<File[]>([])
@@ -197,11 +195,21 @@ export function AddListingForm() {
 
   // ── Génération FAQ (fire-and-forget) ──
   async function triggerFaqGeneration(listingId: string) {
-    fetch('/api/ai/generate-faq', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listingId }),
-    }).catch(err => console.warn('[FAQ] génération échouée (non-critique):', err))
+    try {
+      const res = await fetch('/api/ai/generate-faq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        console.error('[FAQ] erreur génération:', data.error ?? res.status)
+      } else {
+        console.log('[FAQ] OK:', data.count, 'questions générées')
+      }
+    } catch (err) {
+      console.warn('[FAQ] génération échouée (non-critique):', err)
+    }
   }
 
   // ── Soumission ──
@@ -323,9 +331,6 @@ export function AddListingForm() {
       }
 
       triggerFaqGeneration(listing.id)
-      // Le pool de recommandations en cache (localStorage + Zustand) est
-      // maintenant périmé puisqu'une nouvelle annonce vient d'être ajoutée.
-      invalidateCache()
       setStep('done')
     } catch (err: any) {
       toast.error(err.message ?? 'Erreur lors de la soumission')
