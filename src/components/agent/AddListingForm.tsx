@@ -203,9 +203,9 @@ export function AddListingForm() {
       })
       const data = await res.json()
       if (!res.ok) {
-        console.error('[FAQ] erreur génération:', data.error ?? res.status)
+        console.error('[FAQ] erreur:', data.error ?? res.status)
       } else {
-        console.log('[FAQ] OK:', data.count, 'questions générées')
+        console.log('[FAQ] OK —', data.count, 'questions générées')
       }
     } catch (err) {
       console.warn('[FAQ] génération échouée (non-critique):', err)

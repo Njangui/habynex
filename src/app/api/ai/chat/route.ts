@@ -3,12 +3,26 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { sendPushToUser } from '@/lib/push/sendToUser'
 import type { FaqItem } from '@/types'
 
+// ================================================================
+// POST /api/ai/chat — sans IA externe
+//
+// Flux :
+// 1. Chercher correspondance FAQ → retourner réponse si trouvée
+// 2. Notifier les admins (push + in-app)
+// 3. Retourner null → admin répond depuis dashboard ou Messages
+//
+// Le ChatBox s'occupe déjà de :
+// - Insérer le message user en DB
+// - Insérer data.reply en DB si non null
+// ================================================================
+
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? ''
 
 function findFaqMatch(message: string, questions: FaqItem[]): string | null {
   const normalize = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   const msg = normalize(message)
+
   for (const item of questions) {
     const keywords = item.keywords ?? []
     const matches = keywords.filter((kw: string) => msg.includes(normalize(kw)))
@@ -57,14 +71,12 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createAdminClient()
+    const now = new Date()
 
+    // Récupérer la conversation
     const { data: conv } = await supabase
       .from('conversations')
-      .select(`
-        id, listing_id, client_id, admin_notified_at,
-        listing:listings(title),
-        client:profiles!conversations_client_id_fkey(full_name)
-      `)
+      .select('id, listing_id, admin_notified_at, claimed_by')
       .eq('id', conversationId)
       .single()
 
@@ -72,46 +84,63 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 })
     }
 
-    const listingTitle = (Array.isArray(conv.listing) ? conv.listing[0] : conv.listing as any)?.title ?? 'Annonce'
-    const clientName = (Array.isArray(conv.client) ? conv.client[0] : conv.client as any)?.full_name ?? 'Client'
-
-    // Mettre à jour la conversation
+    // Mettre à jour les timestamps
     await supabase.from('conversations').update({
-      last_message_at: new Date().toISOString(),
+      last_user_msg_at: now.toISOString(),
+      last_message_at: now.toISOString(),
+      pending_ai_reply: false, // plus d'IA — on n'attend pas
       status: 'open',
-      pending_ai_reply: false,
     }).eq('id', conversationId)
 
-    // Chercher correspondance FAQ
-    const { data: faqData } = await supabase
+    // ── 1. Chercher dans le FAQ ──────────────────────────────────────
+    const { data: faq } = await supabase
       .from('listing_faqs')
       .select('questions')
       .eq('listing_id', conv.listing_id)
       .single()
 
-    let faqAnswer: string | null = null
-
-    if (faqData?.questions?.length) {
-      faqAnswer = findFaqMatch(message.trim(), faqData.questions as FaqItem[])
+    if (faq?.questions?.length) {
+      const faqAnswer = findFaqMatch(message.trim(), faq.questions as FaqItem[])
       if (faqAnswer) {
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_id: null,
-          role: 'ai',
-          content: faqAnswer,
-          metadata: { source: 'faq' },
+        // Le ChatBox va insérer data.reply en DB automatiquement
+        // On notifie quand même l'admin (il peut compléter si nécessaire)
+        notifyAdmins(
+          supabase, conversationId, conv.listing_id,
+          '💬 Question avec réponse FAQ automatique',
+          message.trim().slice(0, 80),
+        ).catch(() => {})
+
+        return NextResponse.json({
+          reply: faqAnswer,
+          source: 'faq',
+          escalated: false,
         })
       }
     }
 
-    // Notifier les admins — une fois par tranche de 10 minutes
+    // ── 2. Pas de FAQ → notifier les admins ─────────────────────────
+    // Anti-spam : notifier une fois, puis seulement après 10 min d'inactivité
     const shouldNotify = !conv.admin_notified_at ||
       Date.now() - new Date(conv.admin_notified_at).getTime() > 10 * 60 * 1000
 
     if (shouldNotify) {
       await supabase.from('conversations').update({
-        admin_notified_at: new Date().toISOString(),
+        admin_notified_at: now.toISOString(),
+        ai_active: false,
       }).eq('id', conversationId)
+
+      // Récupérer le nom du client pour la notification
+      const { data: conv2 } = await supabase
+        .from('conversations')
+        .select(`
+          listing:listings(title),
+          client:profiles!conversations_client_id_fkey(full_name)
+        `)
+        .eq('id', conversationId)
+        .single()
+
+      const listingTitle = (Array.isArray(conv2?.listing) ? conv2.listing[0] : conv2?.listing as any)?.title ?? 'Annonce'
+      const clientName = (Array.isArray(conv2?.client) ? conv2.client[0] : conv2?.client as any)?.full_name ?? 'Client'
 
       notifyAdmins(
         supabase, conversationId, conv.listing_id,
@@ -120,14 +149,15 @@ export async function POST(req: NextRequest) {
       ).catch(() => {})
     }
 
+    // ── 3. Pas de réponse automatique → admin répondra ──────────────
     return NextResponse.json({
-      reply: faqAnswer,
-      source: faqAnswer ? 'faq' : 'human',
+      reply: null,      // ChatBox n'insère rien → utilisateur attend la réponse admin
+      source: 'human',
       escalated: false,
     })
 
   } catch (err: any) {
-    console.error('[chat] error:', err)
+    console.error('[ai/chat] error:', err)
     return NextResponse.json({ error: err?.message ?? 'Erreur serveur' }, { status: 500 })
   }
 }
