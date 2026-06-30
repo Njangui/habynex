@@ -147,7 +147,7 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
 
     if (insertErr) {
       console.error('[ChatBox] insert user message failed:', insertErr)
-      toast.error("Votre message n'a pas pu être envoyé. Réessayez.")
+      toast.error(`Échec envoi : ${insertErr.message || insertErr.code || 'erreur inconnue'}`)
       setMessages(prev => prev.filter(m => m.id !== tempId))
       setInput(content)
       return
