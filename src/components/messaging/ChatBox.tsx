@@ -71,7 +71,7 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
         .order('created_at', { ascending: true })
         .limit(30)
 
-      if (history) {
+      if (history && history.length > 0) {
         setMessages(history as Msg[])
       } else {
         // Message de bienvenue IA
@@ -104,9 +104,18 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
         filter: `conversation_id=eq.${conversationId}`,
       }, payload => {
         setMessages(prev => {
-          const exists = prev.find(m => m.id === payload.new.id)
-          if (exists) return prev
-          return [...prev, payload.new as Msg]
+          const incoming = payload.new as Msg
+          const existsById = prev.find(m => m.id === incoming.id)
+          if (existsById) return prev
+          // Remplace le message optimiste temporaire correspondant (même
+          // contenu, même rôle) plutôt que de l'ajouter en double
+          const tempMatch = prev.find(m =>
+            m.id.startsWith('temp-') && m.role === incoming.role && m.content === incoming.content
+          )
+          if (tempMatch) {
+            return prev.map(m => (m.id === tempMatch.id ? incoming : m))
+          }
+          return [...prev, incoming]
         })
       })
       .subscribe()
@@ -129,12 +138,20 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
     }])
 
     // Sauvegarder en DB
-    await supabase.from('messages').insert({
+    const { error: insertErr } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: user?.id,
       role: 'user',
       content,
     })
+
+    if (insertErr) {
+      console.error('[ChatBox] insert user message failed:', insertErr)
+      toast.error("Votre message n'a pas pu être envoyé. Réessayez.")
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      setInput(content)
+      return
+    }
 
     setLoading(true)
     try {
@@ -145,14 +162,12 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
       })
       const data = await res.json()
 
-      // Sauvegarder la réponse IA
-      if (data.reply) {
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_id: null,
-          role: 'ai',
-          content: data.reply,
-        })
+      // La réponse IA (si trouvée) est déjà insérée côté serveur
+      // (client admin / service role). On ne l'insère plus ici — le
+      // canal realtime ci-dessus va l'ajouter automatiquement à `messages`.
+      // On affiche juste une erreur si jamais l'API a échoué.
+      if (data.error) {
+        console.error('[ChatBox] /api/ai/chat error:', data.error)
       }
 
       if (data.escalated) {

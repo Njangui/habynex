@@ -7,13 +7,17 @@ import type { FaqItem } from '@/types'
 // POST /api/ai/chat — sans IA externe
 //
 // Flux :
-// 1. Chercher correspondance FAQ → retourner réponse si trouvée
-// 2. Notifier les admins (push + in-app)
-// 3. Retourner null → admin répond depuis dashboard ou Messages
+// 1. Chercher correspondance FAQ → si trouvée, on insère NOUS-MÊMES la
+//    réponse dans `messages` (client admin = service role, bypass RLS)
+//    puis on la retourne aussi dans la réponse JSON
+// 2. Pas de FAQ → notifier les admins (push + in-app), admin répond
+//    depuis le dashboard (qui utilise déjà le client admin pour insérer)
 //
-// Le ChatBox s'occupe déjà de :
-// - Insérer le message user en DB
-// - Insérer data.reply en DB si non null
+// Le ChatBox ne fait QUE :
+// - Insérer le message user en DB (RLS client OK car sender_id = auth.uid())
+// - Écouter le canal realtime sur `messages` pour afficher les nouvelles
+//   lignes (réponse IA insérée ici, ou réponse admin insérée par le
+//   dashboard). Il n'insère plus la réponse lui-même.
 // ================================================================
 
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL ?? ''
@@ -102,7 +106,28 @@ export async function POST(req: NextRequest) {
     if (faq?.questions?.length) {
       const faqAnswer = findFaqMatch(message.trim(), faq.questions as FaqItem[])
       if (faqAnswer) {
-        // Le ChatBox va insérer data.reply en DB automatiquement
+        // IMPORTANT : on insère la réponse nous-mêmes avec le client admin
+        // (service role, bypass RLS). Le ChatBox ne fait QUE écouter le
+        // realtime — il n'insère plus rien côté client. Avant, l'insert
+        // était fait depuis le navigateur avec le client anonyme, ce qui
+        // échouait silencieusement si la policy RLS INSERT sur `messages`
+        // n'autorisait pas role='ai' / sender_id=null, et l'erreur n'était
+        // jamais vérifiée → aucune réponse n'apparaissait jamais dans le chat.
+        const { error: insertMsgErr } = await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_id: null,
+          role: 'ai',
+          content: faqAnswer,
+        })
+
+        if (insertMsgErr) {
+          console.error('[ai/chat] insert AI message failed:', insertMsgErr)
+        } else {
+          await supabase.from('conversations').update({
+            last_message_at: new Date().toISOString(),
+          }).eq('id', conversationId)
+        }
+
         // On notifie quand même l'admin (il peut compléter si nécessaire)
         notifyAdmins(
           supabase, conversationId, conv.listing_id,
@@ -114,6 +139,7 @@ export async function POST(req: NextRequest) {
           reply: faqAnswer,
           source: 'faq',
           escalated: false,
+          inserted: !insertMsgErr,
         })
       }
     }

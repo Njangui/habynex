@@ -318,11 +318,18 @@ function InlineChatBox({ conversationId }: { conversationId: string }) {
         },
         payload => {
           setMessages(prev => {
-            if (prev.find((m: any) => m.id === payload.new.id)) {
+            const incoming = payload.new as any
+            if (prev.find((m: any) => m.id === incoming.id)) {
               return prev
             }
-
-            return [...prev, payload.new]
+            const tempMatch = prev.find((m: any) =>
+              typeof m.id === 'string' && m.id.startsWith('temp-') &&
+              m.role === incoming.role && m.content === incoming.content
+            )
+            if (tempMatch) {
+              return prev.map((m: any) => (m.id === tempMatch.id ? incoming : m))
+            }
+            return [...prev, incoming]
           })
         }
       )
@@ -358,12 +365,29 @@ function InlineChatBox({ conversationId }: { conversationId: string }) {
     setInput('')
     setLoading(true)
 
-    await supabase.from('messages').insert({
+    const tempId = `temp-${Date.now()}`
+    setMessages(prev => [...prev, {
+      id: tempId,
+      role: 'user',
+      content,
+      created_at: new Date().toISOString(),
+      sender_id: user?.id,
+    }])
+
+    const { error: insertErr } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: user?.id,
       role: 'user',
       content,
     })
+
+    if (insertErr) {
+      console.error('[MessagesPage] insert user message failed:', insertErr)
+      setMessages(prev => prev.filter((m: any) => m.id !== tempId))
+      setInput(content)
+      setLoading(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/ai/chat', {
@@ -378,14 +402,11 @@ function InlineChatBox({ conversationId }: { conversationId: string }) {
       })
 
       const data = await res.json()
-
-      if (data.reply) {
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_id: null,
-          role: 'ai',
-          content: data.reply,
-        })
+      // La réponse IA (si trouvée) est déjà insérée côté serveur — le
+      // canal realtime ci-dessus l'ajoute automatiquement. Plus besoin
+      // de l'insérer ici (c'était bloqué silencieusement par RLS).
+      if (data.error) {
+        console.error('[MessagesPage] /api/ai/chat error:', data.error)
       }
     } finally {
       setLoading(false)
