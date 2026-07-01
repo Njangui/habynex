@@ -159,13 +159,20 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversationId, message: content, listingContext }),
+        signal: AbortSignal.timeout(15000), // 15s max
       })
-      const data = await res.json()
 
-      // La réponse IA (si trouvée) est déjà insérée côté serveur
-      // (client admin / service role). On ne l'insère plus ici — le
-      // canal realtime ci-dessus va l'ajouter automatiquement à `messages`.
-      // On affiche juste une erreur si jamais l'API a échoué.
+      // La réponse peut être HTML (erreur Vercel 5xx) — on parse prudemment
+      let data: any = {}
+      try {
+        data = await res.json()
+      } catch {
+        // Vercel a retourné une page d'erreur HTML au lieu de JSON
+        // Le message user est déjà en DB — on ne montre pas d'erreur à l'utilisateur
+        console.warn('[ChatBox] /api/ai/chat returned non-JSON (status:', res.status, ')')
+        return
+      }
+
       if (data.error) {
         console.error('[ChatBox] /api/ai/chat error:', data.error)
       }
@@ -173,8 +180,14 @@ export function ChatBox({ listingId, listingTitle, listingContext, onClose }: Ch
       if (data.escalated) {
         toast('Un conseiller prend le relais 👤', { icon: 'ℹ️' })
       }
-    } catch {
-      toast.error('Erreur de connexion. Réessayez.')
+    } catch (err: any) {
+      // Timeout ou perte réseau — le message est déjà en DB, ne pas alarmer l'utilisateur
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+        console.warn('[ChatBox] /api/ai/chat timeout')
+      } else {
+        console.error('[ChatBox] fetch error:', err)
+      }
+      // Pas de toast d'erreur : le message a été inséré, l'admin peut répondre
     } finally {
       setLoading(false)
     }
