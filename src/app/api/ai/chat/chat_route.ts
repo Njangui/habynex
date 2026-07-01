@@ -27,11 +27,24 @@ function findFaqMatch(message: string, questions: FaqItem[]): string | null {
     s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
   const msg = normalize(message)
 
+  // Score chaque question FAQ
   for (const item of questions) {
+    // 1. Match sur les mots-clés définis
     const keywords = item.keywords ?? []
-    const matches = keywords.filter((kw: string) => msg.includes(normalize(kw)))
-    const hasStrong = matches.some((kw: string) => kw.length > 5)
-    if (matches.length >= 2 || (matches.length === 1 && hasStrong)) return item.a
+    const kwMatches = keywords.filter((kw: string) => msg.includes(normalize(kw)))
+    const hasStrong = kwMatches.some((kw: string) => kw.length > 4)
+    if (kwMatches.length >= 2 || (kwMatches.length === 1 && hasStrong)) return item.a
+
+    // 2. Fallback : match sur le texte de la question elle-même
+    // Extrait les mots significatifs de la question (> 3 chars)
+    const qWords = normalize(item.q ?? '')
+      .split(/\s+/)
+      .filter((w: string) => w.length > 3)
+    const qMatches = qWords.filter((w: string) => msg.includes(w))
+    // ≥ 2 mots significatifs en commun → réponse pertinente
+    if (qMatches.length >= 2) return item.a
+    // 1 seul mot mais très significatif (> 6 chars) → réponse pertinente
+    if (qMatches.length === 1 && qMatches[0].length > 6) return item.a
   }
   return null
 }
