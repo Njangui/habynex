@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     // Mise à jour basique (uniquement colonnes qui existent à coup sûr)
     await supabase
       .from('conversations')
-      .update({ last_message_at: now, status: 'open' })
+      .update({ last_message_at: now })
       .eq('id', conversationId)
 
     // ── 1. Chercher dans la FAQ ──────────────────────────────────────

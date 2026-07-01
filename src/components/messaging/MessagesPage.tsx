@@ -56,6 +56,19 @@ export function MessagesPage() {
 
     setLoading(true)
 
+    // S'assurer que la session Supabase est initialisée (auth.uid() disponible
+    // pour la policy RLS) avant de lancer la query.
+    // Sans ça, auth.uid() peut être null si la session n'est pas encore hydratée
+    // côté client, et la policy conv_select_own retourne 0 résultats.
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.warn('[MessagesPage] no Supabase session yet, retrying in 1s')
+      setTimeout(() => loadConversations(), 1000)
+      return
+    }
+
+    console.log('[MessagesPage] querying conversations for user:', session.user.id)
+
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -83,12 +96,18 @@ export function MessagesPage() {
       .order('last_message_at', { ascending: false })
 
     if (error) {
-      console.error(error)
+      console.error('[MessagesPage] load conversations error:', JSON.stringify(error))
+      // Afficher l'erreur exacte pour diagnostic
+      if (typeof window !== 'undefined') {
+        const msg = (error as any)?.message || (error as any)?.code || JSON.stringify(error)
+        console.warn('[MessagesPage] Supabase error detail:', msg)
+      }
       setConversations([])
       setLoading(false)
       return
     }
 
+    console.log('[MessagesPage] loaded', data?.length, 'conversations')
     setConversations((data as unknown as ConvWithListing[]) ?? [])
 
     setLoading(false)
